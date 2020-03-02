@@ -18,7 +18,7 @@ extern crate rand;
 use sdl2::pixels::Color;
 
 use crate::dice;
-use crate::items::Inventory;
+use crate::items::{Item, Inventory};
 
 #[derive(Debug)]
 pub enum PirateType {
@@ -52,7 +52,7 @@ impl Player {
 		let con_mod = Player::mod_for_stat(stats[3]);
 		let hp = 8 + dice::roll(8, 4, con_mod);
 		
-		Player { 
+		let mut p = Player { 
 			name, ac: 10, 
 			stamina: hp,
 			dexterity: stats[0],
@@ -63,7 +63,15 @@ impl Player {
 			row:0, col:0, 
 			inventory: Inventory::new(),
 			p_type: PirateType::Swab,
-		}
+		};
+
+		p.inventory.add(Item::get_item("rusty cutlass").unwrap());
+		p.inventory.add(Item::get_item("leather jerkin").unwrap());
+		p.inventory.add(Item::get_item("draught of rum").unwrap());
+		p.inventory.add(Item::get_item("draught of rum").unwrap());
+		p.inventory.add(Item::get_item("draught of rum").unwrap());
+
+		p
 	}
 
 	pub fn new_seadog(name: String) -> Player {
@@ -71,7 +79,7 @@ impl Player {
 		let con_mod = Player::mod_for_stat(stats[0]);
 		let hp = 8 + dice::roll(8, 6, con_mod);
 		
-		Player { 
+		let mut p = Player { 
 			name, ac: 10, 
 			stamina: hp,
 			constitution: stats[0],
@@ -82,7 +90,20 @@ impl Player {
 			row:0, col:0, 
 			inventory: Inventory::new(),
 			p_type: PirateType::Seadog,
+		};
+
+		p.inventory.add(Item::get_item("rusty cutlass").unwrap());
+		p.inventory.add(Item::get_item("flintlock pistol").unwrap());
+		p.inventory.add(Item::get_item("overcoat").unwrap());
+		p.inventory.add(Item::get_item("battered tricorn").unwrap());
+		p.inventory.add(Item::get_item("draught of rum").unwrap());
+		p.inventory.add(Item::get_item("draught of rum").unwrap());
+		p.inventory.add(Item::get_item("draught of rum").unwrap());
+		for _ in 0..12 {
+			p.inventory.add(Item::get_item("lead ball").unwrap());
 		}
+
+		p
 	}
 
 	fn roll_stats(bonus: i8) -> Vec<u8> {

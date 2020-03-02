@@ -29,7 +29,7 @@ mod pathfinding;
 use crate::actor::{Act, Player, PirateType};
 use crate::dice::roll;
 use crate::display::GameUI;
-use crate::items::ItemsTable;
+use crate::items::{Item, ItemsTable};
 
 use rand::Rng;
 
@@ -305,38 +305,6 @@ fn add_monster(map: &Map, state: &mut GameState, npcs: &mut NPCTable) {
 	npcs.insert((row, col), Rc::new(RefCell::new(m)));
 }
 
-fn add_test_item(map: &Map, items: &mut ItemsTable) {
-	let mut row = 0;
-	let mut col = 0;
-	loop {
-		row = rand::thread_rng().gen_range(0, map.len());
-		col = rand::thread_rng().gen_range(0, map[0].len());
-
-		let tile = map[row][col];
-		if map::is_passable(tile) { break; };
-	}	
-
-	let i = items::Item::new("draught of rum", items::ItemType::Drink, 1, true,
-		'!', display::BROWN);
-	items.add(row, col, i);	
-
-	let i = items::Item::new("rusty cutlass", items::ItemType::Weapon, 3, false,
-		'|', display::WHITE);
-	items.add(row, col, i);	
-
-	let i = items::Item::new("draught of rum", items::ItemType::Drink, 1, true,
-		'!', display::BROWN);
-	items.add(row, col + 1, i);	
-
-	let i = items::Item::new("draught of rum", items::ItemType::Drink, 1, true,
-		'!', display::BROWN);
-	items.add(row + 1, col, i);	
-
-	let i = items::Item::new("draught of gin", items::ItemType::Drink, 1, true,
-		'!', display::WHITE);
-	items.add(row - 1, col, i);	
-}
-
 fn is_putting_on_airs(name: &str) -> bool {
 	name.to_lowercase().starts_with("capt") ||
 		name.to_lowercase().starts_with("capn") ||
@@ -419,7 +387,6 @@ fn run(map: &Map) {
 	add_monster(map, &mut state, &mut npcs);
 
 	let mut items = ItemsTable::new();
-	add_test_item(map, &mut items);
 
 	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
 	gui.v_matrix = fov::calc_v_matrix(&map, &npcs, &items,

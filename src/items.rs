@@ -17,15 +17,10 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use sdl2::pixels::Color;
 
+use crate::display;
+
 pub trait TileInfo {
 	fn get_tile_info(&self) -> (Color, char);
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum ItemType {
-	Weapon,
-	Clothing,
-	Drink,
 }
 
 #[derive(Debug)]
@@ -236,6 +231,16 @@ impl ItemsTable {
 	}
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum ItemType {
+	Weapon,
+	Coat,
+	Hat,
+	Drink,
+	Firearm,
+	Bullet,
+}
+
 #[derive(Debug)]
 pub struct Item {
 	pub name: String,
@@ -244,14 +249,52 @@ pub struct Item {
 	pub symbol: char,
 	pub color: Color,
 	pub stackable: bool,
-	pub prev_slot: char
+	pub prev_slot: char,
+	pub dmg: u8,
+	pub bonus: u8,
+	pub armour_value: u8,
+	pub equiped: bool,
 }
 
 impl Item {
-	pub fn new(name: &str, item_type: ItemType, w: u8, stackable: bool,
-			sym: char, color: Color) -> Item {
+	fn new(name: &str, item_type: ItemType, w: u8, stackable: bool, sym: char, color: Color) -> Item {
 		Item { name: String::from(name), 
-			item_type, weight: w, symbol: sym, color, stackable, prev_slot: '\0' }
+			item_type, weight: w, symbol: sym, color, stackable, prev_slot: '\0',
+				dmg: 1, bonus: 0, armour_value: 0, equiped: false }
+	}
+
+	pub fn get_item(name: &str) -> Option<Item> {
+		match name {
+			"draught of rum" => Some(Item::new(name, ItemType::Drink, 1, true, '!', display::BROWN)),
+			"rusty cutlass" => {
+				let mut i = Item::new(name, ItemType::Weapon, 3, false, '|', display::WHITE);
+				i.dmg = 5;
+				Some(i)
+			},
+			"battered tricorn" => {
+				let mut i = Item::new(name, ItemType::Hat, 1, false, '[', display::BROWN);
+				i.armour_value = 1;
+				Some(i)
+			},
+			"leather jerkin" => {
+				let mut i = Item::new(name, ItemType::Coat, 2, false, '[', display::BROWN);
+				i.armour_value = 1;
+				Some(i)
+			},
+			"overcoat" => {
+				let mut i = Item::new(name, ItemType::Coat, 3, false, '[', display::BLUE);
+				i.armour_value = 2;
+				Some(i)
+			},
+			"flintlock pistol" => {
+				let mut i = Item::new(name, ItemType::Firearm, 2, false, '-', display::GREY);
+				i.dmg = 10;
+				Some(i)
+			},
+			"lead ball" => Some(Item::new(name, ItemType::Bullet, 1, true, '*', display::GREY)),
+			_ => None,
+
+		}
 	}
 }
 
