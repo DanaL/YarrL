@@ -1,3 +1,18 @@
+// This file is part of YarrL, the pirate roguelike.
+//
+// YarrL is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// YarrL is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with YarrL.  If not, see <https://www.gnu.org/licenses/>.
+
 extern crate rand;
 extern crate sdl2;
 
@@ -261,11 +276,11 @@ fn show_inventory(state: &mut GameState, gui: &mut GameUI) {
 }
 
 fn show_intro(gui: &mut GameUI) {
-	let mut lines = vec!["Welcome to a rogulike UI prototype!".to_string(), "".to_string()];
-	lines.push("You can move around with vi-style keys and bump".to_string());
-	lines.push("into water and mountains.".to_string());
+	let mut lines = vec!["Welcome to YarrL, a roguelike adventure on the high seas!".to_string(), "".to_string()];
 	lines.push("".to_string());
-	lines.push("There are no monsters or anything yet, though!".to_string());
+	lines.push("".to_string());
+	lines.push("".to_string());
+	lines.push("Copyright 2020 by Dana Larose, see COPYING for licence info.".to_string());
 	
 	gui.write_long_msg(&lines, true);
 }
