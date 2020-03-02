@@ -196,9 +196,9 @@ impl Inventory {
 			let val = self.inv.get(&slot).unwrap();
 			if val.1 == 1 {
 				s.push_str("a ");
-				s.push_str(&val.0.name);
+				s.push_str(&val.0.get_full_name());
 			} else {
-				s.push_str(&val.0.name);
+				s.push_str(&val.0.get_full_name());
 				s.push_str(" x");
 				s.push_str(&val.1.to_string());
 			}
@@ -353,6 +353,20 @@ impl Item {
 			_ => None,
 
 		}
+	}
+
+	pub fn get_full_name(&self) -> String {
+		let mut s = String::from(&self.name);
+
+		if self.equiped {
+			match self.item_type {
+				ItemType::Weapon | ItemType::Firearm => s.push_str(" (in hand)"),
+				ItemType::Coat | ItemType::Hat => s.push_str(" (being worn)"),
+				_ => panic!("Should never hit this option..."),
+			}
+		}
+
+		s
 	}
 }
 
