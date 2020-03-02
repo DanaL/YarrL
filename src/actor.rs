@@ -29,13 +29,13 @@ pub enum PirateType {
 #[derive(Debug)]
 pub struct Player {
 	pub name: String,
-	ac: u8,
-	stamina: u8,
-	strength: u8,
-	constitution: u8,
-	dexterity: u8,
-	verve: u8,
-	prof_bonus: u8,
+	pub ac: u8,
+	pub stamina: u8,
+	pub strength: u8,
+	pub constitution: u8,
+	pub dexterity: u8,
+	pub verve: u8,
+	pub prof_bonus: u8,
 	pub row: usize,
 	pub col: usize,
 	pub inventory: Inventory,
@@ -74,6 +74,8 @@ impl Player {
 		p.inventory.toggle_slot('a');
 		p.inventory.toggle_slot('b');
 
+		p.calc_ac();
+
 		p
 	}
 
@@ -111,7 +113,21 @@ impl Player {
 		p.inventory.toggle_slot('c');
 		p.inventory.toggle_slot('d');
 
+		p.calc_ac();
+
 		p
+	}
+
+	pub fn calc_ac(&mut self) {
+		let mut total: i8 = 10;
+		total += self.inventory.total_armour_value();
+		total += Player::mod_for_stat(self.dexterity);
+
+		self.ac = if total < 0 {
+			0
+		} else {
+			total as u8
+		};
 	}
 
 	fn roll_stats(bonus: i8) -> Vec<u8> {

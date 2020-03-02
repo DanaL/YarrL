@@ -59,6 +59,7 @@ pub enum Cmd {
 	PickUp,
 	ShowInventory,
 	DropItem,
+	ShowCharacterSheet,
 }
 
 pub struct GameState {
@@ -69,7 +70,7 @@ pub struct GameState {
 
 impl GameState {
 	pub fn new_pirate(name: String, p_type: PirateType) -> GameState {
-		let mut player = match p_type {
+		let player = match p_type {
 			PirateType::Swab => Player::new_swab(name),
 			PirateType::Seadog => Player::new_seadog(name),
 		};
@@ -282,6 +283,25 @@ fn show_inventory(state: &mut GameState, gui: &mut GameUI) {
 	}
 }
 
+fn show_character_sheet(state: &GameState, gui: &mut GameUI) {
+	let s = format!("{}, a bilge rat", state.player.name);
+	let mut lines = vec![s];
+	lines.push("".to_string());
+	let s = format!("Strength: {}", state.player.strength);
+	lines.push(s);
+	let s = format!("Dexterity: {}", state.player.dexterity);
+	lines.push(s);
+	let s = format!("Constitution: {}", state.player.constitution);
+	lines.push(s);
+	let s = format!("Verve: {}", state.player.verve);
+	lines.push(s);
+	lines.push("".to_string());
+	let s = format!("AC: {}    Stamina: {}", state.player.ac, state.player.stamina);
+	lines.push(s);
+
+	gui.write_long_msg(&lines, true);
+}
+
 fn show_intro(gui: &mut GameUI) {
 	let mut lines = vec!["Welcome to YarrL, a roguelike adventure on the high seas!".to_string(), "".to_string()];
 	lines.push("".to_string());
@@ -384,6 +404,8 @@ fn run(map: &Map) {
 	show_intro(&mut gui);
 
 	let mut state = preamble(&map, &mut gui);
+
+	show_character_sheet(&state, &mut gui);
 	
 	let mut npcs: NPCTable = HashMap::new();
 	add_monster(map, &mut state, &mut npcs);
@@ -451,7 +473,11 @@ fn run(map: &Map) {
 			Cmd::ShowInventory => {
 				show_inventory(&mut state, &mut gui);
 				update = true;
-			}
+			},
+			Cmd::ShowCharacterSheet => {
+				show_character_sheet(&state, &mut gui);
+				update = true;
+			},
         }
 	
 		if update {

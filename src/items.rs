@@ -66,6 +66,16 @@ impl Inventory {
 
 		false
 	}
+
+	pub fn total_armour_value(&self) -> i8 {
+		let mut sum = 0;
+		for slot in self.inv.keys() {
+			let v = self.inv.get(&slot).unwrap();
+			sum += v.0.armour_value;
+		}
+
+		sum
+	}
  
 	pub fn toggle_slot(&mut self, slot: char) -> String {
 		if !self.inv.contains_key(&slot) {
@@ -84,7 +94,7 @@ impl Inventory {
 				ItemType::Weapon => String::from("You are already holding a weapon"),
 				ItemType::Firearm => String::from("You are already holding a gun"),
 				ItemType::Hat => String::from("You are already wearing a hat"),
-				ItemType::Hat => String::from("You are already wearing a coat"),
+				ItemType::Coat => String::from("You are already wearing a coat"),
 				_ => panic!("We shouldn't hit this option"),
 			};
 		}
@@ -303,7 +313,7 @@ pub struct Item {
 	pub prev_slot: char,
 	pub dmg: u8,
 	pub bonus: u8,
-	pub armour_value: u8,
+	pub armour_value: i8,
 	pub equiped: bool,
 }
 

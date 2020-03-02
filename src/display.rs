@@ -206,6 +206,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::ShowInventory
 						} else if val == "d" {
 							return Cmd::DropItem;
+						} else if val == "@" {
+							return Cmd::ShowCharacterSheet;	
 						}
 					},
 					_ => { continue },
@@ -347,7 +349,6 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			self.draw_frame("");
 		} else {
 			let mut s = String::from("");
-			let mut draw = false;
 			loop {
 				if msgs.len() == 0 {
 					self.draw_frame(&s);
