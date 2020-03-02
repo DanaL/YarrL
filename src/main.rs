@@ -45,7 +45,7 @@ const FOV_HEIGHT: usize = 21;
 pub type Map = Vec<Vec<map::Tile>>;
 type NPCTable = HashMap<(usize, usize), Rc<RefCell<dyn actor::Act>>>;
 
-enum Cmd {
+pub enum Cmd {
 	Exit,
 	MoveN,
 	MoveS,
@@ -222,7 +222,8 @@ fn drop_item(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 							let pluralized = pluralize(&pile[0].name, v);
 							let s = format!("You drop {} {}", v, pluralized);
 							state.write_msg_buff(&s);
-							for item in pile {
+							for mut item in pile {
+								item.equiped = false;
 								items.add(state.player.row, state.player.col, item);
 							}
 						} else {
@@ -232,7 +233,8 @@ fn drop_item(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 					None => state.write_msg_buff("Nevermind."),
 				}
 			} else {
-				let item = state.player.inventory.remove(ch);
+				let mut item = state.player.inventory.remove(ch);
+				item.equiped = false;
 				let s = format!("You drop the {}.", item.name);
 				items.add(state.player.row, state.player.col, item);	
 				state.write_msg_buff(&s);

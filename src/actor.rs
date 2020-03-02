@@ -71,6 +71,9 @@ impl Player {
 		p.inventory.add(Item::get_item("draught of rum").unwrap());
 		p.inventory.add(Item::get_item("draught of rum").unwrap());
 
+		p.inventory.toggle_slot('a');
+		p.inventory.toggle_slot('b');
+
 		p
 	}
 
@@ -102,6 +105,11 @@ impl Player {
 		for _ in 0..12 {
 			p.inventory.add(Item::get_item("lead ball").unwrap());
 		}
+
+		p.inventory.toggle_slot('a');
+		p.inventory.toggle_slot('b');
+		p.inventory.toggle_slot('c');
+		p.inventory.toggle_slot('d');
 
 		p
 	}

@@ -14,7 +14,7 @@
 // along with YarrL.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::{HashMap, HashSet, VecDeque};
-
+use std::collections::hash_map::Entry::{Occupied, Vacant};
 use sdl2::pixels::Color;
 
 use crate::display;
@@ -56,6 +56,57 @@ impl Inventory {
 		}
 	}
 
+	fn type_already_equiped(&self, slot: char, i_type: ItemType) -> bool {
+		for slot in self.inv.keys() {
+			let v = self.inv.get(&slot).unwrap();
+			if v.0.item_type == i_type && v.0.equiped {
+				return true;
+			}
+		}
+
+		false
+	}
+ 
+	pub fn toggle_slot(&mut self, slot: char) -> String {
+		if !self.inv.contains_key(&slot) {
+			return String::from("You do not have that item!");
+		}
+
+		let val = self.inv.get(&slot).unwrap();
+		let item = &val.0;
+
+		if !item.equipable() {
+			return String::from("You cannot equip that!");
+		}
+
+		if !item.equiped && self.type_already_equiped(slot, item.item_type) {
+			return match item.item_type {
+				ItemType::Weapon => String::from("You are already holding a weapon"),
+				ItemType::Firearm => String::from("You are already holding a gun"),
+				ItemType::Hat => String::from("You are already wearing a hat"),
+				ItemType::Hat => String::from("You are already wearing a coat"),
+				_ => panic!("We shouldn't hit this option"),
+			};
+		}
+
+		// Okay, at this point we are either toggling or untoggling the item so
+		// I can take a fucking mutable borrow without the borrow checking flipping out
+		let val = self.inv.get_mut(&slot).unwrap();
+		let mut item = &mut val.0;
+
+		item.equiped = !item.equiped;
+
+		let mut s = String::from("You ");
+		if item.equiped {
+			s.push_str("equip the ");
+		} else {
+			s.push_str("unequip the ");
+		}
+		s.push_str(&item.name);
+
+		s
+	}
+
 	pub fn remove_count(&mut self, slot: char, count: u8) -> Vec<Item> {
 		let mut items = Vec::new();
 		let entry = self.inv.remove_entry(&slot).unwrap();
@@ -63,7 +114,7 @@ impl Inventory {
 
 		let max = if count < v.1 {
 			v.1 -= count;
-			let mut replacement = ( Item { name: v.0.name.clone(), ..v.0 }, v.1 );
+			let replacement = ( Item { name: v.0.name.clone(), ..v.0 }, v.1 );
 			self.inv.insert(slot, replacement);
 			count	
 		} else {
@@ -192,7 +243,7 @@ impl ItemsTable {
 	}
 
 	pub fn get_at(&mut self, r: usize, c: usize) -> Item {
-		let mut stack = self.table.get_mut(&(r, c)).unwrap();
+		let stack = self.table.get_mut(&(r, c)).unwrap();
 		stack.pop_front().unwrap()
 	}
 
@@ -231,7 +282,7 @@ impl ItemsTable {
 	}
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ItemType {
 	Weapon,
 	Coat,
@@ -261,6 +312,13 @@ impl Item {
 		Item { name: String::from(name), 
 			item_type, weight: w, symbol: sym, color, stackable, prev_slot: '\0',
 				dmg: 1, bonus: 0, armour_value: 0, equiped: false }
+	}
+
+	pub fn equipable(&self) -> bool {
+		match self.item_type {
+			ItemType::Weapon | ItemType::Coat | ItemType::Hat | ItemType::Firearm => true,
+			_ => false, 
+		}
 	}
 
 	pub fn get_item(name: &str) -> Option<Item> {
