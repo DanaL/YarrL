@@ -30,7 +30,8 @@ pub enum PirateType {
 pub struct Player {
 	pub name: String,
 	pub ac: u8,
-	pub stamina: u8,
+	pub max_stamina: u8,
+	pub curr_stamina: u8,
 	pub strength: u8,
 	pub constitution: u8,
 	pub dexterity: u8,
@@ -54,7 +55,8 @@ impl Player {
 		
 		let mut p = Player { 
 			name, ac: 10, 
-			stamina: hp,
+			max_stamina: hp,
+			curr_stamina: hp,
 			dexterity: stats[0],
 			verve: stats[1],
 			strength: stats[2],
@@ -86,7 +88,8 @@ impl Player {
 		
 		let mut p = Player { 
 			name, ac: 10, 
-			stamina: hp,
+			max_stamina: hp,
+			curr_stamina: hp,
 			constitution: stats[0],
 			strength: stats[1],
 			dexterity: stats[2],

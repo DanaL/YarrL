@@ -296,7 +296,7 @@ fn show_character_sheet(state: &GameState, gui: &mut GameUI) {
 	let s = format!("Verve: {}", state.player.verve);
 	lines.push(s);
 	lines.push("".to_string());
-	let s = format!("AC: {}    Stamina: {}", state.player.ac, state.player.stamina);
+	let s = format!("AC: {}    Stamina: {}({})", state.player.ac, state.player.curr_stamina, state.player.max_stamina);
 	lines.push(s);
 
 	gui.write_long_msg(&lines, true);
