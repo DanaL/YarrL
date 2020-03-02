@@ -17,6 +17,7 @@ extern crate rand;
 extern crate sdl2;
 
 mod actor;
+mod dice;
 mod display;
 mod fov;
 mod items;
@@ -25,7 +26,8 @@ mod map;
 #[allow(dead_code)]
 mod pathfinding;
 
-use crate::actor::{Act, Player};
+use crate::actor::{Act, Player, PirateType};
+use crate::dice::roll;
 use crate::display::GameUI;
 use crate::items::ItemsTable;
 
@@ -66,8 +68,11 @@ pub struct GameState {
 }
 
 impl GameState {
-	pub fn new(name: String) -> GameState {
-		let mut player = Player::new(name);
+	pub fn new_pirate(name: String, p_type: PirateType) -> GameState {
+		let mut player = match p_type {
+			PirateType::Swab => Player::new_swab(name),
+			PirateType::Seadog => Player::new_seadog(name),
+		};
 
 		GameState {player, msg_buff: VecDeque::new(),
 			msg_history: VecDeque::new() }
@@ -249,7 +254,7 @@ fn pick_up(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 	} else {
 		let mut menu = items.get_menu(state.player.row, state.player.col);
 		menu.insert(0, "Pick up what: (* to get everything)".to_string());
-		let answers = gui.menu_picker(&menu, menu.len() as u8);
+		let answers = gui.menu_picker(&menu, menu.len() as u8, false, false);
 		match answers {
 			None => state.write_msg_buff("Nevermind."), // Esc was pressed
 			Some(v) => {
@@ -332,21 +337,52 @@ fn add_test_item(map: &Map, items: &mut ItemsTable) {
 	items.add(row - 1, col, i);	
 }
 
-fn run(map: &Map) {
-    let ttf_context = sdl2::ttf::init()
-		.expect("Error creating ttf context on start-up!");
-	let font_path: &Path = Path::new("DejaVuSansMono.ttf");
-    let font = ttf_context.load_font(font_path, 24)
-		.expect("Error loading game font!");
-	let sm_font = ttf_context.load_font(font_path, 18)
-		.expect("Error loading small game font!");
-	let mut gui = GameUI::init(&font, &sm_font)
-		.expect("Error initializing GameUI object.");
+fn is_putting_on_airs(name: &str) -> bool {
+	name.to_lowercase().starts_with("capt") ||
+		name.to_lowercase().starts_with("capn") ||
+		name.to_lowercase().starts_with("cap'n") 
+}
 
-	show_intro(&mut gui);
-		
-	let player_name = gui.query_user("Who are you?");
-	let mut state = GameState::new(player_name);
+fn preamble(map: &Map, gui: &mut GameUI) -> GameState {
+	let mut player_name: String;
+	loop {
+		if let Some(name) = gui.query_user("Ahoy lubber, who be ye?", 15) {
+			if name.len() > 0 {
+				player_name = name;
+
+				if is_putting_on_airs(&player_name) {
+					let v = vec![String::from("Don't ye be calling yerself *captain* 'afore"), String::from("ye've earned it!!")];
+					gui.write_long_msg(&v, false);
+				} else {
+					break;
+				}
+			}
+		}
+	}
+
+	let mut menu = Vec::new();
+	let mut s = String::from("Tell us about yerself, ");
+	s.push_str(&player_name);
+	s.push(':');
+	menu.push(s);
+	menu.push("".to_string());
+	menu.push("  (a) Are ye a fresh swab, full of vim and vigour. New to the".to_string());
+	menu.push("      seas but ready to make a name for yerself? Ye'll be".to_string());
+	menu.push("      quicker on yer toes but a tad wet behind yer ears.".to_string());
+	menu.push("".to_string());
+	menu.push("  (b) Or are ye an old sea dog? Ye've seen at least six of".to_string());
+	menu.push("      the seven seas and yer hide is tougher for it. Yer peg".to_string());
+	menu.push("      leg slows you down but experience has taught ye a few".to_string());
+	menu.push("      tricks. And ye start with yer trusty flintlock.".to_string());
+
+	let answer = gui.menu_picker(&menu, 2, true, true).unwrap();
+	let mut state: GameState;
+	if answer.contains(&0) {
+	 	state = GameState::new_pirate(player_name, PirateType::Swab);
+	} else {
+	 	state = GameState::new_pirate(player_name, PirateType::Seadog);
+	}
+
 	loop {
 		let r = rand::thread_rng().gen_range(1, map.len() - 1);
 		let c = rand::thread_rng().gen_range(1, map.len() - 1);
@@ -360,6 +396,24 @@ fn run(map: &Map) {
 			}
 		}
 	}
+
+	state
+}
+
+fn run(map: &Map) {
+    let ttf_context = sdl2::ttf::init()
+		.expect("Error creating ttf context on start-up!");
+	let font_path: &Path = Path::new("DejaVuSansMono.ttf");
+    let font = ttf_context.load_font(font_path, 24)
+		.expect("Error loading game font!");
+	let sm_font = ttf_context.load_font(font_path, 18)
+		.expect("Error loading small game font!");
+	let mut gui = GameUI::init(&font, &sm_font)
+		.expect("Error initializing GameUI object.");
+
+	show_intro(&mut gui);
+
+	let mut state = preamble(&map, &mut gui);
 	
 	let mut npcs: NPCTable = HashMap::new();
 	add_monster(map, &mut state, &mut npcs);
@@ -372,6 +426,7 @@ fn run(map: &Map) {
 		state.player.row, state.player.col, FOV_HEIGHT, FOV_WIDTH);
 	gui.write_screen(&mut state.msg_buff);
 	
+
     'mainloop: loop {
 		//let mut m = npcs.get(&(17, 17)).unwrap().borrow_mut();
 		//let initiative_order = vec![m];
@@ -445,3 +500,4 @@ fn main() {
 	
 	run(&map);
 }
+

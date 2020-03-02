@@ -13,22 +13,88 @@
 // You should have received a copy of the GNU General Public License
 // along with YarrL.  If not, see <https://www.gnu.org/licenses/>.
 
+extern crate rand;
+
 use sdl2::pixels::Color;
 
+use crate::dice;
 use crate::items::Inventory;
 
+#[derive(Debug)]
+pub enum PirateType {
+	Swab,
+	Seadog,
+}
+
+#[derive(Debug)]
 pub struct Player {
 	pub name: String,
 	ac: u8,
-	hp: u8,
+	stamina: u8,
+	strength: u8,
+	constitution: u8,
+	dexterity: u8,
+	verve: u8,
+	prof_bonus: u8,
 	pub row: usize,
 	pub col: usize,
 	pub inventory: Inventory,
+	p_type: PirateType,
 }
 
 impl Player {
-	pub fn new(name: String) -> Player {
-		Player { name, ac: 10, hp: 10, row:0, col:0, inventory: Inventory::new() }
+	fn mod_for_stat(stat: u8) -> i8 {
+		(stat / 2) as i8 - 5
+	}
+
+	pub fn new_swab(name: String) -> Player {
+		let stats = Player::roll_stats(2);
+		let con_mod = Player::mod_for_stat(stats[3]);
+		let hp = 8 + dice::roll(8, 4, con_mod);
+		
+		Player { 
+			name, ac: 10, 
+			stamina: hp,
+			dexterity: stats[0],
+			verve: stats[1],
+			strength: stats[2],
+			constitution: stats[3],
+			prof_bonus: 3,
+			row:0, col:0, 
+			inventory: Inventory::new(),
+			p_type: PirateType::Swab,
+		}
+	}
+
+	pub fn new_seadog(name: String) -> Player {
+		let stats = Player::roll_stats(0);
+		let con_mod = Player::mod_for_stat(stats[0]);
+		let hp = 8 + dice::roll(8, 6, con_mod);
+		
+		Player { 
+			name, ac: 10, 
+			stamina: hp,
+			constitution: stats[0],
+			strength: stats[1],
+			dexterity: stats[2],
+			verve: stats[3],
+			prof_bonus: 4,
+			row:0, col:0, 
+			inventory: Inventory::new(),
+			p_type: PirateType::Seadog,
+		}
+	}
+
+	fn roll_stats(bonus: i8) -> Vec<u8> {
+		let mut v = Vec::new();
+	
+		for _ in 0..4 {
+			v.push(dice::roll(6, 3, bonus));
+		}
+		v.sort();
+		v.reverse();
+
+		v
 	}
 }
 

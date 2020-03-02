@@ -145,7 +145,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	pub fn query_user(&mut self, question: &str) -> String {
+	pub fn query_user(&mut self, question: &str, max: u8) -> Option<String> {
 		let mut answer = String::from("");
 
 		loop {
@@ -157,23 +157,26 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			msgs.push_front(s);
 			self.write_screen(&mut msgs);
 
-			let ch = self.wait_for_key_input().unwrap();
-			match ch {
-				'\n' => { break; },
-				BACKSPACE_CH => { answer.pop(); },
-				_ => { answer.push(ch); },
+			match self.wait_for_key_input() {
+				Some('\n') => { break; },
+				Some(BACKSPACE_CH) => { answer.pop(); },
+				Some(ch) => { 
+					if answer.len() < max as usize { 
+						answer.push(ch); 
+					}
+				},
+				None => { return None; },
 			}
 		}
 
-		answer
+		Some(answer)
 	}
 
 	pub fn get_command(&mut self) -> Cmd {
 		loop {
 			for event in self.event_pump.poll_iter() {
 				match event {
-					Event::KeyDown {keycode: Some(Keycode::Escape), ..} 
-						| Event::Quit {..} => { return Cmd::Exit },
+					Event::Quit {..} => { return Cmd::Exit },
 					Event::KeyDown {keycode: Some(Keycode::H), keymod: Mod::LCTRLMOD, .. } |
 					Event::KeyDown {keycode: Some(Keycode::H), keymod: Mod::RCTRLMOD, .. } => { 
 						return Cmd::MsgHistory; 
@@ -368,7 +371,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 	// Making the assumption I'll never display a menu with more options than there are 
 	// lines on the screen...
-	pub fn menu_picker(&mut self, menu: &Vec<String>, answer_count: u8) -> Option<HashSet<u8>> {
+	pub fn menu_picker(&mut self, menu: &Vec<String>, answer_count: u8,
+				single_choice: bool, small_font: bool) -> Option<HashSet<u8>> {
 		let mut answers: HashSet<u8> = HashSet::new();
 
 		loop {
@@ -377,40 +381,57 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				if line > 0 && answers.contains(&(line as u8 - 1)) {
 					let mut s = String::from("\u{2713} ");
 					s.push_str(&menu[line]);
-					self.write_line(line as i32, &s, false);
+					self.write_line(line as i32, &s, small_font);
 				} else {
-					self.write_line(line as i32, &menu[line], false);
+					self.write_line(line as i32, &menu[line], small_font);
 				}
 			}
 	
-			self.write_line(menu.len() as i32 + 1, "", false);	
-			self.write_line(menu.len() as i32 + 2, "Select one or more options, then hit Return.", false);	
+			self.write_line(menu.len() as i32 + 1, "", small_font);	
+			if !single_choice {
+				self.write_line(menu.len() as i32 + 2, "Select one or more options, then hit Return.", small_font);	
+			}
+
 			self.canvas.present();
 
 			let a_val = 'a' as u8;
 			let answer = self.wait_for_key_input();
-			match answer {
-				None => return None, 	// Esc was pressed, propagate it. 
-										// Not sure if thers's a more Rustic way to do this
-				Some(v) => {
-					// * is select everything
-					if v == '*' {
-						for j in 0..answer_count - 1 {
-							answers.insert(j);
-						}
-						break;
-					}
-					if (v as u8) >= a_val || (v as u8) < answer_count {
-						let a = v as u8 - a_val;
-						
-						if answers.contains(&a) {
-							answers.remove(&a);
-						} else {
+			if single_choice {
+				match answer {
+					None => return None, 	// Esc was pressed, propagate it. 
+											// Not sure if thers's a more Rustic way to do this
+					Some(v) => {
+						if (v as u8) >= a_val || (v as u8) < answer_count {
+							let a = v as u8 - a_val;
 							answers.insert(a);
+							return Some(answers);
+						}	
+					}
+				}
+			} else {
+				match answer {
+					None => return None, 	// Esc was pressed, propagate it. 
+											// Not sure if thers's a more Rustic way to do this
+					Some(v) => {
+						// * means select everything
+						if v == '*' {
+							for j in 0..answer_count - 1 {
+								answers.insert(j);
+							}
+							break;
 						}
-					} else if v == '\n' || v == ' ' {
-						break;
-					}	
+						if (v as u8) >= a_val || (v as u8) < answer_count {
+							let a = v as u8 - a_val;
+							
+							if answers.contains(&a) {
+								answers.remove(&a);
+							} else {
+								answers.insert(a);
+							}
+						} else if v == '\n' || v == ' ' {
+							break;
+						}	
+					}
 				}
 			}
 		}
