@@ -32,9 +32,10 @@ use sdl2::pixels::Color;
 pub static BLACK: Color = Color::RGBA(0, 0, 0, 255);
 pub static WHITE: Color = Color::RGBA(255, 255, 255, 255);
 pub static GREY: Color = Color::RGBA(136, 136, 136, 255);
-pub static GREEN: Color = Color::RGBA(46, 139, 87, 255);
+pub static GREEN: Color = Color::RGBA(144, 238, 144, 255);
+pub static DARK_GREEN: Color = Color::RGBA(46, 139, 87, 255);
 pub static BROWN: Color = Color::RGBA(153, 0, 0, 255);
-pub static BLUE: Color = Color::RGBA(0, 0, 221, 255);
+pub static BLUE: Color = Color::RGBA(0, 0, 200, 255);
 pub static LIGHT_BLUE: Color = Color::RGBA(55, 198, 255, 255);
 pub static BEIGE: Color = Color::RGBA(255, 178, 127, 255);
 
