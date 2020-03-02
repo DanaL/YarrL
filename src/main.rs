@@ -60,6 +60,7 @@ pub enum Cmd {
 	ShowInventory,
 	DropItem,
 	ShowCharacterSheet,
+	ToggleEquipment,
 }
 
 pub struct GameState {
@@ -243,6 +244,8 @@ fn drop_item(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 		},
 		None => state.write_msg_buff("Nevermind."),
 	}
+
+	state.player.calc_ac();
 }
 
 fn pick_up(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
@@ -270,6 +273,23 @@ fn pick_up(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 			},
 		}
 	}
+}
+
+fn toggle_equipment(state: &mut GameState, gui: &mut GameUI) {
+	if state.player.inventory.get_menu().len() == 0 {
+		state.write_msg_buff("You are empty handed.");
+		return
+	}
+
+	match gui.query_single_response("Ready/unready what?") {
+		Some(ch) => {
+			let result = state.player.inventory.toggle_slot(ch);
+			state.write_msg_buff(&result);
+		},
+		None => state.write_msg_buff("Nevermind."),
+	}
+
+	state.player.calc_ac();
 }
 
 fn show_inventory(state: &mut GameState, gui: &mut GameUI) {
@@ -476,6 +496,10 @@ fn run(map: &Map) {
 			},
 			Cmd::ShowCharacterSheet => {
 				show_character_sheet(&state, &mut gui);
+				update = true;
+			},
+			Cmd::ToggleEquipment => {
+				toggle_equipment(&mut state, &mut gui);
 				update = true;
 			},
         }

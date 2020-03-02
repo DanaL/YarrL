@@ -71,7 +71,9 @@ impl Inventory {
 		let mut sum = 0;
 		for slot in self.inv.keys() {
 			let v = self.inv.get(&slot).unwrap();
-			sum += v.0.armour_value;
+			if v.0.equiped {
+				sum += v.0.armour_value;
+			}
 		}
 
 		sum
@@ -91,10 +93,10 @@ impl Inventory {
 
 		if !item.equiped && self.type_already_equiped(slot, item.item_type) {
 			return match item.item_type {
-				ItemType::Weapon => String::from("You are already holding a weapon"),
-				ItemType::Firearm => String::from("You are already holding a gun"),
-				ItemType::Hat => String::from("You are already wearing a hat"),
-				ItemType::Coat => String::from("You are already wearing a coat"),
+				ItemType::Weapon => String::from("You are already holding a weapon."),
+				ItemType::Firearm => String::from("You are already holding a gun."),
+				ItemType::Hat => String::from("You are already wearing a hat."),
+				ItemType::Coat => String::from("You are already wearing a coat."),
 				_ => panic!("We shouldn't hit this option"),
 			};
 		}
@@ -113,6 +115,7 @@ impl Inventory {
 			s.push_str("unequip the ");
 		}
 		s.push_str(&item.name);
+		s.push('.');
 
 		s
 	}

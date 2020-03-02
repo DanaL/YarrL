@@ -209,6 +209,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::DropItem;
 						} else if val == "@" {
 							return Cmd::ShowCharacterSheet;	
+						} else if val == "w" {
+							return Cmd::ToggleEquipment;
 						}
 					},
 					_ => { continue },
