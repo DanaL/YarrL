@@ -43,6 +43,7 @@ pub struct Ship {
 	pub aft_ch: char,
 	pub bearing: u8,
 	pub anchored: bool,
+	pub prev_move: (i8, i8),
 }
 
 impl Ship {
@@ -59,6 +60,7 @@ impl Ship {
 			aft_ch: '\0',
 			bearing: 0,
 			anchored: true,
+			prev_move: (0, 0),
 	 	}
 	}
 

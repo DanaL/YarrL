@@ -63,6 +63,10 @@ pub enum Cmd {
 	DropItem,
 	ShowCharacterSheet,
 	ToggleEquipment,
+	SailForward,
+	TurnWheelClockwise,
+	TurnWheelAnticlockwise,	
+	ToggleAnchor,
 }
 
 pub struct GameState {
@@ -338,6 +342,90 @@ fn show_character_sheet(state: &GameState, gui: &mut GameUI) {
 	gui.write_long_msg(&lines, true);
 }
 
+fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>, gui: &mut GameUI) {
+	let mut ship = ships.remove(&(state.player.row, state.player.col)).unwrap();
+
+	if ship.anchored {
+		state.write_msg_buff("Yer anchor is down, mate...");
+	} else { 
+		let mut delta: (i8, i8) = (0, 0);
+		if ship.bearing == 0 {
+			delta = (-1, 0);
+		} else if ship.bearing == 1 || ship.bearing == 3 {
+			if ship.prev_move == (-1, 0) {
+				delta = (-1, 1);
+			} else {
+				delta = (-1, 0);
+			}
+		} else if ship.bearing == 2 {
+			delta = (-1, 1);
+		} else if ship.bearing == 4 {
+			delta = (0, 1);
+		} else if ship.bearing == 5 || ship.bearing == 7 {
+			if ship.prev_move == (0, 1) {
+				delta = (1, 1);
+			} else {
+				delta = (0, 1);
+			}
+		} else if ship.bearing == 6 {
+			delta = (1, 1);
+		} else if ship.bearing == 8 {
+			delta = (1, 0);
+		} else if ship.bearing == 9 || ship.bearing == 11 {
+			if ship.prev_move == (0, -1) {
+				delta = (1, -1);
+			} else {
+				delta = (0, -1);
+			}
+		} else if ship.bearing == 10 {
+			delta = (1, -1);
+		} else if ship.bearing == 12 {
+			delta = (0, -1);
+		} else if ship.bearing == 13 {
+			if ship.prev_move == (0, -1) {
+				delta = (-1, -1);
+			} else {
+				delta = (0, -1);
+			}
+		} else if ship.bearing == 14 {
+			delta = (-1, -1);
+		} else if ship.bearing == 15 {
+			if ship.prev_move == (-1, 0) {
+				delta = (-1, -1);
+			} else {
+				delta = (-1, 0);
+			}
+		}
+
+		// Collision detection should go here!!
+
+		state.player.row = (state.player.row as i8 + delta.0) as usize;
+		state.player.col = (state.player.col as i8 + delta.1) as usize;
+		ship.row = (ship.row as i8 + delta.0) as usize;
+		ship.col = (ship.col as i8 + delta.1) as usize;
+		ship.update_loc_info();
+		ship.prev_move = delta;
+
+		if map[ship.row][ship.col] == map::Tile::Water || 
+				map[ship.bow_row][ship.bow_col] == map::Tile::Water {
+			state.write_msg_buff("Shallow water...");
+		}
+	}
+
+	ships.insert((ship.row, ship.col), ship);	
+}
+
+fn toggle_anchor(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>, gui: &mut GameUI) {
+	let mut ship = ships.get_mut(&(state.player.row, state.player.col)).unwrap();
+	ship.anchored = !ship.anchored;
+
+	if ship.anchored {
+		state.write_msg_buff("You lower the anchor.");
+	} else {
+		state.write_msg_buff("You raise the anchor.");
+	}
+}
+
 fn show_title_screen(gui: &mut GameUI) {
 	let mut lines = vec!["Welcome to YarrL, a roguelike adventure on the high seas!".to_string(), "".to_string()];
 	lines.push("".to_string());
@@ -424,7 +512,7 @@ fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Shi
 	 	state = GameState::new_pirate(player_name, PirateType::Seadog);
 	}
 	state.player.on_ship = true;
-	state.player.bearing = 0;
+	state.player.bearing = 2;
 
 	// Find a random starting place for a ship
 	loop {
@@ -441,7 +529,7 @@ fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Shi
 	let mut ship = Ship::new("The Minnow".to_string());
 	ship.row = state.player.row;
 	ship.col = state.player.col;
-	ship.bearing = 0;
+	ship.bearing = 2;
 	ship.update_loc_info();
 	ships.insert((state.player.row, state.player.col), ship);
 
@@ -481,7 +569,7 @@ fn run(map: &Map) {
 		//let initiative_order = vec![m];
 
 		let mut update = false;
-		let cmd = gui.get_command();
+		let cmd = gui.get_command(&state);
 		match cmd {
 			Cmd::Exit => break 'mainloop,
 			Cmd::MoveW => {
@@ -517,7 +605,7 @@ fn run(map: &Map) {
 				update = true;
 			},
 			Cmd::MsgHistory => {
-				show_message_history(&state, &mut gui);
+			show_message_history(&state, &mut gui);
 				update = true;
 			},
 			Cmd::DropItem => {
@@ -540,6 +628,17 @@ fn run(map: &Map) {
 				toggle_equipment(&mut state, &mut gui);
 				update = true;
 			},
+			Cmd::ToggleAnchor => {
+				toggle_anchor(&mut state, &mut ships, &mut gui);
+				update = true;
+			}
+			Cmd::SailForward => {
+				sail(&map, &mut state, &mut ships, &mut gui);
+				update = true;
+			},
+			Cmd::TurnWheelClockwise | Cmd::TurnWheelAnticlockwise => {
+
+			}
         }
 	
 		if update {

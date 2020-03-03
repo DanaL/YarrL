@@ -18,7 +18,7 @@ extern crate sdl2;
 use std::collections::{HashSet, VecDeque};
 
 use crate::map;
-use super::{Cmd, Map, FOV_WIDTH, FOV_HEIGHT};
+use super::{Cmd, GameState, Map, FOV_WIDTH, FOV_HEIGHT};
 
 use sdl2::event::Event;
 use sdl2::EventPump;
@@ -188,7 +188,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		Some(answer)
 	}
 
-	pub fn get_command(&mut self) -> Cmd {
+	pub fn get_command(&mut self, state: &GameState) -> Cmd {
 		loop {
 			for event in self.event_pump.poll_iter() {
 				match event {
@@ -200,32 +200,46 @@ impl<'a, 'b> GameUI<'a, 'b> {
 					Event::TextInput { text:val, .. } => {
 						if val == "Q" {
 							return Cmd::Exit;	
-						} else if val == "k" {
-							return Cmd::MoveN;
-						} else if val == "j" {
-							return Cmd::MoveS;
-						} else if val == "l" {
-							return Cmd::MoveE;
-						} else if val == "h" {
-							return Cmd::MoveW;
-						} else if val == "y" {
-							return Cmd::MoveNW;
-						} else if val == "u" {
-							return Cmd::MoveNE;
-						} else if val == "b" {
-							return Cmd::MoveSW;
-						} else if val == "n" {
-							return Cmd::MoveSE;
-						} else if val == "," {
-							return Cmd::PickUp;
 						} else if val == "i" {
 							return Cmd::ShowInventory
-						} else if val == "d" {
-							return Cmd::DropItem;
 						} else if val == "@" {
 							return Cmd::ShowCharacterSheet;	
 						} else if val == "w" {
 							return Cmd::ToggleEquipment;
+						} 
+						
+						if state.player.on_ship {
+							if val == "A" {
+								return Cmd::ToggleAnchor;
+							} else if val == " " {
+								return Cmd::SailForward;
+							} else if val == "h" {
+								return Cmd::TurnWheelAnticlockwise;
+							} else if val == "j" {
+								return Cmd::TurnWheelClockwise;
+							}
+						} else {
+							if val == "k" {
+								return Cmd::MoveN;
+							} else if val == "j" {
+								return Cmd::MoveS;
+							} else if val == "l" {
+								return Cmd::MoveE;
+							} else if val == "h" {
+								return Cmd::MoveW;
+							} else if val == "y" {
+								return Cmd::MoveNW;
+							} else if val == "u" {
+								return Cmd::MoveNE;
+							} else if val == "b" {
+								return Cmd::MoveSW;
+							} else if val == "n" {
+								return Cmd::MoveSE;
+							} else if val == "," {
+								return Cmd::PickUp;
+							} else if val == "d" {
+								return Cmd::DropItem;
+							}
 						}
 					},
 					_ => { continue },
@@ -350,6 +364,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			.expect("Error copying to canvas!");
 	}
 
+	// Gotta clean up this super gross function
 	fn write_sidebar(&mut self, sbi: &SidebarInfo) {
 		let fov_w = (FOV_WIDTH + 1) as i32 * self.font_width as i32; 
 
