@@ -415,14 +415,16 @@ fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Sh
 	ships.insert((ship.row, ship.col), ship);	
 }
 
-fn toggle_anchor(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) {
+fn toggle_anchor(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) -> bool {
 	let mut ship = ships.get_mut(&(state.player.row, state.player.col)).unwrap();
 	ship.anchored = !ship.anchored;
 
 	if ship.anchored {
 		state.write_msg_buff("You lower the anchor.");
+		false
 	} else {
 		state.write_msg_buff("You raise the anchor.");
+		true
 	}
 }
 
@@ -644,7 +646,9 @@ fn run(map: &Map) {
 				update = true;
 			},
 			Cmd::ToggleAnchor => {
-				toggle_anchor(&mut state, &mut ships);
+				if toggle_anchor(&mut state, &mut ships) {
+					sail(&map, &mut state, &mut ships);
+				}
 				update = true;
 			}
 			Cmd::Pass => {
