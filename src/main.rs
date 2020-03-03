@@ -141,14 +141,23 @@ fn get_move_tuple(mv: &str) -> (i16, i16) {
 	res
 }
 
-fn do_move(map: &Map, state: &mut GameState, npcs: &NPCTable, items: &ItemsTable, dir: &str) {
+fn do_move(map: &Map, state: &mut GameState, npcs: &NPCTable, 
+		items: &ItemsTable, ships: &HashMap<(usize, usize), Ship>, dir: &str) {
 	let mv = get_move_tuple(dir);
 	let next_row = state.player.row as i16 + mv.0;
 	let next_col = state.player.col as i16 + mv.1;
+	let next_loc = (next_row as usize, next_col as usize);
 	let tile = map[next_row as usize][next_col as usize];
 	
-	if npcs.contains_key(&(next_row as usize, next_col as usize)) {
+	if npcs.contains_key(&next_loc) {
 		state.write_msg_buff("There is someone in your way!");
+	}
+	else if ships.contains_key(&next_loc) {
+		state.player.col = next_col as usize;
+		state.player.row = next_row as usize;
+		let ship = ships.get(&next_loc).unwrap();
+		let s = format!("You climb aboard the {}.", ship.name);
+		state.write_msg_buff(&s);
 	}
 	else if map::is_passable(tile) {
 		state.player.col = next_col as usize;
@@ -455,7 +464,7 @@ fn take_helm(state: &mut GameState, ships: &HashMap<(usize, usize), Ship>) {
 	state.player.on_ship = true;
 	state.player.bearing = ship.bearing;
 	
-	let s = format!("You step to the wheel of the {}", ship.name);
+	let s = format!("You step to the wheel of the {}.", ship.name);
 	state.write_msg_buff(&s);
 }
 
@@ -611,35 +620,35 @@ fn run(map: &Map) {
 		match cmd {
 			Cmd::Exit => break 'mainloop,
 			Cmd::MoveW => {
-				do_move(&map, &mut state, &npcs, &items, "W");
+				do_move(&map, &mut state, &npcs, &items, &ships, "W");
 				update = true;
 			},
 			Cmd::MoveS => {
-				do_move(&map, &mut state, &npcs, &items, "S");
+				do_move(&map, &mut state, &npcs, &items, &ships, "S");
 				update = true;
 			},
 			Cmd::MoveN => {
-				do_move(&map, &mut state, &npcs, &items, "N");
+				do_move(&map, &mut state, &npcs, &items, &ships, "N");
 				update = true;
 			},
 			Cmd::MoveE => {
-				do_move(&map, &mut state, &npcs, &items, "E");
+				do_move(&map, &mut state, &npcs, &items, &ships, "E");
 				update = true;
 			},
 			Cmd::MoveNW => {
-				do_move(&map, &mut state, &npcs, &items, "NW");
+				do_move(&map, &mut state, &npcs, &items, &ships, "NW");
 				update = true;
 			},
 			Cmd::MoveNE => {
-				do_move(&map, &mut state, &npcs, &items, "NE");
+				do_move(&map, &mut state, &npcs, &items, &ships, "NE");
 				update = true;
 			},
 			Cmd::MoveSW => {
-				do_move(&map, &mut state, &npcs, &items, "SW");
+				do_move(&map, &mut state, &npcs, &items, &ships, "SW");
 				update = true;
 			},
 			Cmd::MoveSE => {
-				do_move(&map, &mut state, &npcs, &items, "SE");
+				do_move(&map, &mut state, &npcs, &items, &ships, "SE");
 				update = true;
 			},
 			Cmd::MsgHistory => {
