@@ -30,7 +30,7 @@ pub enum Tile {
 	Tree,
 	Dirt,
 	Grass,
-	Player,
+	Player(Color),
 	Water,
 	DeepWater,
 	Sand,
@@ -63,7 +63,7 @@ pub fn is_clear(tile: Tile) -> bool {
 
 pub fn is_passable(tile: Tile) -> bool {
 	match tile {
-		Tile::DeepWater | Tile::Wall | Tile::Blank |
+		Tile::Wall | Tile::Blank |
 		Tile::Mountain | Tile::SnowPeak | Tile::Gate => false,
 		_ => true,
 	}

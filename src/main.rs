@@ -88,14 +88,19 @@ impl GameState {
 	}
 
 	pub fn curr_sidebar_info(&self) -> SidebarInfo {
-		let bearing: i8 = if !self.player.on_ship {
-			-1
+		let bearing: i8;
+		let wheel: i8;  
+		
+		if self.player.on_ship {
+			bearing = self.player.bearing as i8;
+			wheel = self.player.wheel;
 		} else {
-			self.player.bearing as i8
+			bearing = -1;
+			wheel = -1;
 		};
 
 		SidebarInfo::new(self.player.name.clone(), self.player.ac,
-				self.player.curr_stamina, self.player.max_stamina, bearing)
+				self.player.curr_stamina, self.player.max_stamina, wheel, bearing)
 	}
 
 	pub fn write_msg_buff(&mut self, msg: &str) {
@@ -139,6 +144,16 @@ fn get_move_tuple(mv: &str) -> (i16, i16) {
 	}
 
 	res
+}
+
+fn do_ability_check(ability_mod: i8, difficulty: u8, bonus: i8) -> bool {
+	let roll = dice::roll(20, 1, 0) as i8 + ability_mod + bonus;
+
+	if roll >= difficulty as i8 {
+		true
+	} else {
+		false
+	}
 }
 
 fn do_move(map: &Map, state: &mut GameState, npcs: &NPCTable, 
@@ -352,11 +367,101 @@ fn show_character_sheet(state: &GameState, gui: &mut GameUI) {
 	gui.write_long_msg(&lines, true);
 }
 
+// This function is a testament to my terrible design mistakes :( I should have taken into account the
+// need to see if a square was open when choosing to use separate data structures for the map tiles, 
+// the items, the ships, and the NPCs...
+fn sq_open(map: &Map, state: &GameState, ships: &HashMap<(usize, usize), Ship>, row: usize, col: usize) -> bool {
+	if !map::in_bounds(map, row as i32, col as i32) {
+		return false;
+	}
+
+	if !map::is_passable(map[row][col]) {
+		return false;
+	}
+
+	// At least I will probably only ever have a handful of ships on the map...
+	for key in ships.keys() {
+		let ship = ships.get(key).unwrap();
+		if ship.row == row && ship.col == col {
+			return false;
+		}	
+		if ship.bow_row == row && ship.bow_col == col {
+			return false;
+		}	
+		if ship.aft_row == row && ship.aft_col == col {
+			return false;
+		}	
+	}
+
+	true
+}
+
+fn get_open_sq_adj_player(map: &Map, state: &GameState, ships: &HashMap<(usize, usize), Ship>) -> Option<(usize, usize)> {
+	let mut sqs: Vec<(usize, usize)> = Vec::new();
+	if sq_open(map, state, ships, state.player.row - 1, state.player.col - 1) {
+		sqs.push((state.player.row - 1, state.player.col - 1));
+	}
+	if sq_open(map, state, ships, state.player.row - 1, state.player.col) {
+		sqs.push((state.player.row - 1, state.player.col));
+	}
+	if sq_open(map, state, ships, state.player.row - 1, state.player.col + 1) {
+		sqs.push((state.player.row - 1, state.player.col + 1));
+	}
+	if sq_open(map, state, ships, state.player.row, state.player.col + 1) {
+		sqs.push((state.player.row, state.player.col + 1));
+	}
+	if sq_open(map, state, ships, state.player.row, state.player.col - 1) {
+		sqs.push((state.player.row, state.player.col - 1));
+	}
+	if sq_open(map, state, ships, state.player.row + 1, state.player.col - 1) {
+		sqs.push((state.player.row + 1, state.player.col - 1));
+	}
+	if sq_open(map, state, ships, state.player.row + 1, state.player.col) {
+		sqs.push((state.player.row + 1, state.player.col));
+	}
+	if sq_open(map, state, ships, state.player.row + 1, state.player.col + 1) {
+		sqs.push((state.player.row + 1, state.player.col + 1));
+	}
+
+	if sqs.len() == 0 {
+		None
+	} else {
+		let j = (dice::roll(sqs.len() as u8 + 1, 1, 0) - 1) as usize;
+		let loc = sqs[j];
+		Some(loc)
+	}
+}
+
+fn ship_hit_land(map: &Map, state: &mut GameState, ship: &mut Ship, ships: &HashMap<(usize, usize), Ship>) {
+	state.write_msg_buff("Ye've run yer ship aground!!");
+	state.write_msg_buff("You lose control o' the wheel!");
+	let mut new_wheel = ship.wheel + 2 + dice::roll(5, 1, 0) as i8;	
+	new_wheel = new_wheel % 5 - 2;
+	ship.wheel = new_wheel;
+	state.player.wheel = new_wheel;
+
+	if !do_ability_check(Player::mod_for_stat(state.player.dexterity), 13, 0) {
+		if let Some(loc)= get_open_sq_adj_player(map, state, ships) {
+			state.write_msg_buff("You're tossed from the ship!");
+			state.player.on_ship = false;
+			state.player.row = loc.0;
+			state.player.col = loc.1;
+
+			// Should do some damage to the player once I am tracking that stuff
+		}
+	}
+}
+
 fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) {
 	let mut ship = ships.remove(&(state.player.row, state.player.col)).unwrap();
 
+	let bow_tile = map[ship.bow_row][ship.bow_col];
+	let ship_tile = map[ship.row][ship.col];
+
 	if ship.anchored {
 		state.write_msg_buff("The ships bobs.");
+	} else if bow_tile != map::Tile::Water && bow_tile != map::Tile::DeepWater {
+		state.write_msg_buff("Your ship is beached!");
 	} else { 
 		let mut delta: (i8, i8) = (0, 0);
 		if ship.bearing == 0 {
@@ -407,6 +512,22 @@ fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Sh
 			}
 		}
 
+		// after movement, if the wheel is turned, adjust the bearing /*
+		if ship.wheel != 0 {
+			let mut new_bearing = ship.bearing as i8 + ship.wheel;
+			
+			// Ugh how I wish that Rust handled -1 % 16 == 15 like Python does
+			// instead of returning -1...
+			if new_bearing < 0 {
+				new_bearing = 16 + ship.wheel;
+			} else if new_bearing > 15 {
+				new_bearing = 0 + ship.wheel;
+			}
+
+			ship.bearing = new_bearing as u8;
+			state.player.bearing = new_bearing as u8;
+		}
+
 		// Collision detection should go here!!
 
 		state.player.row = (state.player.row as i8 + delta.0) as usize;
@@ -416,9 +537,11 @@ fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Sh
 		ship.update_loc_info();
 		ship.prev_move = delta;
 
-		if map[ship.row][ship.col] == map::Tile::Water || 
-				map[ship.bow_row][ship.bow_col] == map::Tile::Water {
+		//if map[ship.row][ship.col] == map::Tile::Water || 
+		if map[ship.bow_row][ship.bow_col] == map::Tile::Water {
 			state.write_msg_buff("Shallow water...");
+		} else if map[ship.bow_row][ship.bow_col] != map::Tile::DeepWater {
+			ship_hit_land(map, state, &mut ship, ships);
 		}
 	}
 
@@ -441,16 +564,22 @@ fn toggle_anchor(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship
 fn turn_wheel(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>, change: i8) {
 	let mut ship = ships.get_mut(&(state.player.row, state.player.col)).unwrap();
 
-	let mut new_bearing = ship.bearing as i8 + change;
-	if new_bearing < 0 {
-		new_bearing = 15;
-	} else if new_bearing > 15 {
-		new_bearing = 0;
+	if change < 0 && ship.wheel == -2 {
+		state.write_msg_buff("The wheel's as far to starboard as she'll turn");
+		return;
+	} else if change > 0 && ship.wheel == 2 {
+		state.write_msg_buff("The wheel's as far to port as she'll turn");
+		return;
 	}
-	ship.bearing = new_bearing as u8;
-	state.player.bearing = ship.bearing;
 
-	state.write_msg_buff("You adjust the tiller.");
+	ship.wheel += change;
+	state.player.wheel = ship.wheel;
+
+	if ship.wheel > -2 && ship.wheel < 2 {
+		state.write_msg_buff("You adjust the tiller.");
+	} else {
+		state.write_msg_buff("Hard about!");
+	}
 }
 
 fn take_helm(state: &mut GameState, ships: &HashMap<(usize, usize), Ship>) {
@@ -463,6 +592,7 @@ fn take_helm(state: &mut GameState, ships: &HashMap<(usize, usize), Ship>) {
 	let ship = ships.get(&player_loc).unwrap();
 	state.player.on_ship = true;
 	state.player.bearing = ship.bearing;
+	state.player.wheel = ship.wheel;
 	
 	let s = format!("You step to the wheel of the {}.", ship.name);
 	state.write_msg_buff(&s);
@@ -520,7 +650,7 @@ fn is_putting_on_airs(name: &str) -> bool {
 fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Ship>) -> GameState {
 	let mut player_name: String;
 
-	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0, -1);
+	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0, -1, -1);
 	loop {
 		if let Some(name) = gui.query_user("Ahoy lubber, who be ye?", 15, &sbi) {
 			if name.len() > 0 {
@@ -559,7 +689,8 @@ fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Shi
 	 	state = GameState::new_pirate(player_name, PirateType::Seadog);
 	}
 	state.player.on_ship = true;
-	state.player.bearing = 2;
+	state.player.bearing = 0;
+	state.player.wheel = 0;
 
 	// Find a random starting place for a ship
 	loop {
@@ -576,7 +707,8 @@ fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Shi
 	let mut ship = Ship::new("The Minnow".to_string());
 	ship.row = state.player.row;
 	ship.col = state.player.col;
-	ship.bearing = 2;
+	ship.bearing = 0;
+	ship.wheel = 0;
 	ship.update_loc_info();
 	ships.insert((state.player.row, state.player.col), ship);
 
@@ -606,8 +738,7 @@ fn run(map: &Map) {
 
 	let mut items = ItemsTable::new();
 	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
-	gui.v_matrix = fov::calc_v_matrix(&map, &npcs, &items, &ships,
-		state.player.row, state.player.col, FOV_HEIGHT, FOV_WIDTH);
+	gui.v_matrix = fov::calc_v_matrix(&map, &npcs, &items, &ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
 	let sbi = state.curr_sidebar_info();
 	gui.write_screen(&mut state.msg_buff, &sbi);
 
@@ -708,8 +839,7 @@ fn run(map: &Map) {
         }
 	
 		if update {
-			gui.v_matrix = fov::calc_v_matrix(&map, &npcs, &items, &ships,
-				state.player.row, state.player.col, FOV_HEIGHT, FOV_WIDTH);
+			gui.v_matrix = fov::calc_v_matrix(&map, &npcs, &items, &ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
 			let sbi = state.curr_sidebar_info();
 			gui.write_screen(&mut state.msg_buff, &sbi);
 		}

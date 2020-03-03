@@ -43,10 +43,11 @@ pub struct Player {
 	p_type: PirateType,
 	pub on_ship: bool,
 	pub bearing: u8,
+	pub wheel: i8,
 }
 
 impl Player {
-	fn mod_for_stat(stat: u8) -> i8 {
+	pub fn mod_for_stat(stat: u8) -> i8 {
 		(stat / 2) as i8 - 5
 	}
 
@@ -69,6 +70,7 @@ impl Player {
 			p_type: PirateType::Swab,
 			on_ship: false,
 			bearing: 0,
+			wheel: 0,
 		};
 
 		p.inventory.add(Item::get_item("rusty cutlass").unwrap());
@@ -104,6 +106,7 @@ impl Player {
 			p_type: PirateType::Seadog,
 			on_ship: false,
 			bearing: 0,
+			wheel: 0,
 		};
 
 		p.inventory.add(Item::get_item("rusty cutlass").unwrap());

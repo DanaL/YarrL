@@ -15,6 +15,8 @@
 
 use std::collections::HashMap;
 
+use crate::actor::Player;
+use crate::display::{WHITE, BROWN};
 use crate::map;
 use crate::map::in_bounds;
 use super::{Map, NPCTable};
@@ -216,7 +218,7 @@ pub fn calc_v_matrix(
 		npcs: &NPCTable,
 		items: &ItemsTable,
 		ships: &HashMap<(usize, usize), Ship>,
-		player_row: usize, player_col: usize,
+		player: &Player,
 		height: usize, width: usize) -> Vec<Vec<map::Tile>> {
 	let mut v_matrix: Vec<Vec<map::Tile>> = Vec::new();
 	for _ in 0..height {
@@ -230,17 +232,21 @@ pub fn calc_v_matrix(
 		for col in 0..width {
 			let offset_r = row as i32 - fov_center_r as i32;
 			let offset_c = col as i32 - fov_center_c as i32;
-			let actual_r: i32 = player_row as i32 + offset_r;
-			let actual_c: i32 = player_col as i32 + offset_c;
+			let actual_r: i32 = player.row as i32 + offset_r;
+			let actual_c: i32 = player.col as i32 + offset_c;
 
-			mark_visible(player_row as i32, player_col as i32,
+			mark_visible(player.row as i32, player.col as i32,
 				actual_r as i32, actual_c as i32, map, npcs, items, &mut v_matrix);
 		}
 	}
 
-	add_ships_to_v_matrix(map, &mut v_matrix, ships, player_row, player_col, height, width);
+	add_ships_to_v_matrix(map, &mut v_matrix, ships, player.row, player.col, height, width);
 
-	v_matrix[fov_center_r][fov_center_c] = map::Tile::Player;
+	if player.on_ship {
+		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(BROWN);
+	} else {
+		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(WHITE);
+	}
 
 	v_matrix
 }

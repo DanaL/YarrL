@@ -34,7 +34,7 @@ pub static WHITE: Color = Color::RGBA(255, 255, 255, 255);
 pub static GREY: Color = Color::RGBA(136, 136, 136, 255);
 pub static GREEN: Color = Color::RGBA(144, 238, 144, 255);
 pub static DARK_GREEN: Color = Color::RGBA(46, 139, 87, 255);
-pub static BROWN: Color = Color::RGBA(153, 0, 0, 255);
+pub static BROWN: Color = Color::RGBA(150, 75, 0, 255);
 pub static BLUE: Color = Color::RGBA(0, 0, 200, 255);
 pub static LIGHT_BLUE: Color = Color::RGBA(55, 198, 255, 255);
 pub static BEIGE: Color = Color::RGBA(255, 178, 127, 255);
@@ -49,12 +49,13 @@ pub struct SidebarInfo {
 	ac: u8,
 	curr_hp: u8,
 	max_hp: u8,
+	wheel: i8,
 	bearing: i8,
 }
 
 impl SidebarInfo {
-	pub fn new(name: String, ac: u8, curr_hp: u8, max_hp: u8, bearing: i8) -> SidebarInfo {
-		SidebarInfo { name, ac, curr_hp, max_hp, bearing }
+	pub fn new(name: String, ac: u8, curr_hp: u8, max_hp: u8, wheel: i8, bearing: i8) -> SidebarInfo {
+		SidebarInfo { name, ac, curr_hp, max_hp, wheel, bearing }
 	}
 }
 
@@ -84,7 +85,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 		let sdl_context = sdl2::init()?;
 		let video_subsystem = sdl_context.video()?;
-		let window = video_subsystem.window("RL Demo", screen_width_px, screen_height_px)
+		let window = video_subsystem.window("YarrL", screen_width_px, screen_height_px)
 			.position_centered()
 			.opengl()
 			.build()
@@ -334,14 +335,14 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.pause_for_more();
 	}
 
-	fn write_sq(&mut self, r: usize, c: usize, tile: map::Tile) {
-		let (ch, char_colour) = match tile {
+	fn sq_info_for_tile(&self, tile: map::Tile) -> (char, sdl2::pixels::Color) {
+		let ti = match tile {
 			map::Tile::Blank => (' ', BLACK),
 			map::Tile::Wall => ('#', GREY),
 			map::Tile::Tree => ('\u{03D9}', GREEN),
 			map::Tile::Dirt => ('.', BROWN),
 			map::Tile::Grass => ('\u{0316}', GREEN),
-			map::Tile::Player => ('@', WHITE),
+			map::Tile::Player(color) => ('@', color),
 			map::Tile::Water => ('}', LIGHT_BLUE),
 			map::Tile::DeepWater => ('}', BLUE),
 			map::Tile::Sand => ('.', BEIGE),
@@ -354,6 +355,11 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::ShipPart(ch) => (ch, BROWN),
 		};
 
+		ti
+	}
+
+	fn write_sq(&mut self, r: usize, c: usize, tile_info: (char, sdl2::pixels::Color)) {
+		let (ch, char_colour) = tile_info;
 		let surface = self.font.render_char(ch)
 			.blended(char_colour)
 			.expect("Error creating character!");  
@@ -366,44 +372,30 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			.expect("Error copying to canvas!");
 	}
 
-	// Gotta clean up this super gross function
-	fn write_sidebar(&mut self, sbi: &SidebarInfo) {
-		let fov_w = (FOV_WIDTH + 1) as i32 * self.font_width as i32; 
-
-		let surface = self.font.render(&sbi.name)
-			.blended(WHITE)
+	fn write_sidebar_line(&mut self, line: &str, start_x: i32, row: u32, colour: sdl2::pixels::Color) {
+		let surface = self.font.render(line)
+			.blended(colour)
 			.expect("Error rendering sidebar!");
 		let texture_creator = self.canvas.texture_creator();
 		let texture = texture_creator.create_texture_from_surface(&surface)
 			.expect("Error creating texture for sdebar!");
-		let rect = Rect::new(fov_w, self.font_height as i32, 
-			sbi.name.len() as u32 * self.font_width, self.font_height);
+		let rect = Rect::new(start_x, (self.font_height * row) as i32, 
+			line.len() as u32 * self.font_width, self.font_height);
 		self.canvas.copy(&texture, None, Some(rect))
 			.expect("Error copying sbi to canvas!");
+	}
+
+	// Gotta clean up this super gross function
+	fn write_sidebar(&mut self, sbi: &SidebarInfo) {
+		let fov_w = (FOV_WIDTH + 1) as i32 * self.font_width as i32; 
+
+		self.write_sidebar_line(&sbi.name, fov_w, 1, WHITE);
 
 		let s = format!("AC: {}", sbi.ac);
-		let surface = self.font.render(&s)
-			.blended(WHITE)
-			.expect("Error creating texture for side bar!");
-		let texture_creator = self.canvas.texture_creator();
-		let texture = texture_creator.create_texture_from_surface(&surface)
-			.expect("Error create texture for messsage line!");
-		let rect = Rect::new(fov_w, (self.font_height * 2) as i32, 
-			s.len() as u32 * self.font_width, self.font_height);
-		self.canvas.copy(&texture, None, Some(rect))
-			.expect("Error copying sbi texture to canvas!");
+		self.write_sidebar_line(&s, fov_w, 2, WHITE);
 
 		let s = format!("Stamina: {}({})", sbi.curr_hp, sbi.max_hp);
-		let surface = self.font.render(&s)
-			.blended(WHITE)
-			.expect("Error creating texture for side bar!");
-		let texture_creator = self.canvas.texture_creator();
-		let texture = texture_creator.create_texture_from_surface(&surface)
-			.expect("Error create texture for messsage line!");
-		let rect = Rect::new(fov_w, (self.font_height * 3) as i32, 
-			s.len() as u32 * self.font_width, self.font_height);
-		self.canvas.copy(&texture, None, Some(rect))
-			.expect("Error copying sbi texture to canvas!");
+		self.write_sidebar_line(&s, fov_w, 3, WHITE);
 
 		if sbi.bearing > -1 {
 			let mut s = String::from("       ");
@@ -427,52 +419,28 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				_ => s.push_str(""),
 			}
 
-			let surface = self.font.render(&s)
-				.blended(WHITE)
-				.expect("Error creating texture for side bar!");
-			let texture_creator = self.canvas.texture_creator();
-			let texture = texture_creator.create_texture_from_surface(&surface)
-				.expect("Error create texture for messsage line!");
-			let rect = Rect::new(fov_w, (self.font_height * 5) as i32, 
-				s.len() as u32 * self.font_width, self.font_height);
-			self.canvas.copy(&texture, None, Some(rect))
-				.expect("Error copying sbi exture to canvas!");
+			self.write_sidebar_line(&s, fov_w, 5, WHITE);
 
 			let s = "      \\|/".to_string();
-			let surface = self.font.render(&s)
-				.blended(BROWN)
-				.expect("Error creating texture for side bar!");
-			let texture_creator = self.canvas.texture_creator();
-			let texture = texture_creator.create_texture_from_surface(&surface)
-				.expect("Error create texture for messsage line!");
-			let rect = Rect::new(fov_w, (self.font_height * 6) as i32, 
-				s.len() as u32 * self.font_width, self.font_height);
-			self.canvas.copy(&texture, None, Some(rect))
-				.expect("Error copying sbi exture to canvas!");
+			self.write_sidebar_line(&s, fov_w, 6, BROWN);
 			
 			let s = "      -o-".to_string();
-			let surface = self.font.render(&s)
-				.blended(BROWN)
-				.expect("Error creating texture for side bar!");
-			let texture_creator = self.canvas.texture_creator();
-			let texture = texture_creator.create_texture_from_surface(&surface)
-				.expect("Error create texture for messsage line!");
-			let rect = Rect::new(fov_w, (self.font_height * 7) as i32, 
-				s.len() as u32 * self.font_width, self.font_height);
-			self.canvas.copy(&texture, None, Some(rect))
-				.expect("Error copying sbi exture to canvas!");
+			self.write_sidebar_line(&s, fov_w, 7, BROWN);
 
 			let s = "      /|\\".to_string();
-			let surface = self.font.render(&s)
-				.blended(BROWN)
-				.expect("Error creating texture for side bar!");
-			let texture_creator = self.canvas.texture_creator();
-			let texture = texture_creator.create_texture_from_surface(&surface)
-				.expect("Error create texture for messsage line!");
-			let rect = Rect::new(fov_w, (self.font_height * 8) as i32, 
-				s.len() as u32 * self.font_width, self.font_height);
-			self.canvas.copy(&texture, None, Some(rect))
-				.expect("Error copying sbi exture to canvas!");
+			self.write_sidebar_line(&s, fov_w, 8, BROWN);
+
+			if sbi.wheel == 0 {
+				self.write_sq(5, FOV_WIDTH + 8, ('|', GREY));
+			} else if sbi.wheel == -1 {
+				self.write_sq(5, FOV_WIDTH + 7, ('\\', GREY));
+			} else if sbi.wheel == 1 {
+				self.write_sq(5, FOV_WIDTH + 9, ('/', GREY));
+			} else if sbi.wheel == 2 {
+				self.write_sq(6, FOV_WIDTH + 9, ('-', GREY));
+			} else if sbi.wheel == -2 {
+				self.write_sq(6, FOV_WIDTH + 7, ('-', GREY));
+			}
 		}
 	}
 
@@ -483,9 +451,10 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.write_line(0, msg, false);
 		for row in 0..FOV_HEIGHT {
 			for col in 0..FOV_WIDTH {
-				self.write_sq(row, col, self.v_matrix[row][col]);
+				let ti = self.sq_info_for_tile(self.v_matrix[row][col]);
+				self.write_sq(row, col, ti);
 			}
-			self.write_sq(row, FOV_WIDTH, map::Tile::Separator);
+			self.write_sq(row, FOV_WIDTH, self.sq_info_for_tile(map::Tile::Separator));
 		}
 
 		if sbi.name != "" {

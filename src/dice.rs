@@ -26,6 +26,7 @@ pub fn roll(faces: u8, dice: u8, modifier: i8) -> u8 {
 		let val = rand::thread_rng().gen_range(0.0, 1.0) * faces as f32;
 		sum += val as i8 + 1;
 	}
-	
+
+	// Whoops gotta fix this because at could end up with u8 underflow here	
 	(sum + modifier) as u8
 }
