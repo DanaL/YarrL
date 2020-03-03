@@ -25,11 +25,13 @@ mod items;
 mod map;
 #[allow(dead_code)]
 mod pathfinding;
+mod ship;
 
 use crate::actor::{Act, Player, PirateType};
 use crate::dice::roll;
 use crate::display::{GameUI, SidebarInfo};
 use crate::items::{Item, ItemsTable};
+use crate::ship::Ship;
 
 use rand::Rng;
 
@@ -374,7 +376,7 @@ fn is_putting_on_airs(name: &str) -> bool {
 		name.to_lowercase().starts_with("cap'n") 
 }
 
-fn preamble(map: &Map, gui: &mut GameUI) -> GameState {
+fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Ship>) -> GameState {
 	let mut player_name: String;
 
 	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0);
@@ -416,19 +418,23 @@ fn preamble(map: &Map, gui: &mut GameUI) -> GameState {
 	 	state = GameState::new_pirate(player_name, PirateType::Seadog);
 	}
 
+	// Find a random starting place for a ship
 	loop {
 		let r = rand::thread_rng().gen_range(1, map.len() - 1);
 		let c = rand::thread_rng().gen_range(1, map.len() - 1);
-		match map[r][c] {
-			map::Tile::Water | map::Tile::Wall | map::Tile::DeepWater |
-			map::Tile::Mountain | map::Tile::SnowPeak => { continue; },
-			_ => {
-				state.player.row = r;
-				state.player.col = c;
-				break;
-			}
+		if map[r][c] == map::Tile::DeepWater && map[r-1][c] == map::Tile::DeepWater 
+				&& map[r+1][c]==  map::Tile::DeepWater {
+			state.player.row = r;
+			state.player.col = c;
+			break;
 		}
 	}
+
+	let mut ship = Ship::new("The Minnow".to_string());
+	ship.row = state.player.row;
+	ship.col = state.player.col;
+	ship.bearing = 10;
+	ships.insert((state.player.row, state.player.col), ship);
 
 	state
 }
@@ -446,7 +452,8 @@ fn run(map: &Map) {
 
 	show_title_screen(&mut gui);
 
-	let mut state = preamble(&map, &mut gui);
+	let mut ships: HashMap<(usize, usize), Ship> = HashMap::new();
+	let mut state = preamble(&map, &mut gui, &mut ships);
 
 	show_character_sheet(&state, &mut gui);
 	
@@ -454,9 +461,8 @@ fn run(map: &Map) {
 	add_monster(map, &mut state, &mut npcs);
 
 	let mut items = ItemsTable::new();
-
 	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
-	gui.v_matrix = fov::calc_v_matrix(&map, &npcs, &items,
+	gui.v_matrix = fov::calc_v_matrix(&map, &npcs, &items, &ships,
 		state.player.row, state.player.col, FOV_HEIGHT, FOV_WIDTH);
 	let sbi = state.curr_sidebar_info();
 	gui.write_screen(&mut state.msg_buff, &sbi);
@@ -528,7 +534,7 @@ fn run(map: &Map) {
         }
 	
 		if update {
-			gui.v_matrix = fov::calc_v_matrix(&map, &npcs, &items,
+			gui.v_matrix = fov::calc_v_matrix(&map, &npcs, &items, &ships,
 				state.player.row, state.player.col, FOV_HEIGHT, FOV_WIDTH);
 			let sbi = state.curr_sidebar_info();
 			gui.write_screen(&mut state.msg_buff, &sbi);

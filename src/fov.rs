@@ -13,9 +13,22 @@
 // You should have received a copy of the GNU General Public License
 // along with YarrL.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+
 use crate::map;
+use crate::map::in_bounds;
 use super::{Map, NPCTable};
 use crate::items::{ItemsTable, TileInfo};
+use crate::ship;
+use crate::ship::Ship;
+
+// I really regret not doing something like in crashRun where instead of 
+// just storing a map of tiles/characters, I store objects that can determine
+// what tile to show themselves. Looking at separate tile/npc/items/ships
+// tables to see what tile to show is so kludgy. The breaking point is ships
+// since they cover three tiles. Oh well! Just gotta get 7DRL done!
+// (That said, Rust doesn't really have objects which would make the crashRun
+// scheme complicated, I think)
 
 fn calc_actual_tile(r: usize, c: usize, map: &Map, 
 		npcs: &NPCTable, items: &ItemsTable) -> map::Tile {
@@ -145,11 +158,77 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, map: &Map,
 	}
 }
 
+fn add_ship(v_matrix: &mut Vec<Vec<map::Tile>>, row: usize, col: usize, bearing: u8) {
+	if bearing == 0 || bearing == 4 || bearing == 8 || bearing == 12 {
+		v_matrix[row][col] = map::Tile::ShipPart(ship::DECK_STRAIGHT);
+	} else {
+		v_matrix[row][col] = map::Tile::ShipPart(ship::DECK_ANGLE);
+	}
+	
+	let boat_tiles: (char, i8, i8, char, i8, i8);
+	if bearing == 0 || bearing == 1 || bearing == 15 { 
+		boat_tiles = (ship::BOW_N, -1, 0, ship::AFT_STRAIGHT, 1, 0);
+	} else if bearing == 2 {
+		boat_tiles = (ship::BOW_NE, -1, 1, ship::AFT_ANGLE, 1, -1);
+	} else if bearing == 3 || bearing == 4 || bearing == 5 {
+		boat_tiles = (ship::BOW_E, 0, 1, ship::AFT_STRAIGHT, 0, -1);
+	} else if bearing == 6 {
+		boat_tiles = (ship::BOW_SE, 1, 1, ship::AFT_ANGLE, -1, -1);
+	} else if bearing == 7 || bearing == 8 || bearing == 9 {
+		boat_tiles = (ship::BOW_S, 1, 0, ship::AFT_STRAIGHT, -1, 0);
+	} else if bearing == 10 {
+		boat_tiles = (ship::BOW_SW, 1, -1, ship::AFT_ANGLE, -1, 1);
+	} else if bearing == 11 || bearing == 12 || bearing == 13 {
+		boat_tiles = (ship::BOW_W, 0, -1, ship::AFT_STRAIGHT, 0, 1);
+	} else {
+		boat_tiles = (ship::BOW_NW, -1, -1, ship::AFT_ANGLE, 1, 1);
+	}
+
+	let bow_row = (boat_tiles.1 + row as i8) as usize;
+	let bow_col = (boat_tiles.2 + col as i8) as usize;
+	let aft_row = (boat_tiles.4 + row as i8) as usize;
+	let aft_col = (boat_tiles.5 + col as i8) as usize;
+	
+	if in_bounds(v_matrix, bow_row as i32, bow_col as i32) && v_matrix[bow_row][bow_col] != map::Tile::Blank {
+		v_matrix[bow_row][bow_col] = map::Tile::ShipPart(boat_tiles.0);
+	} 
+	if in_bounds(v_matrix, aft_row as i32, aft_col as i32) && v_matrix[aft_row][aft_col] != map::Tile::Blank {
+		v_matrix[aft_row][aft_col] = map::Tile::ShipPart(boat_tiles.3);
+	} 
+}
+
+// Because ships are multi-tile things, it's simpler to just add them to the map later...
+fn add_ships_to_v_matrix(
+		map: &Vec<Vec<map::Tile>>,
+		v_matrix: &mut Vec<Vec<map::Tile>>, 
+		ships: &HashMap<(usize, usize), Ship>,
+		player_row: usize, player_col: usize, 
+		height: usize, width: usize) {
+	let half_height = (height / 2) as i32;
+	let half_width = (width / 2) as i32;
+
+	for r in -half_height..half_height {
+		for c in -half_width..half_width {
+			// I'm very in love with how Rust refuses to do any integer casting right now...
+			if !in_bounds(map, r + player_row as i32, c + player_col as i32) { continue; }
+			let curr_r = (r + player_row as i32) as usize;
+			let curr_c = (c + player_col as i32) as usize;
+			let loc = ((r + player_row as i32) as usize, (c + player_col as i32) as usize);
+			if v_matrix[(r + half_height) as usize][(c + half_width) as usize] != 
+					map::Tile::Blank && ships.contains_key(&loc) {
+				let ship = ships.get(&loc).unwrap();
+				add_ship(v_matrix, (r + half_height) as usize, (c + half_width) as usize, ship.bearing);
+			}
+		}
+	}
+}
+
 // not yet taking into account objects on the ground and monsters...
 pub fn calc_v_matrix(
 		map: &Vec<Vec<map::Tile>>,
 		npcs: &NPCTable,
 		items: &ItemsTable,
+		ships: &HashMap<(usize, usize), Ship>,
 		player_row: usize, player_col: usize,
 		height: usize, width: usize) -> Vec<Vec<map::Tile>> {
 	let mut v_matrix: Vec<Vec<map::Tile>> = Vec::new();
@@ -171,7 +250,9 @@ pub fn calc_v_matrix(
 				actual_r as i32, actual_c as i32, map, npcs, items, &mut v_matrix);
 		}
 	}
-	
+
+	add_ships_to_v_matrix(map, &mut v_matrix, ships, player_row, player_col, height, width);
+
 	v_matrix[fov_center_r][fov_center_c] = map::Tile::Player;
 
 	v_matrix

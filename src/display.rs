@@ -334,6 +334,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::Gate => ('#', LIGHT_BLUE),
 			map::Tile::Thing(color, ch) => (ch, color),
 			map::Tile::Separator => ('|', WHITE),
+			map::Tile::ShipPart(ch) => (ch, BROWN),
 		};
 
 		let surface = self.font.render_char(ch)

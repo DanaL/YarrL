@@ -40,6 +40,7 @@ pub enum Tile {
 	StoneFloor,
 	Thing(Color, char), // ie., NPC or item so far,
 	Separator,
+	ShipPart(char),
 }
 
 // Probably at some point in the dev process, I'll need to begin 
