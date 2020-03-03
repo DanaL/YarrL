@@ -433,7 +433,8 @@ fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Shi
 	let mut ship = Ship::new("The Minnow".to_string());
 	ship.row = state.player.row;
 	ship.col = state.player.col;
-	ship.bearing = 10;
+	ship.bearing = 0;
+	ship.update_loc_info();
 	ships.insert((state.player.row, state.player.col), ship);
 
 	state

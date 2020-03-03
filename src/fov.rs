@@ -158,42 +158,29 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, map: &Map,
 	}
 }
 
-fn add_ship(v_matrix: &mut Vec<Vec<map::Tile>>, row: usize, col: usize, bearing: u8) {
+fn add_ship(v_matrix: &mut Vec<Vec<map::Tile>>, row: usize, col: usize, ship: &Ship) {
+	let bearing = ship.bearing;
 	if bearing == 0 || bearing == 4 || bearing == 8 || bearing == 12 {
 		v_matrix[row][col] = map::Tile::ShipPart(ship::DECK_STRAIGHT);
 	} else {
 		v_matrix[row][col] = map::Tile::ShipPart(ship::DECK_ANGLE);
 	}
 	
-	let boat_tiles: (char, i8, i8, char, i8, i8);
-	if bearing == 0 || bearing == 1 || bearing == 15 { 
-		boat_tiles = (ship::BOW_N, -1, 0, ship::AFT_STRAIGHT, 1, 0);
-	} else if bearing == 2 {
-		boat_tiles = (ship::BOW_NE, -1, 1, ship::AFT_ANGLE, 1, -1);
-	} else if bearing == 3 || bearing == 4 || bearing == 5 {
-		boat_tiles = (ship::BOW_E, 0, 1, ship::AFT_STRAIGHT, 0, -1);
-	} else if bearing == 6 {
-		boat_tiles = (ship::BOW_SE, 1, 1, ship::AFT_ANGLE, -1, -1);
-	} else if bearing == 7 || bearing == 8 || bearing == 9 {
-		boat_tiles = (ship::BOW_S, 1, 0, ship::AFT_STRAIGHT, -1, 0);
-	} else if bearing == 10 {
-		boat_tiles = (ship::BOW_SW, 1, -1, ship::AFT_ANGLE, -1, 1);
-	} else if bearing == 11 || bearing == 12 || bearing == 13 {
-		boat_tiles = (ship::BOW_W, 0, -1, ship::AFT_STRAIGHT, 0, 1);
-	} else {
-		boat_tiles = (ship::BOW_NW, -1, -1, ship::AFT_ANGLE, 1, 1);
-	}
+	let delta_row_bow = ship.bow_row as i8 - ship.row as i8;
+	let delta_col_bow = ship.bow_col as i8 - ship.col as i8;
+	let delta_row_aft = ship.aft_row as i8 - ship.row as i8;
+	let delta_col_aft = ship.aft_col as i8 - ship.col as i8;
 
-	let bow_row = (boat_tiles.1 + row as i8) as usize;
-	let bow_col = (boat_tiles.2 + col as i8) as usize;
-	let aft_row = (boat_tiles.4 + row as i8) as usize;
-	let aft_col = (boat_tiles.5 + col as i8) as usize;
+	let bow_row = (delta_row_bow + row as i8) as usize;
+	let bow_col = (delta_col_bow + col as i8) as usize;
+	let aft_row = (delta_row_aft + row as i8) as usize;
+	let aft_col = (delta_col_aft + col as i8) as usize;
 	
 	if in_bounds(v_matrix, bow_row as i32, bow_col as i32) && v_matrix[bow_row][bow_col] != map::Tile::Blank {
-		v_matrix[bow_row][bow_col] = map::Tile::ShipPart(boat_tiles.0);
+		v_matrix[bow_row][bow_col] = map::Tile::ShipPart(ship.bow_ch);
 	} 
 	if in_bounds(v_matrix, aft_row as i32, aft_col as i32) && v_matrix[aft_row][aft_col] != map::Tile::Blank {
-		v_matrix[aft_row][aft_col] = map::Tile::ShipPart(boat_tiles.3);
+		v_matrix[aft_row][aft_col] = map::Tile::ShipPart(ship.aft_ch);
 	} 
 }
 
@@ -217,7 +204,7 @@ fn add_ships_to_v_matrix(
 			if v_matrix[(r + half_height) as usize][(c + half_width) as usize] != 
 					map::Tile::Blank && ships.contains_key(&loc) {
 				let ship = ships.get(&loc).unwrap();
-				add_ship(v_matrix, (r + half_height) as usize, (c + half_width) as usize, ship.bearing);
+				add_ship(v_matrix, (r + half_height) as usize, (c + half_width) as usize, &ship);
 			}
 		}
 	}
