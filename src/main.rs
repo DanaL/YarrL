@@ -78,13 +78,19 @@ impl GameState {
 			PirateType::Seadog => Player::new_seadog(name),
 		};
 
-		GameState {player, msg_buff: VecDeque::new(),
+		GameState {player, msg_buff: VecDeque::new(), 
 			msg_history: VecDeque::new() }
 	}
 
 	pub fn curr_sidebar_info(&self) -> SidebarInfo {
+		let bearing: i8 = if !self.player.on_ship {
+			-1
+		} else {
+			self.player.bearing as i8
+		};
+
 		SidebarInfo::new(self.player.name.clone(), self.player.ac,
-				self.player.curr_stamina, self.player.max_stamina)
+				self.player.curr_stamina, self.player.max_stamina, bearing)
 	}
 
 	pub fn write_msg_buff(&mut self, msg: &str) {
@@ -379,7 +385,7 @@ fn is_putting_on_airs(name: &str) -> bool {
 fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Ship>) -> GameState {
 	let mut player_name: String;
 
-	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0);
+	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0, -1);
 	loop {
 		if let Some(name) = gui.query_user("Ahoy lubber, who be ye?", 15, &sbi) {
 			if name.len() > 0 {
@@ -417,6 +423,8 @@ fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Shi
 	} else {
 	 	state = GameState::new_pirate(player_name, PirateType::Seadog);
 	}
+	state.player.on_ship = true;
+	state.player.bearing = 0;
 
 	// Find a random starting place for a ship
 	loop {

@@ -41,6 +41,8 @@ pub struct Player {
 	pub col: usize,
 	pub inventory: Inventory,
 	p_type: PirateType,
+	pub on_ship: bool,
+	pub bearing: u8,
 }
 
 impl Player {
@@ -65,6 +67,8 @@ impl Player {
 			row:0, col:0, 
 			inventory: Inventory::new(),
 			p_type: PirateType::Swab,
+			on_ship: false,
+			bearing: 0,
 		};
 
 		p.inventory.add(Item::get_item("rusty cutlass").unwrap());
@@ -98,6 +102,8 @@ impl Player {
 			row:0, col:0, 
 			inventory: Inventory::new(),
 			p_type: PirateType::Seadog,
+			on_ship: false,
+			bearing: 0,
 		};
 
 		p.inventory.add(Item::get_item("rusty cutlass").unwrap());

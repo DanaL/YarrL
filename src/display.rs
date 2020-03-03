@@ -49,11 +49,12 @@ pub struct SidebarInfo {
 	ac: u8,
 	curr_hp: u8,
 	max_hp: u8,
+	bearing: i8,
 }
 
 impl SidebarInfo {
-	pub fn new(name: String, ac: u8, curr_hp: u8, max_hp: u8) -> SidebarInfo {
-		SidebarInfo { name, ac, curr_hp, max_hp }
+	pub fn new(name: String, ac: u8, curr_hp: u8, max_hp: u8, bearing: i8) -> SidebarInfo {
+		SidebarInfo { name, ac, curr_hp, max_hp, bearing }
 	}
 }
 
@@ -373,7 +374,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		let rect = Rect::new(fov_w, (self.font_height * 2) as i32, 
 			s.len() as u32 * self.font_width, self.font_height);
 		self.canvas.copy(&texture, None, Some(rect))
-			.expect("Error copying sbi exture to canvas!");
+			.expect("Error copying sbi texture to canvas!");
 
 		let s = format!("Stamina: {}({})", sbi.curr_hp, sbi.max_hp);
 		let surface = self.font.render(&s)
@@ -385,7 +386,77 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		let rect = Rect::new(fov_w, (self.font_height * 3) as i32, 
 			s.len() as u32 * self.font_width, self.font_height);
 		self.canvas.copy(&texture, None, Some(rect))
-			.expect("Error copying sbi exture to canvas!");
+			.expect("Error copying sbi texture to canvas!");
+
+		if sbi.bearing > -1 {
+			let mut s = String::from("       ");
+			match sbi.bearing {
+				0 => s.push_str("N"),
+				1 => s.push_str("NNE"),
+				2 => s.push_str("NE"),
+				3 => s.push_str("ENE"),
+				4 => s.push_str("E"),
+				5 => s.push_str("ESE"),
+				6 => s.push_str("SE"),
+				7 => s.push_str("SSE"),
+				8 => s.push_str("S"),
+				9 => s.push_str("SSW"),
+				10 => s.push_str("SW"),
+				11 => s.push_str("WSW"),
+				12 => s.push_str("W"),
+				13 => s.push_str("WNW"),
+				14 => s.push_str("NW"),
+				15 => s.push_str("NNW"),
+				_ => s.push_str(""),
+			}
+
+			let surface = self.font.render(&s)
+				.blended(WHITE)
+				.expect("Error creating texture for side bar!");
+			let texture_creator = self.canvas.texture_creator();
+			let texture = texture_creator.create_texture_from_surface(&surface)
+				.expect("Error create texture for messsage line!");
+			let rect = Rect::new(fov_w, (self.font_height * 5) as i32, 
+				s.len() as u32 * self.font_width, self.font_height);
+			self.canvas.copy(&texture, None, Some(rect))
+				.expect("Error copying sbi exture to canvas!");
+
+			let s = "      \\|/".to_string();
+			let surface = self.font.render(&s)
+				.blended(BROWN)
+				.expect("Error creating texture for side bar!");
+			let texture_creator = self.canvas.texture_creator();
+			let texture = texture_creator.create_texture_from_surface(&surface)
+				.expect("Error create texture for messsage line!");
+			let rect = Rect::new(fov_w, (self.font_height * 6) as i32, 
+				s.len() as u32 * self.font_width, self.font_height);
+			self.canvas.copy(&texture, None, Some(rect))
+				.expect("Error copying sbi exture to canvas!");
+			
+			let s = "      -o-".to_string();
+			let surface = self.font.render(&s)
+				.blended(BROWN)
+				.expect("Error creating texture for side bar!");
+			let texture_creator = self.canvas.texture_creator();
+			let texture = texture_creator.create_texture_from_surface(&surface)
+				.expect("Error create texture for messsage line!");
+			let rect = Rect::new(fov_w, (self.font_height * 7) as i32, 
+				s.len() as u32 * self.font_width, self.font_height);
+			self.canvas.copy(&texture, None, Some(rect))
+				.expect("Error copying sbi exture to canvas!");
+
+			let s = "      /|\\".to_string();
+			let surface = self.font.render(&s)
+				.blended(BROWN)
+				.expect("Error creating texture for side bar!");
+			let texture_creator = self.canvas.texture_creator();
+			let texture = texture_creator.create_texture_from_surface(&surface)
+				.expect("Error create texture for messsage line!");
+			let rect = Rect::new(fov_w, (self.font_height * 8) as i32, 
+				s.len() as u32 * self.font_width, self.font_height);
+			self.canvas.copy(&texture, None, Some(rect))
+				.expect("Error copying sbi exture to canvas!");
+		}
 	}
 
 	fn draw_frame(&mut self, msg: &str, sbi: &SidebarInfo) {
