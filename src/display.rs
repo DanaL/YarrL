@@ -208,6 +208,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::ToggleEquipment;
 						} else if val == " " || val == "." {
 							return Cmd::Pass;
+						} else if val == "B" {
+							return Cmd::ToggleHelm;
 						}
 
 						if state.player.on_ship {

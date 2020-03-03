@@ -67,6 +67,7 @@ pub enum Cmd {
 	TurnWheelClockwise,
 	TurnWheelAnticlockwise,	
 	ToggleAnchor,
+	ToggleHelm,
 }
 
 pub struct GameState {
@@ -443,6 +444,26 @@ fn turn_wheel(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>, 
 	state.write_msg_buff("You adjust the tiller.");
 }
 
+fn take_helm(state: &mut GameState, ships: &HashMap<(usize, usize), Ship>) {
+	let player_loc = (state.player.row, state.player.col);
+	if !ships.contains_key(&player_loc) {
+		state.write_msg_buff("You need to find yerself a ship before you can take the helm.");
+		return;
+	}
+
+	let ship = ships.get(&player_loc).unwrap();
+	state.player.on_ship = true;
+	state.player.bearing = ship.bearing;
+	
+	let s = format!("You step to the wheel of the {}", ship.name);
+	state.write_msg_buff(&s);
+}
+
+fn leave_helm(state: &mut GameState) {
+	state.player.on_ship = false;
+	state.write_msg_buff("You step to gunwale.");
+}
+
 fn show_title_screen(gui: &mut GameUI) {
 	let mut lines = vec!["Welcome to YarrL, a roguelike adventure on the high seas!".to_string(), "".to_string()];
 	lines.push("".to_string());
@@ -666,7 +687,15 @@ fn run(map: &Map) {
 				turn_wheel(&mut state, &mut ships, -1);
 				sail(&map, &mut state, &mut ships);
 				update = true;
-			}
+			},
+			Cmd::ToggleHelm => {
+				if !state.player.on_ship {
+					take_helm(&mut state, &ships);
+				} else {
+					leave_helm(&mut state);
+				}
+				update = true;
+			},
         }
 	
 		if update {
