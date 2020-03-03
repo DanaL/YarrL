@@ -322,12 +322,25 @@ fn show_character_sheet(state: &GameState, gui: &mut GameUI) {
 	gui.write_long_msg(&lines, true);
 }
 
-fn show_intro(gui: &mut GameUI) {
+fn show_title_screen(gui: &mut GameUI) {
 	let mut lines = vec!["Welcome to YarrL, a roguelike adventure on the high seas!".to_string(), "".to_string()];
 	lines.push("".to_string());
 	lines.push("".to_string());
+	lines.push("  I must down to the seas again,".to_string());
+	lines.push("      to the lonely sea and the sky,".to_string());
+	lines.push("  And all I ask is a tall ship".to_string()); 
+	lines.push("      and a star to steer her by,".to_string());
+	lines.push("  And the wheel’s kick and the wind’s song".to_string()); 
+	lines.push("      and the white sail’s shaking,".to_string());
+	lines.push("  And a grey mist on the sea’s face,".to_string());
+	lines.push("      and a grey dawn breaking.".to_string());
 	lines.push("".to_string());
-	lines.push("Copyright 2020 by Dana Larose, see COPYING for licence info.".to_string());
+	lines.push("                     -- Sea Fever, John Masefield".to_string());
+	lines.push("".to_string());
+	lines.push("".to_string());
+	lines.push("".to_string());
+	lines.push("".to_string());
+	lines.push("YarrL is copyright 2020 by Dana Larose, see COPYING for licence info.".to_string());
 	
 	gui.write_long_msg(&lines, true);
 }
@@ -421,7 +434,7 @@ fn run(map: &Map) {
 	let mut gui = GameUI::init(&font, &sm_font)
 		.expect("Error initializing GameUI object.");
 
-	show_intro(&mut gui);
+	show_title_screen(&mut gui);
 
 	let mut state = preamble(&map, &mut gui);
 
