@@ -405,7 +405,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 					None => return None, 	// Esc was pressed, propagate it. 
 											// Not sure if thers's a more Rustic way to do this
 					Some(v) => {
-						if (v as u8) >= a_val || (v as u8) < answer_count {
+						if (v as u8) >= a_val && (v as u8) - a_val < answer_count {
 							let a = v as u8 - a_val;
 							answers.insert(a);
 							return Some(answers);
@@ -424,7 +424,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							}
 							break;
 						}
-						if (v as u8) >= a_val || (v as u8) < answer_count {
+						if (v as u8) >= a_val && (v as u8) - a_val < answer_count {
 							let a = v as u8 - a_val;
 							
 							if answers.contains(&a) {
