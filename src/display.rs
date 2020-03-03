@@ -39,9 +39,23 @@ pub static BLUE: Color = Color::RGBA(0, 0, 200, 255);
 pub static LIGHT_BLUE: Color = Color::RGBA(55, 198, 255, 255);
 pub static BEIGE: Color = Color::RGBA(255, 178, 127, 255);
 
-const SCREEN_WIDTH: u32 = 49;
+const SCREEN_WIDTH: u32 = 58;
 const SCREEN_HEIGHT: u32 = 22;
 const BACKSPACE_CH: char = '\u{0008}';
+
+#[derive(Debug)]
+pub struct SidebarInfo {
+	name: String,
+	ac: u8,
+	curr_hp: u8,
+	max_hp: u8,
+}
+
+impl SidebarInfo {
+	pub fn new(name: String, ac: u8, curr_hp: u8, max_hp: u8) -> SidebarInfo {
+		SidebarInfo { name, ac, curr_hp, max_hp }
+	}
+}
 
 // I have literally zero clue why Rust wants two lifetime parameters
 // here for the Font ref but this shuts the compiler the hell up...
@@ -107,15 +121,15 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	pub fn query_single_response(&mut self, question: &str) -> Option<char> {
+	pub fn query_single_response(&mut self, question: &str, sbi: &SidebarInfo) -> Option<char> {
 		let mut m = VecDeque::new();
 		m.push_front(question.to_string());
-		self.write_screen(&mut m);
+		self.write_screen(&mut m, sbi);
 
 		self.wait_for_key_input()
 	}
 
-	pub fn query_natural_num(&mut self, query: &str) -> Option<u8> {
+	pub fn query_natural_num(&mut self, query: &str, sbi: &SidebarInfo) -> Option<u8> {
 		let mut answer = String::from("");
 
 		loop {
@@ -125,7 +139,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 			let mut msgs = VecDeque::new();
 			msgs.push_front(s);
-			self.write_screen(&mut msgs);
+			self.write_screen(&mut msgs, sbi);
 
 			match self.wait_for_key_input() {
 				Some('\n') => { break; },
@@ -146,7 +160,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	pub fn query_user(&mut self, question: &str, max: u8) -> Option<String> {
+	pub fn query_user(&mut self, question: &str, max: u8, sbi: &SidebarInfo) -> Option<String> {
 		let mut answer = String::from("");
 
 		loop {
@@ -156,7 +170,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 			let mut msgs = VecDeque::new();
 			msgs.push_front(s);
-			self.write_screen(&mut msgs);
+			self.write_screen(&mut msgs, sbi);
 
 			match self.wait_for_key_input() {
 				Some('\n') => { break; },
@@ -319,6 +333,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::SnowPeak => ('^', WHITE),
 			map::Tile::Gate => ('#', LIGHT_BLUE),
 			map::Tile::Thing(color, ch) => (ch, color),
+			map::Tile::Separator => ('|', WHITE),
 		};
 
 		let surface = self.font.render_char(ch)
@@ -333,7 +348,46 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			.expect("Error copying to canvas!");
 	}
 
-	fn draw_frame(&mut self, msg: &str) {
+	fn write_sidebar(&mut self, sbi: &SidebarInfo) {
+		let fov_w = (FOV_WIDTH + 1) as i32 * self.font_width as i32; 
+
+		let surface = self.font.render(&sbi.name)
+			.blended(WHITE)
+			.expect("Error rendering sidebar!");
+		let texture_creator = self.canvas.texture_creator();
+		let texture = texture_creator.create_texture_from_surface(&surface)
+			.expect("Error creating texture for sdebar!");
+		let rect = Rect::new(fov_w, self.font_height as i32, 
+			sbi.name.len() as u32 * self.font_width, self.font_height);
+		self.canvas.copy(&texture, None, Some(rect))
+			.expect("Error copying sbi to canvas!");
+
+		let s = format!("AC: {}", sbi.ac);
+		let surface = self.font.render(&s)
+			.blended(WHITE)
+			.expect("Error creating texture for side bar!");
+		let texture_creator = self.canvas.texture_creator();
+		let texture = texture_creator.create_texture_from_surface(&surface)
+			.expect("Error create texture for messsage line!");
+		let rect = Rect::new(fov_w, (self.font_height * 2) as i32, 
+			s.len() as u32 * self.font_width, self.font_height);
+		self.canvas.copy(&texture, None, Some(rect))
+			.expect("Error copying sbi exture to canvas!");
+
+		let s = format!("Stamina: {}({})", sbi.curr_hp, sbi.max_hp);
+		let surface = self.font.render(&s)
+			.blended(WHITE)
+			.expect("Error creating texture for side bar!");
+		let texture_creator = self.canvas.texture_creator();
+		let texture = texture_creator.create_texture_from_surface(&surface)
+			.expect("Error create texture for messsage line!");
+		let rect = Rect::new(fov_w, (self.font_height * 3) as i32, 
+			s.len() as u32 * self.font_width, self.font_height);
+		self.canvas.copy(&texture, None, Some(rect))
+			.expect("Error copying sbi exture to canvas!");
+	}
+
+	fn draw_frame(&mut self, msg: &str, sbi: &SidebarInfo) {
 		self.canvas.set_draw_color(BLACK);
 		self.canvas.clear();
 
@@ -342,19 +396,24 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			for col in 0..FOV_WIDTH {
 				self.write_sq(row, col, self.v_matrix[row][col]);
 			}
+			self.write_sq(row, FOV_WIDTH, map::Tile::Separator);
+		}
+
+		if sbi.name != "" {
+			self.write_sidebar(sbi);
 		}
 
 		self.canvas.present();
 	}
 
-	pub fn write_screen(&mut self, msgs: &mut VecDeque<String>) {
+	pub fn write_screen(&mut self, msgs: &mut VecDeque<String>, sbi: &SidebarInfo) {
 		if msgs.len() == 0 {
-			self.draw_frame("");
+			self.draw_frame("", sbi);
 		} else {
 			let mut s = String::from("");
 			loop {
 				if msgs.len() == 0 {
-					self.draw_frame(&s);
+					self.draw_frame(&s, sbi);
 					break;
 				} 
 
@@ -365,7 +424,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 					msgs.pop_front();
 				} else {
 					s.push_str("--More--");
-					self.draw_frame(&s);
+					self.draw_frame(&s, sbi);
 					self.pause_for_more();
 					s = String::from("");
 				}

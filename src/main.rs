@@ -28,7 +28,7 @@ mod pathfinding;
 
 use crate::actor::{Act, Player, PirateType};
 use crate::dice::roll;
-use crate::display::GameUI;
+use crate::display::{GameUI, SidebarInfo};
 use crate::items::{Item, ItemsTable};
 
 use rand::Rng;
@@ -78,6 +78,11 @@ impl GameState {
 
 		GameState {player, msg_buff: VecDeque::new(),
 			msg_history: VecDeque::new() }
+	}
+
+	pub fn curr_sidebar_info(&self) -> SidebarInfo {
+		SidebarInfo::new(self.player.name.clone(), self.player.ac,
+				self.player.curr_stamina, self.player.max_stamina)
 	}
 
 	pub fn write_msg_buff(&mut self, msg: &str) {
@@ -211,13 +216,15 @@ fn drop_item(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 		return
 	}
 
-	match gui.query_single_response("Drop what?") {
+	let sbi = state.curr_sidebar_info();
+
+	match gui.query_single_response("Drop what?", &sbi) {
 		Some(ch) =>  {
 			let count = state.player.inventory.count_in_slot(ch);
 			if count == 0 {
 				state.write_msg_buff("You do not have that item.");
 			} else if count > 1 {
-				match gui.query_natural_num("Drop how many?") {
+				match gui.query_natural_num("Drop how many?", &sbi) {
 					Some(v) => {
 						let pile = state.player.inventory.remove_count(ch, v);
 						if pile.len() > 0 {
@@ -281,7 +288,8 @@ fn toggle_equipment(state: &mut GameState, gui: &mut GameUI) {
 		return
 	}
 
-	match gui.query_single_response("Ready/unready what?") {
+	let sbi = state.curr_sidebar_info();
+	match gui.query_single_response("Ready/unready what?", &sbi) {
 		Some(ch) => {
 			let result = state.player.inventory.toggle_slot(ch);
 			state.write_msg_buff(&result);
@@ -368,8 +376,10 @@ fn is_putting_on_airs(name: &str) -> bool {
 
 fn preamble(map: &Map, gui: &mut GameUI) -> GameState {
 	let mut player_name: String;
+
+	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0);
 	loop {
-		if let Some(name) = gui.query_user("Ahoy lubber, who be ye?", 15) {
+		if let Some(name) = gui.query_user("Ahoy lubber, who be ye?", 15, &sbi) {
 			if name.len() > 0 {
 				player_name = name;
 
@@ -448,8 +458,8 @@ fn run(map: &Map) {
 	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
 	gui.v_matrix = fov::calc_v_matrix(&map, &npcs, &items,
 		state.player.row, state.player.col, FOV_HEIGHT, FOV_WIDTH);
-	gui.write_screen(&mut state.msg_buff);
-	
+	let sbi = state.curr_sidebar_info();
+	gui.write_screen(&mut state.msg_buff, &sbi);
 
     'mainloop: loop {
 		//let mut m = npcs.get(&(17, 17)).unwrap().borrow_mut();
@@ -520,7 +530,8 @@ fn run(map: &Map) {
 		if update {
 			gui.v_matrix = fov::calc_v_matrix(&map, &npcs, &items,
 				state.player.row, state.player.col, FOV_HEIGHT, FOV_WIDTH);
-			gui.write_screen(&mut state.msg_buff);
+			let sbi = state.curr_sidebar_info();
+			gui.write_screen(&mut state.msg_buff, &sbi);
 		}
     }
 }

@@ -38,7 +38,8 @@ pub enum Tile {
 	SnowPeak,
 	Gate,
 	StoneFloor,
-	Thing(Color, char), // ie., NPC or item so far
+	Thing(Color, char), // ie., NPC or item so far,
+	Separator,
 }
 
 // Probably at some point in the dev process, I'll need to begin 
