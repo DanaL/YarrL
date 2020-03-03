@@ -74,6 +74,7 @@ pub struct GameState {
 	player: Player,
 	msg_buff: VecDeque<String>,
 	msg_history: VecDeque<(String, u32)>,
+	turn: u32,
 }
 
 impl GameState {
@@ -84,7 +85,7 @@ impl GameState {
 		};
 
 		GameState {player, msg_buff: VecDeque::new(), 
-			msg_history: VecDeque::new() }
+			msg_history: VecDeque::new(), turn: 0 }
 	}
 
 	pub fn curr_sidebar_info(&self) -> SidebarInfo {
@@ -100,7 +101,7 @@ impl GameState {
 		};
 
 		SidebarInfo::new(self.player.name.clone(), self.player.ac,
-				self.player.curr_stamina, self.player.max_stamina, wheel, bearing)
+				self.player.curr_stamina, self.player.max_stamina, wheel, bearing, self.turn)
 	}
 
 	pub fn write_msg_buff(&mut self, msg: &str) {
@@ -173,6 +174,7 @@ fn do_move(map: &Map, state: &mut GameState, npcs: &NPCTable,
 		let ship = ships.get(&next_loc).unwrap();
 		let s = format!("You climb aboard the {}.", ship.name);
 		state.write_msg_buff(&s);
+		state.turn += 1;
 	}
 	else if map::is_passable(tile) {
 		state.player.col = next_col as usize;
@@ -190,12 +192,10 @@ fn do_move(map: &Map, state: &mut GameState, npcs: &NPCTable,
 		} else if items_count > 1 {
 			state.write_msg_buff("You see a few items here.");
 		}	
+
+		state.turn += 1;
 	} else  {
-		if tile == map::Tile::DeepWater {
-			state.write_msg_buff("You cannot swim!");
-		} else {
-			state.write_msg_buff("You cannot go that way.");
-		}
+		state.write_msg_buff("You cannot go that way.");
 	}
 }
 
@@ -268,6 +268,7 @@ fn drop_item(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 							let pluralized = pluralize(&pile[0].name, v);
 							let s = format!("You drop {} {}", v, pluralized);
 							state.write_msg_buff(&s);
+							state.turn += 1;
 							for mut item in pile {
 								item.equiped = false;
 								items.add(state.player.row, state.player.col, item);
@@ -284,6 +285,7 @@ fn drop_item(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 				let s = format!("You drop the {}.", item.name);
 				items.add(state.player.row, state.player.col, item);	
 				state.write_msg_buff(&s);
+				state.turn += 1;
 			}	
 		},
 		None => state.write_msg_buff("Nevermind."),
@@ -301,6 +303,7 @@ fn pick_up(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 		let s = format!("You pick up the {}.", item.name);
 		state.player.inventory.add(item);
 		state.write_msg_buff(&s);
+		state.turn += 1;
 	} else {
 		let mut menu = items.get_menu(state.player.row, state.player.col);
 		menu.insert(0, "Pick up what: (* to get everything)".to_string());
@@ -308,6 +311,7 @@ fn pick_up(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 		match answers {
 			None => state.write_msg_buff("Nevermind."), // Esc was pressed
 			Some(v) => {
+				state.turn += 1;
 				let picked_up = items.get_many_at(state.player.row, state.player.col, &v);
 				for item in picked_up {
 					let s = format!("You pick up the {}.", item.name);
@@ -330,6 +334,7 @@ fn toggle_equipment(state: &mut GameState, gui: &mut GameUI) {
 		Some(ch) => {
 			let result = state.player.inventory.toggle_slot(ch);
 			state.write_msg_buff(&result);
+			state.turn += 1;
 		},
 		None => state.write_msg_buff("Nevermind."),
 	}
@@ -570,6 +575,8 @@ fn toggle_anchor(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship
 	let mut ship = ships.get_mut(&(state.player.row, state.player.col)).unwrap();
 	ship.anchored = !ship.anchored;
 
+	state.turn += 1;
+
 	if ship.anchored {
 		state.write_msg_buff("You lower the anchor.");
 		false
@@ -582,6 +589,7 @@ fn toggle_anchor(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship
 fn turn_wheel(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>, change: i8) {
 	let mut ship = ships.get_mut(&(state.player.row, state.player.col)).unwrap();
 
+	state.turn += 1;
 	if change < 0 && ship.wheel == -2 {
 		state.write_msg_buff("The wheel's as far to starboard as she'll turn");
 		return;
@@ -614,11 +622,14 @@ fn take_helm(state: &mut GameState, ships: &HashMap<(usize, usize), Ship>) {
 	
 	let s = format!("You step to the wheel of the {}.", ship.name);
 	state.write_msg_buff(&s);
+
+	state.turn += 1;
 }
 
 fn leave_helm(state: &mut GameState) {
 	state.player.on_ship = false;
 	state.write_msg_buff("You step to gunwale.");
+	state.turn += 1;
 }
 
 fn show_title_screen(gui: &mut GameUI) {
@@ -668,7 +679,7 @@ fn is_putting_on_airs(name: &str) -> bool {
 fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Ship>) -> GameState {
 	let mut player_name: String;
 
-	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0, -1, -1);
+	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0, -1, -1, 0);
 	loop {
 		if let Some(name) = gui.query_user("Ahoy lubber, who be ye?", 15, &sbi) {
 			if name.len() > 0 {
@@ -834,6 +845,7 @@ fn run(map: &Map) {
 				if state.player.on_ship {
 					sail(&map, &mut state, &mut ships);
 					update = true;
+					state.turn += 1
 				}
 			},
 			Cmd::TurnWheelClockwise => {

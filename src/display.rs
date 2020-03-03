@@ -51,11 +51,13 @@ pub struct SidebarInfo {
 	max_hp: u8,
 	wheel: i8,
 	bearing: i8,
+	turn: u32,
 }
 
 impl SidebarInfo {
-	pub fn new(name: String, ac: u8, curr_hp: u8, max_hp: u8, wheel: i8, bearing: i8) -> SidebarInfo {
-		SidebarInfo { name, ac, curr_hp, max_hp, wheel, bearing }
+	pub fn new(name: String, ac: u8, curr_hp: u8, max_hp: u8, 
+			wheel: i8, bearing: i8, turn: u32) -> SidebarInfo {
+		SidebarInfo { name, ac, curr_hp, max_hp, wheel, bearing, turn }
 	}
 }
 
@@ -385,7 +387,6 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			.expect("Error copying sbi to canvas!");
 	}
 
-	// Gotta clean up this super gross function
 	fn write_sidebar(&mut self, sbi: &SidebarInfo) {
 		let fov_w = (FOV_WIDTH + 1) as i32 * self.font_width as i32; 
 
@@ -396,6 +397,9 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 		let s = format!("Stamina: {}({})", sbi.curr_hp, sbi.max_hp);
 		self.write_sidebar_line(&s, fov_w, 3, WHITE);
+
+		let s = format!("Turn: {}", sbi.turn);
+		self.write_sidebar_line(&s, fov_w, 21, WHITE);
 
 		if sbi.bearing > -1 {
 			let mut s = String::from("Bearing: ");
