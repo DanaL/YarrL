@@ -707,7 +707,7 @@ fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Shi
 	 	state = GameState::new_pirate(player_name, PirateType::Seadog);
 	}
 	state.player.on_ship = true;
-	state.player.bearing = 3;
+	state.player.bearing = 0;
 	state.player.wheel = 0;
 
 	// Find a random starting place for a ship
@@ -725,7 +725,7 @@ fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Shi
 	let mut ship = Ship::new("The Minnow".to_string());
 	ship.row = state.player.row;
 	ship.col = state.player.col;
-	ship.bearing = 3;
+	ship.bearing = 0;
 	ship.wheel = 0;
 	ship.update_loc_info();
 	ships.insert((state.player.row, state.player.col), ship);

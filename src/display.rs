@@ -398,7 +398,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.write_sidebar_line(&s, fov_w, 3, WHITE);
 
 		if sbi.bearing > -1 {
-			let mut s = String::from("       ");
+			let mut s = String::from("Bearing: ");
 			match sbi.bearing {
 				0 => s.push_str("N"),
 				1 => s.push_str("NNE"),
@@ -422,24 +422,24 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			self.write_sidebar_line(&s, fov_w, 5, WHITE);
 
 			let s = "      \\|/".to_string();
-			self.write_sidebar_line(&s, fov_w, 6, BROWN);
+			self.write_sidebar_line(&s, fov_w, 7, BROWN);
 			
 			let s = "      -o-".to_string();
-			self.write_sidebar_line(&s, fov_w, 7, BROWN);
-
-			let s = "      /|\\".to_string();
 			self.write_sidebar_line(&s, fov_w, 8, BROWN);
 
+			let s = "      /|\\".to_string();
+			self.write_sidebar_line(&s, fov_w, 9, BROWN);
+
 			if sbi.wheel == 0 {
-				self.write_sq(5, FOV_WIDTH + 8, ('|', GREY));
+				self.write_sq(6, FOV_WIDTH + 8, ('|', GREY));
 			} else if sbi.wheel == -1 {
-				self.write_sq(5, FOV_WIDTH + 7, ('\\', GREY));
+				self.write_sq(6, FOV_WIDTH + 7, ('\\', GREY));
 			} else if sbi.wheel == 1 {
-				self.write_sq(5, FOV_WIDTH + 9, ('/', GREY));
+				self.write_sq(6, FOV_WIDTH + 9, ('/', GREY));
 			} else if sbi.wheel == 2 {
-				self.write_sq(6, FOV_WIDTH + 9, ('-', GREY));
+				self.write_sq(7, FOV_WIDTH + 9, ('-', GREY));
 			} else if sbi.wheel == -2 {
-				self.write_sq(6, FOV_WIDTH + 7, ('-', GREY));
+				self.write_sq(7, FOV_WIDTH + 7, ('-', GREY));
 			}
 		}
 	}
