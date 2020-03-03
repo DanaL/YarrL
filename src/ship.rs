@@ -41,6 +41,7 @@ pub struct Ship {
 	pub aft_col: usize,
 	pub bow_ch: char,
 	pub aft_ch: char,
+	pub deck_ch: char,
 	pub wheel: i8,
 	pub bearing: u8,
 	pub anchored: bool,
@@ -59,6 +60,7 @@ impl Ship {
 			aft_col: 0,
 			bow_ch: '\0',
 			aft_ch: '\0',
+			deck_ch: '\0',
 			wheel: 0,
 			bearing: 0,
 			anchored: true,
@@ -67,23 +69,23 @@ impl Ship {
 	}
 
 	pub fn update_loc_info(&mut self) {
-		let boat_tiles: (char, i8, i8, char, i8, i8);
+		let boat_tiles: (char, i8, i8, char, i8, i8, char);
 		if self.bearing == 0 || self.bearing == 1 || self.bearing == 15 { 
-			boat_tiles = (BOW_N, -1, 0, AFT_STRAIGHT, 1, 0);
+			boat_tiles = (BOW_N, -1, 0, AFT_STRAIGHT, 1, 0, DECK_STRAIGHT);
 		} else if self.bearing == 2 {
-			boat_tiles = (BOW_NE, -1, 1, AFT_ANGLE, 1, -1);
-		} else if self.bearing == 3 || self.bearing == 4 || self.bearing == 5 {
-			boat_tiles = (BOW_E, 0, 1, AFT_STRAIGHT, 0, -1);
+			boat_tiles = (BOW_NE, -1, 1, AFT_ANGLE, 1, -1, DECK_ANGLE);
+		} else if self.bearing == 4 || self.bearing == 5 || self.bearing == 3 {
+			boat_tiles = (BOW_E, 0, 1, AFT_STRAIGHT, 0, -1, DECK_STRAIGHT);
 		} else if self.bearing == 6 {
-			boat_tiles = (BOW_SE, 1, 1, AFT_ANGLE, -1, -1);
+			boat_tiles = (BOW_SE, 1, 1, AFT_ANGLE, -1, -1, DECK_ANGLE);
 		} else if self.bearing == 7 || self.bearing == 8 || self.bearing == 9 {
-			boat_tiles = (BOW_S, 1, 0, AFT_STRAIGHT, -1, 0);
+			boat_tiles = (BOW_S, 1, 0, AFT_STRAIGHT, -1, 0, DECK_STRAIGHT);
 		} else if self.bearing == 10 {
-			boat_tiles = (BOW_SW, 1, -1, AFT_ANGLE, -1, 1);
+			boat_tiles = (BOW_SW, 1, -1, AFT_ANGLE, -1, 1, DECK_ANGLE);
 		} else if self.bearing == 11 || self.bearing == 12 || self.bearing == 13 {
-			boat_tiles = (BOW_W, 0, -1, AFT_STRAIGHT, 0, 1);
+			boat_tiles = (BOW_W, 0, -1, AFT_STRAIGHT, 0, 1, DECK_STRAIGHT);
 		} else {
-			boat_tiles = (BOW_NW, -1, -1, AFT_ANGLE, 1, 1);
+			boat_tiles = (BOW_NW, -1, -1, AFT_ANGLE, 1, 1, DECK_ANGLE);
 		}
 
 		self.bow_ch = boat_tiles.0;
@@ -92,6 +94,7 @@ impl Ship {
 		self.aft_ch = boat_tiles.3;
 		self.aft_row = ((self.row as i8) + boat_tiles.4) as usize;
 		self.aft_col = ((self.col as i8) + boat_tiles.5) as usize;
+		self.deck_ch = boat_tiles.6;
 	}
 
 	pub fn random_name() -> String {

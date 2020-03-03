@@ -466,7 +466,7 @@ fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Sh
 		let mut delta: (i8, i8) = (0, 0);
 		if ship.bearing == 0 {
 			delta = (-1, 0);
-		} else if ship.bearing == 1 || ship.bearing == 3 {
+		} else if ship.bearing == 1 {
 			if ship.prev_move == (-1, 0) {
 				delta = (-1, 1);
 			} else {
@@ -474,9 +474,15 @@ fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Sh
 			}
 		} else if ship.bearing == 2 {
 			delta = (-1, 1);
+		} else if ship.bearing == 3 {
+			if ship.prev_move == (-1, 1) {
+				delta = (0, 1);
+			} else {
+				delta = (-1, 1);
+			}
 		} else if ship.bearing == 4 {
 			delta = (0, 1);
-		} else if ship.bearing == 5 || ship.bearing == 7 {
+		} else if ship.bearing == 5 {
 			if ship.prev_move == (0, 1) {
 				delta = (1, 1);
 			} else {
@@ -484,16 +490,28 @@ fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Sh
 			}
 		} else if ship.bearing == 6 {
 			delta = (1, 1);
+		} else if ship.bearing == 7 { 
+			if ship.prev_move == (1, 1) {
+				delta = (1, 0);
+			} else {
+				delta = (1, 1);
+			}
 		} else if ship.bearing == 8 {
 			delta = (1, 0);
-		} else if ship.bearing == 9 || ship.bearing == 11 {
+		} else if ship.bearing == 9 {
+			if ship.prev_move == (1, -1) {
+				delta = (1, 0);
+			} else {
+				delta = (1, -1);
+			}
+		} else if ship.bearing == 10 {
+			delta = (1, -1);
+		} else if ship.bearing == 11 {
 			if ship.prev_move == (0, -1) {
 				delta = (1, -1);
 			} else {
 				delta = (0, -1);
 			}
-		} else if ship.bearing == 10 {
-			delta = (1, -1);
 		} else if ship.bearing == 12 {
 			delta = (0, -1);
 		} else if ship.bearing == 13 {
@@ -689,7 +707,7 @@ fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Shi
 	 	state = GameState::new_pirate(player_name, PirateType::Seadog);
 	}
 	state.player.on_ship = true;
-	state.player.bearing = 0;
+	state.player.bearing = 3;
 	state.player.wheel = 0;
 
 	// Find a random starting place for a ship
@@ -707,7 +725,7 @@ fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Shi
 	let mut ship = Ship::new("The Minnow".to_string());
 	ship.row = state.player.row;
 	ship.col = state.player.col;
-	ship.bearing = 0;
+	ship.bearing = 3;
 	ship.wheel = 0;
 	ship.update_loc_info();
 	ships.insert((state.player.row, state.player.col), ship);
@@ -734,7 +752,7 @@ fn run(map: &Map) {
 	show_character_sheet(&state, &mut gui);
 	
 	let mut npcs: NPCTable = HashMap::new();
-	add_monster(map, &mut state, &mut npcs);
+	//add_monster(map, &mut state, &mut npcs);
 
 	let mut items = ItemsTable::new();
 	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));

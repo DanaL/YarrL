@@ -162,11 +162,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, map: &Map,
 
 fn add_ship(v_matrix: &mut Vec<Vec<map::Tile>>, row: usize, col: usize, ship: &Ship) {
 	let bearing = ship.bearing;
-	if bearing == 0 || bearing == 4 || bearing == 8 || bearing == 12 {
-		v_matrix[row][col] = map::Tile::ShipPart(ship::DECK_STRAIGHT);
-	} else {
-		v_matrix[row][col] = map::Tile::ShipPart(ship::DECK_ANGLE);
-	}
+	v_matrix[row][col] = map::Tile::ShipPart(ship.deck_ch);
 	
 	let delta_row_bow = ship.bow_row as i8 - ship.row as i8;
 	let delta_col_bow = ship.bow_col as i8 - ship.col as i8;
