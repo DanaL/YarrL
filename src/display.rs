@@ -206,13 +206,13 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::ShowCharacterSheet;	
 						} else if val == "w" {
 							return Cmd::ToggleEquipment;
-						} 
-						
+						} else if val == " " || val == "." {
+							return Cmd::Pass;
+						}
+
 						if state.player.on_ship {
 							if val == "A" {
 								return Cmd::ToggleAnchor;
-							} else if val == " " {
-								return Cmd::SailForward;
 							} else if val == "h" {
 								return Cmd::TurnWheelAnticlockwise;
 							} else if val == "j" {

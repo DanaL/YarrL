@@ -63,7 +63,7 @@ pub enum Cmd {
 	DropItem,
 	ShowCharacterSheet,
 	ToggleEquipment,
-	SailForward,
+	Pass,
 	TurnWheelClockwise,
 	TurnWheelAnticlockwise,	
 	ToggleAnchor,
@@ -342,11 +342,11 @@ fn show_character_sheet(state: &GameState, gui: &mut GameUI) {
 	gui.write_long_msg(&lines, true);
 }
 
-fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>, gui: &mut GameUI) {
+fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) {
 	let mut ship = ships.remove(&(state.player.row, state.player.col)).unwrap();
 
 	if ship.anchored {
-		state.write_msg_buff("Yer anchor is down, mate...");
+		state.write_msg_buff("The ships bobs.");
 	} else { 
 		let mut delta: (i8, i8) = (0, 0);
 		if ship.bearing == 0 {
@@ -415,7 +415,7 @@ fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Sh
 	ships.insert((ship.row, ship.col), ship);	
 }
 
-fn toggle_anchor(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>, gui: &mut GameUI) {
+fn toggle_anchor(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) {
 	let mut ship = ships.get_mut(&(state.player.row, state.player.col)).unwrap();
 	ship.anchored = !ship.anchored;
 
@@ -424,6 +424,21 @@ fn toggle_anchor(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship
 	} else {
 		state.write_msg_buff("You raise the anchor.");
 	}
+}
+
+fn turn_wheel(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>, change: i8) {
+	let mut ship = ships.get_mut(&(state.player.row, state.player.col)).unwrap();
+
+	let mut new_bearing = ship.bearing as i8 + change;
+	if new_bearing < 0 {
+		new_bearing = 15;
+	} else if new_bearing > 15 {
+		new_bearing = 0;
+	}
+	ship.bearing = new_bearing as u8;
+	state.player.bearing = ship.bearing;
+
+	state.write_msg_buff("You adjust the tiller.");
 }
 
 fn show_title_screen(gui: &mut GameUI) {
@@ -605,7 +620,7 @@ fn run(map: &Map) {
 				update = true;
 			},
 			Cmd::MsgHistory => {
-			show_message_history(&state, &mut gui);
+				show_message_history(&state, &mut gui);
 				update = true;
 			},
 			Cmd::DropItem => {
@@ -629,15 +644,24 @@ fn run(map: &Map) {
 				update = true;
 			},
 			Cmd::ToggleAnchor => {
-				toggle_anchor(&mut state, &mut ships, &mut gui);
+				toggle_anchor(&mut state, &mut ships);
 				update = true;
 			}
-			Cmd::SailForward => {
-				sail(&map, &mut state, &mut ships, &mut gui);
+			Cmd::Pass => {
+				if state.player.on_ship {
+					sail(&map, &mut state, &mut ships);
+					update = true;
+				}
+			},
+			Cmd::TurnWheelClockwise => {
+				turn_wheel(&mut state, &mut ships, 1);
+				sail(&map, &mut state, &mut ships);
 				update = true;
 			},
-			Cmd::TurnWheelClockwise | Cmd::TurnWheelAnticlockwise => {
-
+			 Cmd::TurnWheelAnticlockwise => {
+				turn_wheel(&mut state, &mut ships, -1);
+				sail(&map, &mut state, &mut ships);
+				update = true;
 			}
         }
 	
