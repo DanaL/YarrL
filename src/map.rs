@@ -23,7 +23,7 @@ use std::f32;
 use rand::Rng;
 use sdl2::pixels::Color;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub enum Tile {
 	Blank,
 	Wall,
@@ -387,6 +387,16 @@ fn count_neighbouring_walls(grid: &Vec<Vec<bool>>, row: i32, col: i32, width: i3
 	}	
 
 	adj_walls
+}
+
+pub fn generate_test_map() -> Vec<Vec<Tile>> {
+	let mut grid = vec![vec![Tile::DeepWater; 17]; 17];
+
+	grid[5][8] = Tile::Sand;
+	grid[5][9] = Tile::Sand;
+	grid[5][10] = Tile::Sand;
+
+	grid
 }
 
 pub fn generate_cave(width: usize, depth: usize) -> Vec<Vec<Tile>> {

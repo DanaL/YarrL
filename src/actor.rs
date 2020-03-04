@@ -15,13 +15,15 @@
 
 extern crate rand;
 
+use std::collections::HashSet;
+
 use sdl2::pixels::Color;
 
 use crate::dice;
 use crate::display::{GREY};
 use crate::items::{Item, Inventory};
 use crate::map;
-use crate::pathfinding::{find_path, find_path_by_sea, manhattan_d};
+use crate::pathfinding::{find_path, manhattan_d};
 
 use super::{GameState, Map, NPCTable};
 
@@ -207,10 +209,12 @@ fn shark_action(m: &mut Monster, state: &mut GameState,
 		}	
 	} else if d < 50 {
 		// Too far away and the sharks just ignore the player
-		println!("start looking for path");
-		let path = find_path_by_sea(map, m.row, m.col, 
-			state.player.row, state.player.col);
-		println!("done looking for path");
+		let mut water = HashSet::new();
+		water.insert(map::Tile::Water);
+		water.insert(map::Tile::DeepWater);
+		let path = find_path(map, m.row, m.col, 
+			state.player.row, state.player.col, &water);
+		
 		if path.len() > 1 {
 			let new_loc = path[1];
 			if npcs.contains_key(&new_loc) {
@@ -226,42 +230,4 @@ fn shark_action(m: &mut Monster, state: &mut GameState,
 
 	Ok(())
 }
-/*
-impl Shark {
-	pub fn new(row: usize, col: usize) -> Shark {
-		let hp = dice::roll(8, 3, 0);
-		let m = Monster::new(12, hp, '^', row, col, GREY);
-		Shark { name: String::from("shark"), mon: m }
-	}
-}
-
-impl Act for Shark {
-	fn act(&mut self, state: &mut GameState, map: &Map, npcs: &mut NPCTable) {
-		let d = manhattan_d(self.mon.row, self.mon.col, state.player.row, 
-			state.player.col);
-
-		if d < 50 {
-			// Too far away and the sharks just ignore the player
-			let path = find_path_by_sea(map, self.mon.row, self.mon.col, 
-				state.player.row, state.player.col);
-			if path.len() > 1 {
-				let new_loc = path[1];
-				if npcs.contains_key(&new_loc) {
-					let s = format!("The {} is blocked.", self.name);
-					state.write_msg_buff(&s);
-					return;
-				} 
-				let m = npcs.remove(&(self.mon.row, self.mon.col)).unwrap();
-				self.mon.row = new_loc.0;
-				self.mon.col = new_loc.1;
-				npcs.insert(new_loc, m);
-			}
-		}
-	}
-
-	fn get_tile_info(&self) -> (Color, char) {
-		(self.mon.color, self.mon.symbol)
-	}
-}*/
-
 
