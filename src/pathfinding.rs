@@ -16,10 +16,12 @@
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::VecDeque;
 use std::cmp::Ordering;
 
 use crate::map;
-use crate::map::{in_bounds, is_passable, is_passable_by_water};
+use crate::map::in_bounds;
+use crate::util::{manhattan_d, cartesian_d};
 
 #[derive(Debug)]
 struct ASNode {
@@ -66,10 +68,6 @@ impl PartialEq for ASQueueItem {
     }
 }
 
-pub fn manhattan_d(ax: usize, ay: usize, bx: usize, by: usize) -> usize {
-	((ax as i32 - bx as i32).abs() + (ay as i32 - by as i32).abs()) as usize	
-}
-
 fn get_path_from_nodes(nodes: &HashMap<(usize, usize), ASNode>,
 		path: &mut Vec<(usize, usize)>,
 		sr: usize, sc: usize, er: usize, ec: usize) {
@@ -87,8 +85,54 @@ fn get_path_from_nodes(nodes: &HashMap<(usize, usize), ASNode>,
 	path.reverse();
 }
 
-pub fn passable_by_me(tile: map::Tile, valid: &HashSet<map::Tile>) -> bool {
-	valid.contains(&tile)
+// If the target location cannot be reached (eg., a shark wants to swim
+// toward the player who is standing on a beach), then try to find a nearby
+// square to swim to. I am going to floodfill to find all reachable squares
+// and return one that is near the player. 
+fn find_nearest_reachable(map: &Vec<Vec<map::Tile>>,
+		start_r: usize, start_c: usize,
+		end_r: usize, end_c: usize,
+		passable_tiles: &HashSet<map::Tile>) -> (usize, usize) {
+
+	let mut sqs = BinaryHeap::new();
+	let mut visited = HashSet::new();
+	let mut queue = VecDeque::new();
+	queue.push_back((start_r, start_c));
+
+	while queue.len() > 0 {
+		let curr = queue.pop_front().unwrap();
+		if visited.contains(&curr) { continue; }
+		visited.insert(curr);
+		
+		let dis_to_goal = cartesian_d(end_r as i32, end_c as i32, curr.0 as i32, curr.1 as i32) as i32;
+		sqs.push(ASQueueItem::new((curr.0, curr.1), -dis_to_goal));
+
+		for r in -1..2 {
+			for c in -1..2 {
+				if r == 0 && c == 0 { continue; }
+	
+				let nr = curr.0 as i32 + r;
+				let nc = curr.1 as i32 + c;
+				if !map::in_bounds(map, nr, nc) { continue; }
+				if !passable_by_me(map[nr as usize][nc as usize], passable_tiles) { continue; }
+
+				let dis_from_start = manhattan_d(start_r, start_c, nr as usize, nc as usize) as i32;
+				if dis_from_start > 30 { continue; }
+			
+				let next_loc = (nr as usize, nc as usize);
+				if !visited.contains(&next_loc) { 
+					queue.push_back(next_loc);
+				}
+			}
+		}	
+	}
+
+	if sqs.len() > 0 {
+		let n = sqs.pop().unwrap();
+		n.loc
+	} else {
+		(0, 0)
+	}
 }
 
 // I think I could get rid of the redundant data structures with the use
@@ -96,17 +140,16 @@ pub fn passable_by_me(tile: map::Tile, valid: &HashSet<map::Tile>) -> bool {
 // a hash table of square info to avoid having to fight with the borrow
 // checker and I shouldn't need both). But that'll be for the post-7DRL 
 // future when I have more time.
-// I hate this cut and paste but its 7DRL and I've no time to be fancy
-pub fn find_path(
+//
+// Note that if the end square isn't actually passable, this will go into
+// an infinite loop if the pathfinder can find a square adjacent to the
+// unreachable path. Could fix this by looking for a square that's adj
+// to the goal, rather than the goal itself
+fn astar(
 		map: &Vec<Vec<map::Tile>>, 
 		start_r: usize, start_c: usize, 
 		end_r: usize, end_c: usize,
 		passable_tiles: &HashSet<map::Tile>) -> Vec<(usize, usize)> {
-
-	if !passable_by_me(map[end_r][end_c], &passable_tiles) {
-		// The goal is on an impassable sq so gotta try something else
-		return Vec::new();
-	}
 
 	let mut nodes = HashMap::new();
 	nodes.insert((start_r, start_c), ASNode::new((start_r, start_c), (start_r, start_c), 0, 0, 0));
@@ -163,4 +206,37 @@ pub fn find_path(
 	}
 
 	Vec::new()
+}
+	
+pub fn passable_by_me(tile: map::Tile, valid: &HashSet<map::Tile>) -> bool {
+	valid.contains(&tile)
+}
+
+pub fn find_path(
+		map: &Vec<Vec<map::Tile>>, 
+		start_r: usize, start_c: usize, 
+		end_r: usize, end_c: usize,
+		passable_tiles: &HashSet<map::Tile>) -> Vec<(usize, usize)> {
+
+	let mut goal_r = end_r;
+	let mut goal_c = end_c;
+
+	// If the target is a square that cannot be stepped on (eg, player on a beach,
+	// shark in the water hunting them) we will instead find the nearest reachable 
+	// spot and seek a path to that instead.
+	//
+	// (I could also do this if the astar() returns no path but worry that would 
+	// start to get expensive)
+	if !passable_by_me(map[end_r][end_c], &passable_tiles) {
+		// The goal is on an impassable sq so gotta try something else
+		let res = find_nearest_reachable(map, start_r, start_c, end_r, end_c, passable_tiles);
+		if res == (0, 0) {
+			return Vec::new();
+		}
+
+		goal_r = res.0;
+		goal_c = res.1;
+	}
+
+	astar(map, start_r, start_c, goal_r, goal_c, passable_tiles)
 }

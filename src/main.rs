@@ -26,6 +26,7 @@ mod map;
 #[allow(dead_code)]
 mod pathfinding;
 mod ship;
+mod util;
 
 use crate::actor::{Monster, Player, PirateType};
 use crate::dice::roll;
@@ -36,6 +37,7 @@ use crate::ship::Ship;
 use rand::Rng;
 
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::path::Path;
 
 const MSG_HISTORY_LENGTH: usize = 50;
 const FOV_WIDTH: usize = 41;
@@ -743,11 +745,12 @@ fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Shi
 	} else {
 	 	state = GameState::new_pirate(player_name, PirateType::Seadog);
 	}
-	state.player.on_ship = true;
+	state.player.on_ship = false;
 	state.player.bearing = 0;
 	state.player.wheel = 0;
 
 	// Find a random starting place for a ship
+	/*
 	loop {
 		let r = rand::thread_rng().gen_range(1, map.len() - 1);
 		let c = rand::thread_rng().gen_range(1, map.len() - 1);
@@ -758,7 +761,18 @@ fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Shi
 			break;
 		}
 	}
+	*/
+	loop {
+		let r = rand::thread_rng().gen_range(1, map.len() - 1);
+		let c = rand::thread_rng().gen_range(1, map.len() - 1);
+		if map::is_passable(map[r][c]) && map[r][c] != map::Tile::DeepWater {
+			state.player.row = r;
+			state.player.col = c;
+			break;
+		}
+	}
 
+	/*
 	let mut ship = Ship::new("The Minnow".to_string());
 	ship.row = state.player.row;
 	ship.col = state.player.col;
@@ -766,6 +780,7 @@ fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Shi
 	ship.wheel = 0;
 	ship.update_loc_info();
 	ships.insert((state.player.row, state.player.col), ship);
+	*/
 
 	state
 }
@@ -839,41 +854,16 @@ fn start_game(map: &Map) {
 	}
 }
 
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
-fn dump_map(map: &Map, gui: &mut GameUI) {
-
-	let path = Path::new("map.txt");	
-	let mut file = match File::create(&path) {
-		Ok(file) => file,
-		Err(_) => panic!("pff"),
-	};
-
-	let mut s = String::from("");
-	for row in 0..map.len() {
-		for col in 0..map[0].len() {
-			let ti = gui.sq_info_for_tile(map[row][col]);
-			s.push(ti.0);
-		}
-		s.push('\n');
-	}
-
-	file.write_all(s.as_bytes());
-}
-
 fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 		npcs: &mut NPCTable, items: &mut ItemsTable, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
 	add_monster(map, state, npcs);
-	add_monster(map, state, npcs);
-	add_monster(map, state, npcs);
+	//add_monster(map, state, npcs);
+	//add_monster(map, state, npcs);
 
 	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
 	gui.v_matrix = fov::calc_v_matrix(map, npcs, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
 	let sbi = state.curr_sidebar_info();
 	gui.write_screen(&mut state.msg_buff, &sbi);
-
-	dump_map(map, gui);
 
     'mainloop: loop {
 		let mut update = false;
@@ -945,9 +935,9 @@ fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 			Cmd::Pass => {
 				if state.player.on_ship {
 					sail(map, state, ships)?;
-					update = true;
 					state.turn += 1
 				}
+				update = true;
 			},
 			Cmd::TurnWheelClockwise => {
 				turn_wheel(state, ships, 1);
@@ -982,16 +972,19 @@ fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 }
 
 fn main() {
-	let map = map::generate_island(17);
-	let map = map::generate_test_map();
+	let map = map::generate_island(33);
 
 	//let map = map::generate_cave(20, 10);
+
+	/*
+	let map = map::generate_test_map();
 	let mut hs = HashSet::new();
 	hs.insert(map::Tile::Water);
 	hs.insert(map::Tile::DeepWater);
-	let path = pathfinding::find_path(&map, 4, 4, 5, 9, &hs);
+	let path = pathfinding::find_path(&map, 1, 1, 1, 4, &hs);
 	println!("{:?}", path);
-	
-	//start_game(&map);
+	*/
+
+	start_game(&map);
 }
 

@@ -61,13 +61,6 @@ pub fn is_clear(tile: Tile) -> bool {
 	}
 }
 
-pub fn is_passable_by_water(tile: Tile) -> bool {
-	match tile {
-		Tile::Water | Tile::DeepWater => true,
-		_ => false,
-	}
-}
-
 pub fn is_passable(tile: Tile) -> bool {
 	match tile {
 		Tile::Wall | Tile::Blank |
@@ -390,11 +383,20 @@ fn count_neighbouring_walls(grid: &Vec<Vec<bool>>, row: i32, col: i32, width: i3
 }
 
 pub fn generate_test_map() -> Vec<Vec<Tile>> {
-	let mut grid = vec![vec![Tile::DeepWater; 17]; 17];
+	let mut grid = vec![vec![Tile::Wall; 5]; 5];
 
-	grid[5][8] = Tile::Sand;
-	grid[5][9] = Tile::Sand;
-	grid[5][10] = Tile::Sand;
+	grid[1][1] = Tile::DeepWater;
+	grid[2][1] = Tile::DeepWater;
+	grid[3][1] = Tile::DeepWater;
+	grid[4][1] = Tile::DeepWater;
+	grid[3][2] = Tile::DeepWater;
+	grid[1][3] = Tile::DeepWater;
+	grid[2][3] = Tile::DeepWater;
+	grid[3][3] = Tile::DeepWater;
+	grid[4][3] = Tile::DeepWater;
+	grid[1][4] = Tile::DeepWater;
+	grid[2][4] = Tile::DeepWater;
+	grid[4][4] = Tile::DeepWater;
 
 	grid
 }

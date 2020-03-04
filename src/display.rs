@@ -35,6 +35,7 @@ pub static GREY: Color = Color::RGBA(136, 136, 136, 255);
 pub static GREEN: Color = Color::RGBA(144, 238, 144, 255);
 pub static DARK_GREEN: Color = Color::RGBA(46, 139, 87, 255);
 pub static BROWN: Color = Color::RGBA(150, 75, 0, 255);
+pub static DARK_BROWN: Color = Color::RGBA(101, 67, 33, 255);
 pub static BLUE: Color = Color::RGBA(0, 0, 200, 255);
 pub static LIGHT_BLUE: Color = Color::RGBA(55, 198, 255, 255);
 pub static BEIGE: Color = Color::RGBA(255, 178, 127, 255);
@@ -343,8 +344,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::Wall => ('#', GREY),
 			map::Tile::Tree => ('\u{03D9}', GREEN),
 			map::Tile::Dirt => ('.', BROWN),
-			//map::Tile::Grass => ('\u{0316}', GREEN),
-			map::Tile::Grass => ('.', GREEN),
+			map::Tile::Grass => ('\u{0316}', GREEN),
 			map::Tile::Player(color) => ('@', color),
 			map::Tile::Water => ('}', LIGHT_BLUE),
 			map::Tile::DeepWater => ('}', BLUE),

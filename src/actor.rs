@@ -23,7 +23,8 @@ use crate::dice;
 use crate::display::{GREY};
 use crate::items::{Item, Inventory};
 use crate::map;
-use crate::pathfinding::{find_path, manhattan_d};
+use crate::pathfinding::find_path;
+use crate::util::{manhattan_d, sqs_adj};
 
 use super::{GameState, Map, NPCTable};
 
@@ -197,9 +198,7 @@ impl Monster {
 
 fn shark_action(m: &mut Monster, state: &mut GameState, 
 		map: &Map, npcs: &mut NPCTable) -> Result<(), String> {
-	let d = manhattan_d(m.row, m.col, state.player.row, state.player.col);
-
-	if d == 1 {
+	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
 		if super::attack_player(state, m) {
 			state.write_msg_buff("The shark bites you!");
 			let dmg_roll = dice::roll(m.dmg, m.dmg_dice, m.dmg_bonus as i8);
@@ -207,7 +206,7 @@ fn shark_action(m: &mut Monster, state: &mut GameState,
 		} else {
 			state.write_msg_buff("The shark misses!");
 		}	
-	} else if d < 50 {
+	} else if manhattan_d(m.row, m.col, state.player.row, state.player.col) < 50 {
 		// Too far away and the sharks just ignore the player
 		let mut water = HashSet::new();
 		water.insert(map::Tile::Water);
