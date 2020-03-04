@@ -16,7 +16,7 @@
 use std::collections::HashMap;
 
 use crate::actor::Player;
-use crate::display::{WHITE, BROWN};
+use crate::display::{WHITE, LIGHT_BLUE, BROWN};
 use crate::map;
 use crate::map::in_bounds;
 use super::{Map, NPCTable};
@@ -240,6 +240,8 @@ pub fn calc_v_matrix(
 
 	if player.on_ship {
 		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(BROWN);
+	} else if map[player.row][player.col] == map::Tile::DeepWater {
+		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(LIGHT_BLUE);
 	} else {
 		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(WHITE);
 	}

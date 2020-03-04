@@ -157,9 +157,21 @@ fn do_ability_check(ability_mod: i8, difficulty: u8, bonus: i8) -> bool {
 	}
 }
 
+fn player_takes_dmg(player: &mut Player, dmg: u8, source: &str) -> Result<(), String> {
+	if player.curr_stamina < dmg {
+		Err(source.to_string())
+	} else {
+		player.curr_stamina -= dmg;
+		Ok(())
+	}
+}
+
 fn do_move(map: &Map, state: &mut GameState, npcs: &NPCTable, 
-		items: &ItemsTable, ships: &HashMap<(usize, usize), Ship>, dir: &str) {
+		items: &ItemsTable, ships: &HashMap<(usize, usize), Ship>, dir: &str) -> Result<(), String> {
 	let mv = get_move_tuple(dir);
+
+	let start_loc = (state.player.row, state.player.col);
+	let start_tile = map[state.player.row][state.player.col];
 	let next_row = state.player.row as i16 + mv.0;
 	let next_col = state.player.col as i16 + mv.1;
 	let next_loc = (next_row as usize, next_col as usize);
@@ -182,7 +194,19 @@ fn do_move(map: &Map, state: &mut GameState, npcs: &NPCTable,
 
 		if tile == map::Tile::Water {
 			state.write_msg_buff("You splash in the shallow water.");
-		} 
+		} else if tile == map::Tile::DeepWater {
+			if start_tile != map::Tile::DeepWater {
+				state.write_msg_buff("You begin to swim.");
+			}
+
+			player_takes_dmg(&mut state.player, 2, "swimming")?;
+
+			if state.player.curr_stamina < 10 {
+				state.write_msg_buff("You're getting tired...");
+			}
+		} else if start_tile == map::Tile::DeepWater && state.player.curr_stamina < 10 {
+			state.write_msg_buff("Whew, you stumble ashore.");
+		}
 
 		let items_count = items.count_at(state.player.row, state.player.col);
 		if items_count == 1 {
@@ -197,6 +221,8 @@ fn do_move(map: &Map, state: &mut GameState, npcs: &NPCTable,
 	} else  {
 		state.write_msg_buff("You cannot go that way.");
 	}
+
+	Ok(())
 }
 
 fn show_message_history(state: &GameState, gui: &mut GameUI) {
@@ -744,7 +770,24 @@ fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Shi
 	state
 }
 
-fn run(map: &Map) {
+fn death(state: &GameState, src: String, gui: &mut GameUI) {
+	let mut lines = vec![String::from("")];
+	let s = format!("Well shiver me timbers, {}, ye've died!", state.player.name);
+	lines.push(s);
+
+	if src == "swimming" {
+		lines.push(String::from(""));
+		lines.push(String::from("Ye died from drowning! Davy Jones'll have you for sure!"));
+	}
+
+	lines.push(String::from(""));
+	lines.push(String::from("Silverbeard's treasure remains for some other swab..."));
+	lines.push(String::from(""));
+
+	gui.write_long_msg(&lines, true);
+}
+
+fn start_game(map: &Map) {
     let ttf_context = sdl2::ttf::init()
 		.expect("Error creating ttf context on start-up!");
 	let font_path: &Path = Path::new("DejaVuSansMono.ttf");
@@ -771,6 +814,14 @@ fn run(map: &Map) {
 	let sbi = state.curr_sidebar_info();
 	gui.write_screen(&mut state.msg_buff, &sbi);
 
+	match run(&mut gui, &mut state, &map, &mut npcs, &mut items, &mut ships) {
+		Ok(_) => println!("Game over I guess? Probably the player won?!"),
+		Err(src) => death(&state, src, &mut gui),
+	}
+}
+
+fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
+		npcs: &mut NPCTable, items: &mut ItemsTable, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
     'mainloop: loop {
 		//let mut m = npcs.get(&(17, 17)).unwrap().borrow_mut();
 		//let initiative_order = vec![m];
@@ -780,100 +831,102 @@ fn run(map: &Map) {
 		match cmd {
 			Cmd::Exit => break 'mainloop,
 			Cmd::MoveW => {
-				do_move(&map, &mut state, &npcs, &items, &ships, "W");
+				do_move(map, state, npcs, items, ships, "W")?;
 				update = true;
 			},
 			Cmd::MoveS => {
-				do_move(&map, &mut state, &npcs, &items, &ships, "S");
+				do_move(map, state, npcs, items, ships, "S")?;
 				update = true;
 			},
 			Cmd::MoveN => {
-				do_move(&map, &mut state, &npcs, &items, &ships, "N");
+				do_move(map, state, npcs, items, ships, "N")?;
 				update = true;
 			},
 			Cmd::MoveE => {
-				do_move(&map, &mut state, &npcs, &items, &ships, "E");
+				do_move(map, state, npcs, items, ships, "E")?;
 				update = true;
 			},
 			Cmd::MoveNW => {
-				do_move(&map, &mut state, &npcs, &items, &ships, "NW");
+				do_move(map, state, npcs, items, ships, "NW")?;
 				update = true;
 			},
 			Cmd::MoveNE => {
-				do_move(&map, &mut state, &npcs, &items, &ships, "NE");
+				do_move(map, state, npcs, items, ships, "NE")?;
 				update = true;
 			},
 			Cmd::MoveSW => {
-				do_move(&map, &mut state, &npcs, &items, &ships, "SW");
+				do_move(map, state, npcs, items, ships, "SW")?;
 				update = true;
 			},
 			Cmd::MoveSE => {
-				do_move(&map, &mut state, &npcs, &items, &ships, "SE");
+				do_move(map, state, npcs, items, ships, "SE")?;
 				update = true;
 			},
 			Cmd::MsgHistory => {
-				show_message_history(&state, &mut gui);
+				show_message_history(state, gui);
 				update = true;
 			},
 			Cmd::DropItem => {
-				drop_item(&mut state, &mut items, &mut gui);
+				drop_item(state, items, gui);
 				update = true;
 			}
 			Cmd::PickUp => {
-				pick_up(&mut state, &mut items, &mut gui);
+				pick_up(state, items, gui);
 				update = true;
 			}
 			Cmd::ShowInventory => {
-				show_inventory(&mut state, &mut gui);
+				show_inventory(state, gui);
 				update = true;
 			},
 			Cmd::ShowCharacterSheet => {
-				show_character_sheet(&state, &mut gui);
+				show_character_sheet(state, gui);
 				update = true;
 			},
 			Cmd::ToggleEquipment => {
-				toggle_equipment(&mut state, &mut gui);
+				toggle_equipment(state, gui);
 				update = true;
 			},
 			Cmd::ToggleAnchor => {
-				if toggle_anchor(&mut state, &mut ships) {
-					sail(&map, &mut state, &mut ships);
+				if toggle_anchor(state, ships) {
+					sail(map, state, ships);
 				}
 				update = true;
 			}
 			Cmd::Pass => {
 				if state.player.on_ship {
-					sail(&map, &mut state, &mut ships);
+					sail(map, state, ships);
 					update = true;
 					state.turn += 1
 				}
 			},
 			Cmd::TurnWheelClockwise => {
-				turn_wheel(&mut state, &mut ships, 1);
-				sail(&map, &mut state, &mut ships);
+				turn_wheel(state, ships, 1);
+				sail(map, state, ships);
 				update = true;
 			},
 			 Cmd::TurnWheelAnticlockwise => {
-				turn_wheel(&mut state, &mut ships, -1);
-				sail(&map, &mut state, &mut ships);
+				turn_wheel(state, ships, -1);
+				sail(map, state, ships);
 				update = true;
 			},
 			Cmd::ToggleHelm => {
 				if !state.player.on_ship {
-					take_helm(&mut state, &ships);
+					take_helm(state, ships);
 				} else {
-					leave_helm(&mut state);
+					leave_helm(state);
 				}
 				update = true;
 			},
         }
 	
 		if update {
-			gui.v_matrix = fov::calc_v_matrix(&map, &npcs, &items, &ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
+			gui.v_matrix = fov::calc_v_matrix(map, npcs, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
 			let sbi = state.curr_sidebar_info();
 			gui.write_screen(&mut state.msg_buff, &sbi);
 		}
     }
+
+	Ok(())
 }
 
 fn main() {
@@ -881,6 +934,6 @@ fn main() {
 	//let map = map::generate_cave(20, 10);
 	//let path = pathfinding::find_path(&map, 4, 4, 9, 9);
 	
-	run(&map);
+	start_game(&map);
 }
 
