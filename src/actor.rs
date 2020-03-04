@@ -196,6 +196,31 @@ impl Monster {
 	}
 }
 
+fn find_adj_empty_sq(row: i32, col: i32, map: &Map, npcs: &NPCTable, passable: &HashSet<map::Tile>) -> (usize, usize) {
+	let mut adj = Vec::new();
+
+	for r in -1..=1 {
+		for c in -1..=1 {
+			if r == 0 && c == 0 { continue; }
+			let adj_r = row + r;
+			let adj_c = col + c;
+	
+			if !map::in_bounds(map, adj_r, adj_c) { continue; }
+			if !passable.contains(&map[adj_r as usize][adj_c as usize]) { continue; }
+
+			adj.push((adj_r as usize, adj_c as usize));
+		}
+	}
+
+	if adj.len() == 0 {
+		(row as usize, col as usize)
+	} else {
+		let i = dice::roll(adj.len() as u8, 1, 0) - 1;
+		let loc = adj[i as usize];
+		loc
+	}
+}
+
 fn shark_action(m: &mut Monster, state: &mut GameState, 
 		map: &Map, npcs: &mut NPCTable) -> Result<(), String> {
 	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
@@ -209,11 +234,11 @@ fn shark_action(m: &mut Monster, state: &mut GameState,
 	} else if manhattan_d(m.row, m.col, state.player.row, state.player.col) < 50 {
 		// Too far away and the sharks just ignore the player
 		let mut water = HashSet::new();
-		water.insert(map::Tile::Water);
 		water.insert(map::Tile::DeepWater);
+
 		let path = find_path(map, m.row, m.col, 
 			state.player.row, state.player.col, &water);
-		
+	
 		if path.len() > 1 {
 			let new_loc = path[1];
 			if npcs.contains_key(&new_loc) {
@@ -224,6 +249,10 @@ fn shark_action(m: &mut Monster, state: &mut GameState,
 
 			m.row = new_loc.0;
 			m.col = new_loc.1;
+		} else {
+			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, map, npcs, &water);
+			m.row = loc.0;
+			m.col = loc.1;
 		}
 	}
 
