@@ -65,7 +65,7 @@ impl PartialEq for ASQueueItem {
     }
 }
 
-fn manhattan_d(ax: usize, ay: usize, bx: usize, by: usize) -> usize {
+pub fn manhattan_d(ax: usize, ay: usize, bx: usize, by: usize) -> usize {
 	((ax as i32 - bx as i32).abs() + (ay as i32 - by as i32).abs()) as usize	
 }
 

@@ -692,11 +692,11 @@ fn add_monster(map: &Map, state: &mut GameState, npcs: &mut NPCTable) {
 		col = rand::thread_rng().gen_range(0, map[0].len());
 
 		let tile = map[row][col];
-		if map::is_passable(tile) { break; };
+		if tile == map::Tile::DeepWater { break; }
 	}	
 	
-	let mut m = actor::Monster::new(13, 25, 'o', row, col, display::BLUE);
-	npcs.insert((row, col), Rc::new(RefCell::new(m)));
+	let mut s = actor::Shark::new(row, col);
+	npcs.insert((row, col), Rc::new(RefCell::new(s)));
 }
 
 fn is_putting_on_airs(name: &str) -> bool {
@@ -794,6 +794,19 @@ fn death(state: &GameState, src: String, gui: &mut GameUI) {
 	gui.write_long_msg(&lines, true);
 }
 
+fn npc_turns(map: &Map, state: &mut GameState, npcs: &mut NPCTable, items: &mut ItemsTable) -> Result<(), String> {
+	let locs = npcs.keys()
+					.map(|v| v.clone())
+					.collect::<Vec<(usize, usize)>>();
+	
+	for loc in locs {
+		let mut npc = npcs.get_mut(&loc).unwrap().borrow_mut();
+		npc.act(state, map);
+	}
+	
+	Ok(())	
+}
+
 fn start_game(map: &Map) {
     let ttf_context = sdl2::ttf::init()
 		.expect("Error creating ttf context on start-up!");
@@ -813,7 +826,6 @@ fn start_game(map: &Map) {
 	show_character_sheet(&state, &mut gui);
 	
 	let mut npcs: NPCTable = HashMap::new();
-	//add_monster(map, &mut state, &mut npcs);
 
 	let mut items = ItemsTable::new();
 	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
@@ -829,10 +841,11 @@ fn start_game(map: &Map) {
 
 fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 		npcs: &mut NPCTable, items: &mut ItemsTable, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
-    'mainloop: loop {
-		//let mut m = npcs.get(&(17, 17)).unwrap().borrow_mut();
-		//let initiative_order = vec![m];
+	add_monster(map, state, npcs);
+	add_monster(map, state, npcs);
+	add_monster(map, state, npcs);
 
+    'mainloop: loop {
 		let mut update = false;
 		let cmd = gui.get_command(&state);
 		match cmd {
@@ -931,6 +944,8 @@ fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 			let sbi = state.curr_sidebar_info();
 			gui.write_screen(&mut state.msg_buff, &sbi);
 		}
+
+		npc_turns(map, state, npcs, items);
     }
 
 	Ok(())

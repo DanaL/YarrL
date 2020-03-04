@@ -18,7 +18,11 @@ extern crate rand;
 use sdl2::pixels::Color;
 
 use crate::dice;
+use crate::display::{GREY};
 use crate::items::{Item, Inventory};
+use crate::map;
+use crate::pathfinding::{manhattan_d};
+use super::{Map};
 
 #[derive(Debug)]
 pub enum PirateType {
@@ -156,7 +160,7 @@ impl Player {
 }
 
 pub trait Act {
-	fn act(&mut self, state: &mut super::GameState);
+	fn act(&mut self, state: &mut super::GameState, map: &Map);
 	fn get_tile_info(&self) -> (Color, char);
 }
 
@@ -175,12 +179,28 @@ impl Monster {
 	}
 }
 
-impl Act for Monster {
-	fn act(&mut self, state: &mut super::GameState) {
-		println!("My location is ({}, {})", self.row, self.col);
+pub struct Shark {
+	mon: Monster,
+}
+
+impl Shark {
+	pub fn new(row: usize, col: usize) -> Shark {
+		let hp = dice::roll(8, 3, 0);
+		let m = Monster::new(12, hp, '^', row, col, GREY);
+		Shark { mon: m }
+	}
+}
+
+impl Act for Shark {
+	fn act(&mut self, state: &mut super::GameState, map: &Map) {
+		let d = manhattan_d(self.mon.row, self.mon.col, state.player.row, 
+			state.player.col);
+
+		println!("I am {}s from plaer", d);
 	}
 
 	fn get_tile_info(&self) -> (Color, char) {
-		(self.color, self.symbol)
+		(self.mon.color, self.mon.symbol)
 	}
 }
+
