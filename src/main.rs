@@ -828,10 +828,6 @@ fn start_game(map: &Map) {
 	let mut npcs: NPCTable = HashMap::new();
 
 	let mut items = ItemsTable::new();
-	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
-	gui.v_matrix = fov::calc_v_matrix(&map, &npcs, &items, &ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
-	let sbi = state.curr_sidebar_info();
-	gui.write_screen(&mut state.msg_buff, &sbi);
 
 	match run(&mut gui, &mut state, &map, &mut npcs, &mut items, &mut ships) {
 		Ok(_) => println!("Game over I guess? Probably the player won?!"),
@@ -844,6 +840,11 @@ fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 	add_monster(map, state, npcs);
 	add_monster(map, state, npcs);
 	add_monster(map, state, npcs);
+
+	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
+	gui.v_matrix = fov::calc_v_matrix(map, npcs, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
+	let sbi = state.curr_sidebar_info();
+	gui.write_screen(&mut state.msg_buff, &sbi);
 
     'mainloop: loop {
 		let mut update = false;

@@ -21,7 +21,7 @@ use crate::dice;
 use crate::display::{GREY};
 use crate::items::{Item, Inventory};
 use crate::map;
-use crate::pathfinding::{manhattan_d};
+use crate::pathfinding::{find_path, find_path_by_sea, manhattan_d};
 use super::{Map};
 
 #[derive(Debug)]
@@ -196,7 +196,14 @@ impl Act for Shark {
 		let d = manhattan_d(self.mon.row, self.mon.col, state.player.row, 
 			state.player.col);
 
-		println!("I am {}s from plaer", d);
+		if d < 50 {
+			// Too far away and the sharks just ignore the player
+			let path = find_path_by_sea(map, self.mon.row, self.mon.col, 
+				state.player.row, state.player.col);
+			if path.len() > 0 {
+				println!("{}, {}   {:?}", self.mon.row, self.mon.col, path[1]);
+			}
+		}
 	}
 
 	fn get_tile_info(&self) -> (Color, char) {

@@ -61,6 +61,13 @@ pub fn is_clear(tile: Tile) -> bool {
 	}
 }
 
+pub fn is_passable_by_water(tile: Tile) -> bool {
+	match tile {
+		Tile::Water | Tile::DeepWater => true,
+		_ => false,
+	}
+}
+
 pub fn is_passable(tile: Tile) -> bool {
 	match tile {
 		Tile::Wall | Tile::Blank |
