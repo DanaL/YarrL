@@ -463,7 +463,7 @@ fn get_open_sq_adj_player(map: &Map, state: &GameState, ships: &HashMap<(usize, 
 	}
 }
 
-fn ship_hit_land(map: &Map, state: &mut GameState, ship: &mut Ship, ships: &HashMap<(usize, usize), Ship>) {
+fn ship_hit_land(map: &Map, state: &mut GameState, ship: &mut Ship, ships: &HashMap<(usize, usize), Ship>) -> Result<(), String> {
 	state.write_msg_buff("Ye've run yer ship aground!!");
 	state.write_msg_buff("You lose control o' the wheel!");
 	let mut new_wheel = ship.wheel + 2 + dice::roll(5, 1, 0) as i8;	
@@ -478,12 +478,15 @@ fn ship_hit_land(map: &Map, state: &mut GameState, ship: &mut Ship, ships: &Hash
 			state.player.row = loc.0;
 			state.player.col = loc.1;
 
-			// Should do some damage to the player once I am tracking that stuff
+			let dmg = dice::roll(6, 1, 0);
+			player_takes_dmg(&mut state.player, dmg, "falling")?;
 		}
 	}
+
+	Ok(())
 }
 
-fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) {
+fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
 	let mut ship = ships.remove(&(state.player.row, state.player.col)).unwrap();
 
 	let bow_tile = map[ship.bow_row][ship.bow_col];
@@ -577,8 +580,6 @@ fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Sh
 			state.player.bearing = new_bearing as u8;
 		}
 
-		// Collision detection should go here!!
-
 		state.player.row = (state.player.row as i8 + delta.0) as usize;
 		state.player.col = (state.player.col as i8 + delta.1) as usize;
 		ship.row = (ship.row as i8 + delta.0) as usize;
@@ -590,11 +591,13 @@ fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Sh
 		if map[ship.bow_row][ship.bow_col] == map::Tile::Water {
 			state.write_msg_buff("Shallow water...");
 		} else if map[ship.bow_row][ship.bow_col] != map::Tile::DeepWater {
-			ship_hit_land(map, state, &mut ship, ships);
+			ship_hit_land(map, state, &mut ship, ships)?;
 		}
 	}
 
-	ships.insert((ship.row, ship.col), ship);	
+	ships.insert((ship.row, ship.col), ship);
+
+	Ok(())
 }
 
 fn toggle_anchor(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) -> bool {
@@ -778,6 +781,10 @@ fn death(state: &GameState, src: String, gui: &mut GameUI) {
 	if src == "swimming" {
 		lines.push(String::from(""));
 		lines.push(String::from("Ye died from drowning! Davy Jones'll have you for sure!"));
+	} else if src == "falling" {
+		lines.push(String::from(""));
+		lines.push(String::from("Ye took a nasty fall! But it's like they say: it don't be the fall"));
+		lines.push(String::from("what gets you, it be the landing..."));
 	}
 
 	lines.push(String::from(""));
@@ -888,25 +895,25 @@ fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 			},
 			Cmd::ToggleAnchor => {
 				if toggle_anchor(state, ships) {
-					sail(map, state, ships);
+					sail(map, state, ships)?;
 				}
 				update = true;
 			}
 			Cmd::Pass => {
 				if state.player.on_ship {
-					sail(map, state, ships);
+					sail(map, state, ships)?;
 					update = true;
 					state.turn += 1
 				}
 			},
 			Cmd::TurnWheelClockwise => {
 				turn_wheel(state, ships, 1);
-				sail(map, state, ships);
+				sail(map, state, ships)?;
 				update = true;
 			},
 			 Cmd::TurnWheelAnticlockwise => {
 				turn_wheel(state, ships, -1);
-				sail(map, state, ships);
+				sail(map, state, ships)?;
 				update = true;
 			},
 			Cmd::ToggleHelm => {
