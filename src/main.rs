@@ -798,7 +798,9 @@ fn death(state: &GameState, src: String, gui: &mut GameUI) {
 		lines.push(String::from("Ye took a nasty fall! But it's like they say: it don't be the fall"));
 		lines.push(String::from("what gets you, it be the landing..."));
 	} else  {
-		let s = format!("Killed by a {}", src);
+		lines.push(String::from(""));
+		let s = format!("Killed by a {}!", src);
+		lines.push(s);
 	}
 
 	lines.push(String::from(""));
@@ -810,20 +812,6 @@ fn death(state: &GameState, src: String, gui: &mut GameUI) {
 
 fn attack_player(state: &mut GameState, npc: &Monster) -> bool {
 	do_ability_check(npc.hit_bonus, state.player.ac, 0)
-}
-
-fn npc_turns(map: &Map, state: &mut GameState, npcs: &mut NPCTable, items: &mut ItemsTable) -> Result<(), String> {
-	let locs = npcs.keys()
-					.map(|v| v.clone())
-					.collect::<Vec<(usize, usize)>>();
-
-	for loc in locs {
-		let mut npc = npcs.remove(&loc).unwrap();
-		npc.act(state, map, npcs)?;
-		npcs.insert((npc.row, npc.col), npc);
-	}
-
-	Ok(())	
 }
 
 fn start_game(map: &Map) {
@@ -964,18 +952,37 @@ fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 			let sbi = state.curr_sidebar_info();
 			gui.write_screen(&mut state.msg_buff, &sbi);
 		}
+		
+		// Need to update the view after each NPC turn too (or maybe only if they are within a certain distance
+		// of the player?)
+		let locs = npcs.keys()
+					.map(|v| v.clone())
+					.collect::<Vec<(usize, usize)>>();
 
-		npc_turns(map, state, npcs, items);
+		for loc in locs {
+			let mut npc = npcs.remove(&loc).unwrap();
+			npc.act(state, map, npcs)?;
+			let npc_r = npc.row;
+			let npc_c = npc.col;
+			npcs.insert((npc.row, npc.col), npc);
+
+			if util::manhattan_d(state.player.row, state.player.col, npc_r, npc_c) < 21 {
+				gui.v_matrix = fov::calc_v_matrix(map, npcs, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
+				let sbi = state.curr_sidebar_info();
+				gui.write_screen(&mut state.msg_buff, &sbi);
+			}
+		}
     }
 
 	Ok(())
 }
 
 fn main() {
-	let map = map::generate_island(33);
+	let map = map::generate_island(17);
 
 	//let map = map::generate_cave(20, 10);
-
+	
+	println!("{}", util::sqs_adj(4, 8, 6, 10));
 	/*
 	let map = map::generate_test_map();
 	let mut hs = HashSet::new();

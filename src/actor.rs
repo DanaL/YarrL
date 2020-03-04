@@ -223,6 +223,7 @@ fn find_adj_empty_sq(row: i32, col: i32, map: &Map, npcs: &NPCTable, passable: &
 
 fn shark_action(m: &mut Monster, state: &mut GameState, 
 		map: &Map, npcs: &mut NPCTable) -> Result<(), String> {
+
 	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
 		if super::attack_player(state, m) {
 			state.write_msg_buff("The shark bites you!");
