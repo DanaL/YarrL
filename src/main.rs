@@ -840,6 +840,31 @@ fn start_game(map: &Map) {
 	}
 }
 
+fn dump_map(map: &Map, npcs: &mut NPCTable, gui: &mut GameUI,
+		player_r: usize, player_c: usize) {
+
+
+	for row in 0..map.len() {
+		println!("{}", map[row].len());
+	}
+	
+	for row in 0..map.len() {
+		let mut s = String::from("");
+		for col in 0..map[0].len() {
+			if row == player_r && col == player_c {
+				s.push('@');
+			} else if npcs.contains_key(&(row, col)) {
+				let npc = npcs.get(&(row, col)).unwrap();
+				s.push(npc.symbol);
+			} else {
+				let ti = gui.sq_info_for_tile(map[row][col]);
+				s.push(ti.0);
+			}
+		}
+		println!("{}", s);
+	}
+}
+
 fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 		npcs: &mut NPCTable, items: &mut ItemsTable, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
 	add_monster(map, state, npcs);
@@ -851,6 +876,8 @@ fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 	let sbi = state.curr_sidebar_info();
 	gui.write_screen(&mut state.msg_buff, &sbi);
 
+	dump_map(map, npcs, gui, state.player.row, state.player.col);
+	return Ok(());
     'mainloop: loop {
 		let mut update = false;
 		let cmd = gui.get_command(&state);
@@ -958,7 +985,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 }
 
 fn main() {
-	let map = map::generate_island(65);
+	let map = map::generate_island(17);
 	//let map = map::generate_cave(20, 10);
 	//let path = pathfinding::find_path(&map, 4, 4, 9, 9);
 	

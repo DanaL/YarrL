@@ -337,7 +337,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.pause_for_more();
 	}
 
-	fn sq_info_for_tile(&self, tile: map::Tile) -> (char, sdl2::pixels::Color) {
+	pub fn sq_info_for_tile(&self, tile: map::Tile) -> (char, sdl2::pixels::Color) {
 		let ti = match tile {
 			map::Tile::Blank => (' ', BLACK),
 			map::Tile::Wall => ('#', GREY),

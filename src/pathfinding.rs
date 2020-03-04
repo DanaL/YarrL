@@ -165,6 +165,9 @@ pub fn find_path_by_sea(
 
 	let mut visited = HashSet::new();
 	while open.len() > 0 {
+		println!("-------------------------");
+		println!("{:?}", open);
+		println!("\n\n");
 		let current = open.pop().unwrap();
 		if current.loc.0 == end_r && current.loc.1 == end_c {
 			let mut path = Vec::new();
