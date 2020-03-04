@@ -22,7 +22,8 @@ use crate::display::{GREY};
 use crate::items::{Item, Inventory};
 use crate::map;
 use crate::pathfinding::{find_path, find_path_by_sea, manhattan_d};
-use super::{Map};
+
+use super::{GameState, Map, NPCTable};
 
 #[derive(Debug)]
 pub enum PirateType {
@@ -159,40 +160,83 @@ impl Player {
 	}
 }
 
-pub trait Act {
-	fn act(&mut self, state: &mut super::GameState, map: &Map);
-	fn get_tile_info(&self) -> (Color, char);
-}
-
 pub struct Monster {
-	ac: u8,
-	hp: u8,
-	symbol: char,
-	row: usize,
-	col: usize,
-	color: Color,
+	pub name: String,
+	pub ac: u8,
+	pub hp: u8,
+	pub symbol: char,
+	pub row: usize,
+	pub col: usize,
+	pub color: Color,
+	pub hit_bonus: i8,
+	pub dmg: u8,
+	pub dmg_dice: u8,
+	pub dmg_bonus: u8,
 }
 
 impl Monster {
-	pub fn new(ac:u8, hp: u8, symbol: char, row: usize, col: usize, color: Color) -> Monster {
-		Monster { ac, hp, symbol, row, col, color }
+	pub fn new(name: String, ac:u8, hp: u8, symbol: char, row: usize, col: usize, color: Color,
+			hit_bonus: i8, dmg: u8, dmg_dice: u8, dmg_bonus: u8) -> Monster {
+		Monster { name, ac, hp, symbol, row, col, color, hit_bonus, dmg, dmg_dice, dmg_bonus }
+	}
+
+	pub fn new_shark(row: usize, col: usize) -> Monster {
+		let hp = dice::roll(8, 3, 0);
+		Monster::new(String::from("shark"), 12, hp, '^', row, col, GREY,
+			4, 8, 1, 2)
+	}
+
+	pub fn act(&mut self, state: &mut GameState, map: &Map, npcs: &mut NPCTable) -> Result<(), String> {
+		shark_action(self, state, map, npcs)?;
+
+		Ok(())
 	}
 }
 
-pub struct Shark {
-	mon: Monster,
-}
+fn shark_action(m: &mut Monster, state: &mut GameState, 
+		map: &Map, npcs: &mut NPCTable) -> Result<(), String> {
+	let d = manhattan_d(m.row, m.col, state.player.row, state.player.col);
 
+	if d == 1 {
+		if super::attack_player(state, m) {
+			state.write_msg_buff("The shark bites you!");
+			let dmg_roll = dice::roll(m.dmg, m.dmg_dice, m.dmg_bonus as i8);
+			super::player_takes_dmg(&mut state.player, dmg_roll, "shark")?;
+		} else {
+			state.write_msg_buff("The shark misses!");
+		}	
+	} else if d < 50 {
+		// Too far away and the sharks just ignore the player
+		println!("start looking for path");
+		let path = find_path_by_sea(map, m.row, m.col, 
+			state.player.row, state.player.col);
+		println!("done looking for path");
+		if path.len() > 1 {
+			let new_loc = path[1];
+			if npcs.contains_key(&new_loc) {
+				let s = format!("The {} is blocked.", m.name);
+				state.write_msg_buff(&s);
+				return Ok(());
+			} 
+
+			m.row = new_loc.0;
+			m.col = new_loc.1;
+		}
+	}
+
+	Ok(())
+}
+/*
 impl Shark {
 	pub fn new(row: usize, col: usize) -> Shark {
 		let hp = dice::roll(8, 3, 0);
 		let m = Monster::new(12, hp, '^', row, col, GREY);
-		Shark { mon: m }
+		Shark { name: String::from("shark"), mon: m }
 	}
 }
 
 impl Act for Shark {
-	fn act(&mut self, state: &mut super::GameState, map: &Map) {
+	fn act(&mut self, state: &mut GameState, map: &Map, npcs: &mut NPCTable) {
 		let d = manhattan_d(self.mon.row, self.mon.col, state.player.row, 
 			state.player.col);
 
@@ -200,8 +244,17 @@ impl Act for Shark {
 			// Too far away and the sharks just ignore the player
 			let path = find_path_by_sea(map, self.mon.row, self.mon.col, 
 				state.player.row, state.player.col);
-			if path.len() > 0 {
-				println!("{}, {}   {:?}", self.mon.row, self.mon.col, path[1]);
+			if path.len() > 1 {
+				let new_loc = path[1];
+				if npcs.contains_key(&new_loc) {
+					let s = format!("The {} is blocked.", self.name);
+					state.write_msg_buff(&s);
+					return;
+				} 
+				let m = npcs.remove(&(self.mon.row, self.mon.col)).unwrap();
+				self.mon.row = new_loc.0;
+				self.mon.col = new_loc.1;
+				npcs.insert(new_loc, m);
 			}
 		}
 	}
@@ -209,5 +262,6 @@ impl Act for Shark {
 	fn get_tile_info(&self) -> (Color, char) {
 		(self.mon.color, self.mon.symbol)
 	}
-}
+}*/
+
 

@@ -27,7 +27,7 @@ mod map;
 mod pathfinding;
 mod ship;
 
-use crate::actor::{Act, Player, PirateType};
+use crate::actor::{Monster, Player, PirateType};
 use crate::dice::roll;
 use crate::display::{GameUI, SidebarInfo};
 use crate::items::{Item, ItemsTable};
@@ -35,17 +35,15 @@ use crate::ship::Ship;
 
 use rand::Rng;
 
-use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::path::Path;
-use std::rc::Rc;
 
 const MSG_HISTORY_LENGTH: usize = 50;
 const FOV_WIDTH: usize = 41;
 const FOV_HEIGHT: usize = 21;
 
 pub type Map = Vec<Vec<map::Tile>>;
-type NPCTable = HashMap<(usize, usize), Rc<RefCell<dyn actor::Act>>>;
+type NPCTable = HashMap<(usize, usize), Monster>;
 
 pub enum Cmd {
 	Exit,
@@ -695,8 +693,8 @@ fn add_monster(map: &Map, state: &mut GameState, npcs: &mut NPCTable) {
 		if tile == map::Tile::DeepWater { break; }
 	}	
 	
-	let mut s = actor::Shark::new(row, col);
-	npcs.insert((row, col), Rc::new(RefCell::new(s)));
+	let s = actor::Monster::new_shark(row, col);
+	npcs.insert((row, col), s);
 }
 
 fn is_putting_on_airs(name: &str) -> bool {
@@ -785,6 +783,8 @@ fn death(state: &GameState, src: String, gui: &mut GameUI) {
 		lines.push(String::from(""));
 		lines.push(String::from("Ye took a nasty fall! But it's like they say: it don't be the fall"));
 		lines.push(String::from("what gets you, it be the landing..."));
+	} else  {
+		let s = format!("Killed by a {}", src);
 	}
 
 	lines.push(String::from(""));
@@ -794,16 +794,21 @@ fn death(state: &GameState, src: String, gui: &mut GameUI) {
 	gui.write_long_msg(&lines, true);
 }
 
+fn attack_player(state: &mut GameState, npc: &Monster) -> bool {
+	do_ability_check(npc.hit_bonus, state.player.ac, 0)
+}
+
 fn npc_turns(map: &Map, state: &mut GameState, npcs: &mut NPCTable, items: &mut ItemsTable) -> Result<(), String> {
 	let locs = npcs.keys()
 					.map(|v| v.clone())
 					.collect::<Vec<(usize, usize)>>();
-	
+
 	for loc in locs {
-		let mut npc = npcs.get_mut(&loc).unwrap().borrow_mut();
-		npc.act(state, map);
+		let mut npc = npcs.remove(&loc).unwrap();
+		npc.act(state, map, npcs)?;
+		npcs.insert((npc.row, npc.col), npc);
 	}
-	
+
 	Ok(())	
 }
 

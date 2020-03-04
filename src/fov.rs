@@ -39,9 +39,8 @@ fn calc_actual_tile(r: usize, c: usize, map: &Map,
 		let ti = i.get_tile_info();
 		map::Tile::Thing(ti.0, ti.1)
 	} else if npcs.contains_key(&(r, c)) {
-		let m = npcs.get(&(r, c)).unwrap().borrow();
-		let ti = m.get_tile_info();
-		map::Tile::Thing(ti.0, ti.1)
+		let m = npcs.get(&(r, c)).unwrap();
+		map::Tile::Thing(m.color, m.symbol)
 	} else {
 		map[r][c]
 	}
