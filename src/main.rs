@@ -168,6 +168,45 @@ fn player_takes_dmg(player: &mut Player, dmg: u8, source: &str) -> Result<(), St
 	}
 }
 
+fn attack_npc(state: &mut GameState, npc_row: usize, npc_col: usize) {
+	let mut npc = state.npcs.remove(&(npc_row, npc_col)).unwrap();
+	let str_mod = Player::mod_for_stat(state.player.strength);
+
+	if do_ability_check(str_mod, npc.ac, state.player.prof_bonus as i8) {
+		let mut dmg: i8;
+		match state.player.inventory.get_equiped_weapon() {
+			Some(w) => {
+				let s = format!("You hit the {}!", npc.name);
+				state.write_msg_buff(&s);
+				dmg = dice::roll(w.dmg, 1, w.bonus as i8) as i8 + str_mod;
+			},
+			None => {
+				let s = format!("You punch the {}!", npc.name);
+				state.write_msg_buff(&s);
+				dmg = 1 + str_mod;
+			}
+		}
+
+		// It could happen??	
+		if dmg < 0 {
+			dmg = 0;
+		}
+
+		if dmg as u8 > npc.hp {
+			let s = format!("You kill the {}!", npc.name);
+			state.write_msg_buff(&s);
+			state.player.score += npc.score;
+		} else {
+			npc.hp -= dmg as u8;
+			state.npcs.insert((npc_row, npc_col), npc);
+		}
+	} else {
+		let s = format!("You miss the {}!", npc.name);
+		state.write_msg_buff(&s);
+		state.npcs.insert((npc_row, npc_col), npc);
+	}
+}
+
 fn do_move(state: &mut GameState, items: &ItemsTable, 
 			ships: &HashMap<(usize, usize), Ship>, dir: &str) -> Result<(), String> {
 	let mv = get_move_tuple(dir);
@@ -180,17 +219,15 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 	let tile = state.map[next_row as usize][next_col as usize];
 	
 	if state.npcs.contains_key(&next_loc) {
-		state.write_msg_buff("There is someone in your way!");
-	}
-	else if ships.contains_key(&next_loc) {
+		attack_npc(state, next_loc.0, next_loc.1);
+	} else if ships.contains_key(&next_loc) {
 		state.player.col = next_col as usize;
 		state.player.row = next_row as usize;
 		let ship = ships.get(&next_loc).unwrap();
 		let s = format!("You climb aboard the {}.", ship.name);
 		state.write_msg_buff(&s);
 		state.turn += 1;
-	}
-	else if map::is_passable(tile) {
+	} else if map::is_passable(tile) {
 		state.player.col = next_col as usize;
 		state.player.row = next_row as usize;
 

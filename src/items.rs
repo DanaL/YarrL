@@ -56,6 +56,17 @@ impl Inventory {
 		}
 	}
 
+	pub fn get_equiped_weapon(&self) -> Option<Item> {
+		for slot in self.inv.keys() {
+			let w = self.inv.get(&slot).unwrap();
+			if w.0.equiped && w.0.item_type == ItemType::Weapon {
+				return Some(w.0.clone());
+			}
+		}
+
+		None
+	}
+
 	fn type_already_equiped(&self, slot: char, i_type: ItemType) -> bool {
 		for slot in self.inv.keys() {
 			let v = self.inv.get(&slot).unwrap();
@@ -305,7 +316,7 @@ pub enum ItemType {
 	Bullet,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Item {
 	pub name: String,
 	pub item_type: ItemType,

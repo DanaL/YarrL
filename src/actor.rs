@@ -52,6 +52,7 @@ pub struct Player {
 	pub on_ship: bool,
 	pub bearing: u8,
 	pub wheel: i8,
+	pub score: u8,
 }
 
 impl Player {
@@ -79,6 +80,7 @@ impl Player {
 			on_ship: false,
 			bearing: 0,
 			wheel: 0,
+			score: 0,
 		};
 
 		p.inventory.add(Item::get_item("rusty cutlass").unwrap());
@@ -115,6 +117,7 @@ impl Player {
 			on_ship: false,
 			bearing: 0,
 			wheel: 0,
+			score: 0,
 		};
 
 		p.inventory.add(Item::get_item("rusty cutlass").unwrap());
@@ -175,18 +178,20 @@ pub struct Monster {
 	pub dmg: u8,
 	pub dmg_dice: u8,
 	pub dmg_bonus: u8,
+	pub score: u8,
 }
 
 impl Monster {
 	pub fn new(name: String, ac:u8, hp: u8, symbol: char, row: usize, col: usize, color: Color,
-			hit_bonus: i8, dmg: u8, dmg_dice: u8, dmg_bonus: u8) -> Monster {
-		Monster { name, ac, hp, symbol, row, col, color, hit_bonus, dmg, dmg_dice, dmg_bonus }
+			hit_bonus: i8, dmg: u8, dmg_dice: u8, dmg_bonus: u8, score: u8) -> Monster {
+		Monster { name, ac, hp, symbol, row, col, color, hit_bonus, 
+			dmg, dmg_dice, dmg_bonus, score }
 	}
 
 	pub fn new_shark(row: usize, col: usize) -> Monster {
 		let hp = dice::roll(8, 3, 0);
 		Monster::new(String::from("shark"), 12, hp, '^', row, col, GREY,
-			4, 8, 1, 2)
+			4, 8, 1, 2, 10)
 	}
 
 	pub fn act(&mut self, state: &mut GameState) -> Result<(), String> {
