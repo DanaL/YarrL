@@ -15,7 +15,7 @@
 
 extern crate sdl2;
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::map;
 use super::{Cmd, GameState, Map, FOV_WIDTH, FOV_HEIGHT};
@@ -26,6 +26,7 @@ use sdl2::keyboard::Mod;
 use sdl2::keyboard::Keycode;
 use sdl2::rect::Rect;
 use sdl2::render::WindowCanvas;
+use sdl2::surface::Surface;
 use sdl2::ttf::Font;
 use sdl2::pixels::Color;
 
@@ -76,6 +77,7 @@ pub struct GameUI<'a, 'b> {
 	canvas: WindowCanvas,
 	event_pump: EventPump,
 	pub v_matrix: Map,
+	surface_cache: HashMap<(char, Color), Surface<'a>>,
 }
 
 impl<'a, 'b> GameUI<'a, 'b> {
@@ -103,6 +105,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			event_pump: sdl_context.event_pump().unwrap(),
 			sm_font, sm_font_width, sm_font_height,
 			v_matrix,
+			surface_cache: HashMap::new(),
 		};
 
 		Ok(gui)
@@ -391,9 +394,15 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 	fn write_sq(&mut self, r: usize, c: usize, tile_info: (char, sdl2::pixels::Color)) {
 		let (ch, char_colour) = tile_info;
-		let surface = self.font.render_char(ch)
-			.blended(char_colour)
-			.expect("Error creating character!");  
+
+		if !self.surface_cache.contains_key(&tile_info) {
+			let s = self.font.render_char(ch)
+				.blended(char_colour)
+				.expect("Error creating character!");  
+			self.surface_cache.insert(tile_info, s);
+		}
+		let surface = self.surface_cache.get(&tile_info).unwrap();
+
 		let texture_creator = self.canvas.texture_creator();
 		let texture = texture_creator.create_texture_from_surface(&surface)
 			.expect("Error creating texture!");

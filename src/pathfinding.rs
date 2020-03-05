@@ -133,9 +133,7 @@ fn astar(
 	queue.push(ASQueueItem::new((start_r, start_c), 0)); 
 	in_queue.insert((start_c, start_c));
 
-	let mut count = 0;
 	while queue.len() > 0 {
-		count += 1;
 		let node = queue.pop().unwrap();
 		let curr = node.loc;
 		if curr == (end_r, end_c) {
