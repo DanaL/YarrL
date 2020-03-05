@@ -207,6 +207,8 @@ fn attack_npc(state: &mut GameState, npc_row: usize, npc_col: usize) {
 		state.write_msg_buff(&s);
 		state.npcs.insert((npc_row, npc_col), npc);
 	}
+
+	state.turn += 1;
 }
 
 fn calc_bullet_ch(dir: (i32, i32)) -> char {
@@ -1057,6 +1059,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 	state.msg_buff.drain(..0);
 
     'mainloop: loop {
+		let start_turn = state.turn;
 		let mut update = false;
 		let cmd = gui.get_command(&state);
 		match cmd {
@@ -1162,22 +1165,26 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 			},
         }
 
-		let locs = state.npcs.keys()
-					.map(|v| v.clone())
-					.collect::<Vec<(usize, usize)>>();
+		// Some of the commands don't count as a turn for the player, so
+		// don't give the monsters a free move in those cases
+		if state.turn > start_turn {
+			let locs = state.npcs.keys()
+						.map(|v| v.clone())
+						.collect::<Vec<(usize, usize)>>();
 
-		for loc in locs {
-			let mut npc = state.npcs.remove(&loc).unwrap();
-			npc.act(state)?;
-			let npc_r = npc.row;
-			let npc_c = npc.col;
-			state.npcs.insert((npc.row, npc.col), npc);
-		}
+			for loc in locs {
+				let mut npc = state.npcs.remove(&loc).unwrap();
+				npc.act(state)?;
+				let npc_r = npc.row;
+				let npc_c = npc.col;
+				state.npcs.insert((npc.row, npc.col), npc);
+			}
 
-		if state.turn % 50 == 0 {
-			state.player.add_stamina(1);
+			if state.turn % 50 == 0 {
+				state.player.add_stamina(1);
+			}
 		}
-		
+	
 		if update {
 			gui.v_matrix = fov::calc_v_matrix(state, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
 			let sbi = state.curr_sidebar_info();
