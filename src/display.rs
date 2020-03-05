@@ -474,22 +474,25 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			self.draw_frame("", sbi);
 		} else {
 			let mut s = String::from("");
+			let mut msg_num = 0;
 			loop {
-				if msgs.len() == 0 {
+				if msg_num == msgs.len() {
 					self.draw_frame(&s, sbi);
 					break;
 				} 
 
-				let msg = msgs.get(0).unwrap();
+				let msg = &msgs[msg_num];
 				if s.len() + msg.len() < SCREEN_WIDTH as usize - 9 {
-					s.push_str(msg);
+					s.push_str(&msg);
 					s.push_str(" ");
-					msgs.pop_front();
+					msg_num += 1;
 				} else {
+					msgs.drain(..msg_num);
 					s.push_str("--More--");
 					self.draw_frame(&s, sbi);
 					self.pause_for_more();
 					s = String::from("");
+					msg_num = 0;
 				}
 			}
 		}

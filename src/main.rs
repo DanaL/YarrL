@@ -854,6 +854,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 	gui.v_matrix = fov::calc_v_matrix(state, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
 	let sbi = state.curr_sidebar_info();
 	gui.write_screen(&mut state.msg_buff, &sbi);
+	state.msg_buff.drain(..0);
 
     'mainloop: loop {
 		let mut update = false;
@@ -978,6 +979,8 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 		if state.turn % 50 == 0 && state.player.curr_stamina < state.player.max_stamina {
 			state.player.curr_stamina += 1;
 		}
+		
+		state.msg_buff.drain(..);	
     }
 
 	Ok(())
