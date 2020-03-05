@@ -161,15 +161,15 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, map: &Map,
 fn add_ship(v_matrix: &mut Vec<Vec<map::Tile>>, row: usize, col: usize, ship: &Ship) {
 	v_matrix[row][col] = map::Tile::ShipPart(ship.deck_ch);
 	
-	let delta_row_bow = ship.bow_row as i8 - ship.row as i8;
-	let delta_col_bow = ship.bow_col as i8 - ship.col as i8;
-	let delta_row_aft = ship.aft_row as i8 - ship.row as i8;
-	let delta_col_aft = ship.aft_col as i8 - ship.col as i8;
+	let delta_row_bow = ship.bow_row as i32 - ship.row as i32;
+	let delta_col_bow = ship.bow_col as i32 - ship.col as i32;
+	let delta_row_aft = ship.aft_row as i32 - ship.row as i32;
+	let delta_col_aft = ship.aft_col as i32 - ship.col as i32;
 
-	let bow_row = (delta_row_bow + row as i8) as usize;
-	let bow_col = (delta_col_bow + col as i8) as usize;
-	let aft_row = (delta_row_aft + row as i8) as usize;
-	let aft_col = (delta_col_aft + col as i8) as usize;
+	let bow_row = (delta_row_bow as i32 + row as i32) as usize;
+	let bow_col = (delta_col_bow as i32 + col as i32) as usize;
+	let aft_row = (delta_row_aft as i32 + row as i32) as usize;
+	let aft_col = (delta_col_aft as i32 + col as i32) as usize;
 	
 	if in_bounds(v_matrix, bow_row as i32, bow_col as i32) && v_matrix[bow_row][bow_col] != map::Tile::Blank {
 		v_matrix[bow_row][bow_col] = map::Tile::ShipPart(ship.bow_ch);
@@ -226,11 +226,11 @@ pub fn calc_v_matrix(
 			let actual_c: i32 = player.col as i32 + offset_c;
 
 			mark_visible(player.row as i32, player.col as i32,
-				actual_r as i32, actual_c as i32, state.map, &state.npcs, items, &mut v_matrix);
+				actual_r as i32, actual_c as i32, &state.map, &state.npcs, items, &mut v_matrix);
 		}
 	}
 
-	add_ships_to_v_matrix(state.map, &mut v_matrix, ships, player.row, player.col, height, width);
+	add_ships_to_v_matrix(&state.map, &mut v_matrix, ships, player.row, player.col, height, width);
 
 	if player.on_ship {
 		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(BROWN);

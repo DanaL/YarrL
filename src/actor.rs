@@ -262,7 +262,7 @@ fn boar_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 		water.insert(map::Tile::Sand);
 		water.insert(map::Tile::Tree);
 
-		let path = find_path(state.map, m.row, m.col, 
+		let path = find_path(&state.map, m.row, m.col, 
 			state.player.row, state.player.col, &water);
 	
 		if path.len() > 1 {
@@ -276,7 +276,7 @@ fn boar_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 			m.row = new_loc.0;
 			m.col = new_loc.1;
 		} else {
-			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, state.map, &state.npcs, &water);
+			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, &state.map, &state.npcs, &water);
 			m.row = loc.0;
 			m.col = loc.1;
 		}
@@ -300,7 +300,7 @@ fn shark_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 		water.insert(map::Tile::DeepWater);
 
 		//println!("Shark on turn {}", state.turn);
-		let path = find_path(state.map, m.row, m.col, 
+		let path = find_path(&state.map, m.row, m.col, 
 			state.player.row, state.player.col, &water);
 		
 		if path.len() > 1 {
@@ -314,7 +314,7 @@ fn shark_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 			m.row = new_loc.0;
 			m.col = new_loc.1;
 		} else {
-			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, state.map, &state.npcs, &water);
+			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, &state.map, &state.npcs, &water);
 			m.row = loc.0;
 			m.col = loc.1;
 		}

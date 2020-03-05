@@ -378,6 +378,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::Player(color) => ('@', color),
 			map::Tile::Water => ('}', LIGHT_BLUE),
 			map::Tile::DeepWater => ('}', BLUE),
+			map::Tile::WorldEdge => ('}', BLUE),
 			map::Tile::Sand => ('.', BEIGE),
 			map::Tile::StoneFloor => ('.', GREY),
 			map::Tile::Mountain => ('\u{039B}', GREY),

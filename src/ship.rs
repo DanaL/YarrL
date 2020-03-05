@@ -85,11 +85,11 @@ impl Ship {
 		}
 
 		self.bow_ch = boat_tiles.0;
-		self.bow_row = ((self.row as i8) + boat_tiles.1) as usize;
-		self.bow_col = ((self.col as i8) + boat_tiles.2) as usize;
+		self.bow_row = ((self.row as i32) + boat_tiles.1 as i32) as usize;
+		self.bow_col = ((self.col as i32) + boat_tiles.2 as i32) as usize;
 		self.aft_ch = boat_tiles.3;
-		self.aft_row = ((self.row as i8) + boat_tiles.4) as usize;
-		self.aft_col = ((self.col as i8) + boat_tiles.5) as usize;
+		self.aft_row = ((self.row as i32) + boat_tiles.4 as i32) as usize;
+		self.aft_col = ((self.col as i32) + boat_tiles.5 as i32) as usize;
 		self.deck_ch = boat_tiles.6;
 	}
 

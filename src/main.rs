@@ -17,6 +17,7 @@ extern crate rand;
 extern crate sdl2;
 
 mod actor;
+mod content_factory;
 mod dice;
 mod display;
 mod fov;
@@ -29,6 +30,7 @@ mod ship;
 mod util;
 
 use crate::actor::{Monster, Player, PirateType};
+use crate::content_factory::generate_world;
 use crate::display::{GameUI, SidebarInfo};
 use crate::items::{Item, ItemType, ItemsTable};
 use crate::ship::Ship;
@@ -71,25 +73,24 @@ pub enum Cmd {
 	Reload,
 }
 
-pub struct GameState<'a> {
+pub struct GameState {
 	player: Player,
 	msg_buff: VecDeque<String>,
 	msg_history: VecDeque<(String, u32)>,
-	map: &'a Map,
+	map: Map,
 	npcs: NPCTable,
 	turn: u32,
 }
 
-impl<'a> GameState<'a> {
-	pub fn new_pirate(name: String, p_type: PirateType, 
-			map: &'a Map, npcs: NPCTable) -> GameState<'a> {
+impl GameState {
+	pub fn new_pirate(name: String, p_type: PirateType, npcs: NPCTable) -> GameState {
 		let player = match p_type {
 			PirateType::Swab => Player::new_swab(name),
 			PirateType::Seadog => Player::new_seadog(name),
 		};
 
 		GameState {player, msg_buff: VecDeque::new(), 
-			msg_history: VecDeque::new(), turn: 0, map, npcs }
+			msg_history: VecDeque::new(), turn: 0, map: Vec::new(), npcs }
 	}
 
 	pub fn curr_sidebar_info(&self) -> SidebarInfo {
@@ -232,7 +233,7 @@ fn shoot(state: &mut GameState, dir: (i32, i32), gun: &Item, dex_mod: i8, gui: &
 		travelled = (travelled.0 + dir.0, travelled.1 + dir.1);
 		distance += 1;
 
-		if !map::in_bounds(state.map, bullet_r, bullet_c) { break; }
+		if !map::in_bounds(&state.map, bullet_r, bullet_c) { break; }
 		if !map::is_passable(state.map[bullet_r as usize][bullet_c as usize]) { break; }
 		if distance > gun.range { break; }
 
@@ -591,7 +592,7 @@ fn show_character_sheet(state: &GameState, gui: &mut GameUI) {
 // need to see if a square was open when choosing to use separate data structures for the map tiles, 
 // the items, the ships, and the NPCs...
 fn sq_open(state: &GameState, ships: &HashMap<(usize, usize), Ship>, row: usize, col: usize) -> bool {
-	if !map::in_bounds(state.map, row as i32, col as i32) {
+	if !map::in_bounds(&state.map, row as i32, col as i32) {
 		return false;
 	}
 
@@ -769,10 +770,10 @@ fn sail(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) -> Res
 			state.player.bearing = new_bearing as u8;
 		}
 
-		state.player.row = (state.player.row as i8 + delta.0) as usize;
-		state.player.col = (state.player.col as i8 + delta.1) as usize;
-		ship.row = (ship.row as i8 + delta.0) as usize;
-		ship.col = (ship.col as i8 + delta.1) as usize;
+		state.player.row = (state.player.row as i32+ delta.0 as i32) as usize;
+		state.player.col = (state.player.col as i32 + delta.1 as i32) as usize;
+		ship.row = (ship.row as i32 + delta.0 as i32) as usize;
+		ship.col = (ship.col as i32 + delta.1 as i32) as usize;
 		ship.update_loc_info();
 		ship.prev_move = delta;
 
@@ -906,7 +907,7 @@ fn is_putting_on_airs(name: &str) -> bool {
 		name.to_lowercase().starts_with("cap'n") 
 }
 
-fn preamble<'a>(map: &'a Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Ship>) -> GameState<'a> {
+fn preamble(gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Ship>) -> GameState {
 	let mut player_name: String;
 
 	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0, -1, -1, 0);
@@ -945,47 +946,11 @@ fn preamble<'a>(map: &'a Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usiz
 	let answer = gui.menu_picker(&menu, 2, true, true).unwrap();
 	let mut state: GameState;
 	if answer.contains(&0) {
-	 	state = GameState::new_pirate(player_name, PirateType::Swab, &map, npcs);
+	 	state = GameState::new_pirate(player_name, PirateType::Swab, npcs);
 	} else {
-	 	state = GameState::new_pirate(player_name, PirateType::Seadog, &map, npcs);
+	 	state = GameState::new_pirate(player_name, PirateType::Seadog, npcs);
 	}
-	state.player.on_ship = false;
-	state.player.bearing = 0;
-	state.player.wheel = 0;
-
-	// Find a random starting place for a ship
-	/*
-	loop {
-		let r = rand::thread_rng().gen_range(1, map.len() - 1);
-		let c = rand::thread_rng().gen_range(1, map.len() - 1);
-		if map[r][c] == map::Tile::DeepWater && map[r-1][c] == map::Tile::DeepWater 
-				&& map[r+1][c]==  map::Tile::DeepWater {
-			state.player.row = r;
-			state.player.col = c;
-			break;
-		}
-	}
-	*/
-	loop {
-		let r = rand::thread_rng().gen_range(1, map.len() - 1);
-		let c = rand::thread_rng().gen_range(1, map.len() - 1);
-		if map::is_passable(map[r][c]) && map[r][c] != map::Tile::DeepWater {
-			state.player.row = r;
-			state.player.col = c;
-			break;
-		}
-	}
-
-	/*
-	let mut ship = Ship::new("The Minnow".to_string());
-	ship.row = state.player.row;
-	ship.col = state.player.col;
-	ship.bearing = 0;
-	ship.wheel = 0;
-	ship.update_loc_info();
-	ships.insert((state.player.row, state.player.col), ship);
-	*/
-
+	
 	state
 }
 
@@ -1018,7 +983,7 @@ fn attack_player(state: &mut GameState, npc: &Monster) -> bool {
 	do_ability_check(npc.hit_bonus, state.player.ac, 0)
 }
 
-fn start_game(map: &Map) {
+fn start_game() {
     let ttf_context = sdl2::ttf::init()
 		.expect("Error creating ttf context on start-up!");
 	let font_path: &Path = Path::new("DejaVuSansMono.ttf");
@@ -1032,12 +997,12 @@ fn start_game(map: &Map) {
 	show_title_screen(&mut gui);
 
 	let mut ships: HashMap<(usize, usize), Ship> = HashMap::new();
-	let mut state = preamble(&map, &mut gui, &mut ships);
+	let mut state = preamble(&mut gui, &mut ships);
+	let mut items = ItemsTable::new();
+
+	generate_world(&mut state, &mut items, &mut ships);
 
 	show_character_sheet(&state, &mut gui);
-	
-
-	let mut items = ItemsTable::new();
 
 	match run(&mut gui, &mut state, &mut items, &mut ships) {
 		Ok(_) => println!("Game over I guess? Probably the player won?!"),
@@ -1049,7 +1014,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 		items: &mut ItemsTable, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
 
 	for _ in 0..3 {
-	add_monster(state);
+	//add_monster(state);
 	}
 
 	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
@@ -1198,7 +1163,6 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 }
 
 fn main() {
-	let map = map::generate_island(65);
 
 	//let map = map::generate_cave(20, 10);
 	
@@ -1209,6 +1173,6 @@ fn main() {
 	let path = pathfinding::find_path(&map, 4, 1, 1, 3, &hs);
 	println!("{:?}", path);
 	*/
-	start_game(&map);
+	start_game();
 }
 
