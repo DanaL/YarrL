@@ -978,20 +978,17 @@ fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 }
 
 fn main() {
-	let map = map::generate_island(17);
+	let map = map::generate_island(33);
 
 	//let map = map::generate_cave(20, 10);
 	
-	println!("{}", util::sqs_adj(4, 8, 6, 10));
 	/*
 	let map = map::generate_test_map();
 	let mut hs = HashSet::new();
-	hs.insert(map::Tile::Water);
 	hs.insert(map::Tile::DeepWater);
-	let path = pathfinding::find_path(&map, 1, 1, 1, 4, &hs);
+	let path = pathfinding::find_path(&map, 4, 1, 1, 3, &hs);
 	println!("{:?}", path);
 	*/
-
 	start_game(&map);
 }
 

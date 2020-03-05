@@ -386,16 +386,21 @@ pub fn generate_test_map() -> Vec<Vec<Tile>> {
 	let mut grid = vec![vec![Tile::Wall; 5]; 5];
 
 	grid[1][1] = Tile::DeepWater;
-	grid[2][1] = Tile::DeepWater;
-	grid[3][1] = Tile::DeepWater;
-	grid[4][1] = Tile::DeepWater;
-	grid[3][2] = Tile::DeepWater;
+	grid[1][2] = Tile::DeepWater;
 	grid[1][3] = Tile::DeepWater;
-	grid[2][3] = Tile::DeepWater;
-	grid[3][3] = Tile::DeepWater;
-	grid[4][3] = Tile::DeepWater;
 	grid[1][4] = Tile::DeepWater;
+
+	grid[2][1] = Tile::DeepWater;
+	grid[2][3] = Tile::DeepWater;
 	grid[2][4] = Tile::DeepWater;
+
+	grid[3][1] = Tile::DeepWater;
+	grid[3][3] = Tile::DeepWater;
+	grid[3][4] = Tile::DeepWater;
+
+	grid[4][1] = Tile::DeepWater;
+	grid[4][2] = Tile::DeepWater;
+	grid[4][3] = Tile::DeepWater;
 	grid[4][4] = Tile::DeepWater;
 
 	grid

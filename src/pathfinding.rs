@@ -23,21 +23,6 @@ use crate::map;
 use crate::map::in_bounds;
 use crate::util::{manhattan_d, cartesian_d};
 
-#[derive(Debug)]
-struct ASNode {
-	loc: (usize, usize),
-	parent: (usize, usize),
-	f: usize,
-	g: usize,
-	h: usize,
-}
-
-impl ASNode {
-	fn new(loc: (usize, usize), p: (usize, usize), f: usize, g: usize, h: usize) -> ASNode {
-		ASNode { loc, parent:p, f,g, h }
-	}
-}
-
 #[derive(Eq, Debug)]
 struct ASQueueItem {
 	loc: (usize, usize),
@@ -68,21 +53,20 @@ impl PartialEq for ASQueueItem {
     }
 }
 
-fn get_path_from_nodes(nodes: &HashMap<(usize, usize), ASNode>,
-		path: &mut Vec<(usize, usize)>,
-		sr: usize, sc: usize, er: usize, ec: usize) {
-	let mut cr = er;
-	let mut cc = ec;
-
-	while cr != sr || cc != sc {
-		path.push((cr, cc));
-		let n = &nodes[&(cr, cc)];
-		cr = n.parent.0;
-		cc = n.parent.1;	
+fn backtrace_path(goal_r: usize, goal_c: usize, parents: &HashMap<(usize, usize), (usize, usize)>) ->
+			Vec<(usize, usize)> {
+	let mut c = (goal_r, goal_c);	
+	let mut v = vec![c];
+	loop {
+		if !parents.contains_key(&c) { break; }
+		let p = parents.get(&c).unwrap();
+		v.push(*p);
+		c = *p;
 	}
+	
+	v.reverse();
 
-	path.push((sr, sc));
-	path.reverse();
+	v
 }
 
 // If the target location cannot be reached (eg., a shark wants to swim
@@ -135,76 +119,62 @@ fn find_nearest_reachable(map: &Vec<Vec<map::Tile>>,
 	}
 }
 
-// I think I could get rid of the redundant data structures with the use
-// of smart pointers (I am keeping a list of visited squares as well as 
-// a hash table of square info to avoid having to fight with the borrow
-// checker and I shouldn't need both). But that'll be for the post-7DRL 
-// future when I have more time.
-//
-// Note that if the end square isn't actually passable, this will go into
-// an infinite loop if the pathfinder can find a square adjacent to the
-// unreachable path. Could fix this by looking for a square that's adj
-// to the goal, rather than the goal itself
+// This is based straight-up on the algorithm description on Wikipedia.
 fn astar(
 		map: &Vec<Vec<map::Tile>>, 
 		start_r: usize, start_c: usize, 
 		end_r: usize, end_c: usize,
 		passable_tiles: &HashSet<map::Tile>) -> Vec<(usize, usize)> {
+	let mut queue = BinaryHeap::new();
+	let mut in_queue = HashSet::new();
+	let mut parents = HashMap::new();
+	let mut g_scores = HashMap::new();
+	g_scores.insert((start_r, start_c), 0);
 
-	let mut nodes = HashMap::new();
-	nodes.insert((start_r, start_c), ASNode::new((start_r, start_c), (start_r, start_c), 0, 0, 0));
-	let mut open = BinaryHeap::new();
-	open.push(ASQueueItem::new((start_r, start_c), 0));
+	let dis_to_goal = manhattan_d(start_r, start_c, end_r, end_c); 
+	queue.push(ASQueueItem::new((start_r, start_c), -(dis_to_goal as i32))); 
+	in_queue.insert((start_c, start_c));
 
-	let mut visited = HashSet::new();
-	while open.len() > 0 {
-		let current = open.pop().unwrap();
-		if current.loc.0 == end_r && current.loc.1 == end_c {
-			let mut path = Vec::new();
-			get_path_from_nodes(&nodes, &mut path, start_r, start_c, end_r, end_c);
-			return path;
+	while queue.len() > 0 {
+		let node = queue.pop().unwrap();
+		let curr = node.loc;
+		if curr == (end_r, end_c) {
+			return backtrace_path(end_r, end_c, &parents);
 		}
 
-		if !visited.contains(&current.loc) {
-			visited.insert((current.loc.0, current.loc.1));
-		}
-		
 		for r in -1..2 {
 			for c in -1..2 {
 				if r == 0 && c == 0 { continue; }
-	
-				let nr = (current.loc.0 as i32 + r) as usize;
-				let nc = (current.loc.1 as i32 + c) as usize;
-				// note that at the moment this only considers whether
-				// the tile is passable and not say occupied by anotehr 
-				// creature
-				if !in_bounds(map, nr as i32, nc as i32) {
-					continue;
-				}
-				if !passable_by_me(map[nr][nc], passable_tiles) {
-					continue;
-				}
-	
-				let g = nodes[&current.loc].g + 1;
-				let h = manhattan_d(nr, nc, end_r, end_c);
-				let f = g + h;
+				let nr = curr.0 as i32 + r;
+				let nc = curr.1 as i32 + c;
+				if !map::in_bounds(map, nr, nc) { continue; }
 
-				let next = ASNode::new((nr, nc), (current.loc.0, current.loc.1), f, g, h);
-				if !visited.contains(&next.loc) {
-					open.push(ASQueueItem::new((nr, nc), -(f as i32)));
+				let n_loc = (nr as usize, nc as usize);
+				if !passable_by_me(map[n_loc.0][n_loc.1], passable_tiles) { continue; }
+
+				let tentative_score = *g_scores.get(&curr).unwrap() + 1;
+				let mut g = std::u32::MAX;
+				if g_scores.contains_key(&n_loc) {
+					g = *g_scores.get(&n_loc).unwrap();
 				}
 
-				if !nodes.contains_key(&next.loc) {
-					nodes.insert((nr, nc), next);
-				} else if g < nodes[&next.loc].g {
-					let n = nodes.get_mut(&next.loc).unwrap();
-					n.g = g;
-					n.parent = (nr, nc);
+				if tentative_score < g {
+					g_scores.entry(n_loc)
+							.and_modify(|v| { *v = tentative_score } )
+							.or_insert(tentative_score);
+
+					let d_to_goal = cartesian_d(nr, nc, end_r as i32, end_c as i32) as i32;
+					if !in_queue.contains(&n_loc) {
+						let p = parents.entry(n_loc).or_insert(curr);
+						*p = curr;
+						queue.push(ASQueueItem::new(n_loc, -d_to_goal)); 
+						in_queue.insert(n_loc);
+					}
 				}
 			}
 		}
 	}
-
+	
 	Vec::new()
 }
 	
