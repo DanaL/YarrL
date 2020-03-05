@@ -69,22 +69,23 @@ pub enum Cmd {
 	ToggleHelm,
 }
 
-pub struct GameState {
+pub struct GameState<'a> {
 	player: Player,
 	msg_buff: VecDeque<String>,
 	msg_history: VecDeque<(String, u32)>,
+	map: &'a Map,
 	turn: u32,
 }
 
-impl GameState {
-	pub fn new_pirate(name: String, p_type: PirateType) -> GameState {
+impl<'a> GameState<'a> {
+	pub fn new_pirate(name: String, p_type: PirateType, map: &'a Map) -> GameState<'a> {
 		let player = match p_type {
 			PirateType::Swab => Player::new_swab(name),
 			PirateType::Seadog => Player::new_seadog(name),
 		};
 
 		GameState {player, msg_buff: VecDeque::new(), 
-			msg_history: VecDeque::new(), turn: 0 }
+			msg_history: VecDeque::new(), turn: 0, map }
 	}
 
 	pub fn curr_sidebar_info(&self) -> SidebarInfo {
@@ -165,16 +166,16 @@ fn player_takes_dmg(player: &mut Player, dmg: u8, source: &str) -> Result<(), St
 	}
 }
 
-fn do_move(map: &Map, state: &mut GameState, npcs: &NPCTable, 
+fn do_move(state: &mut GameState, npcs: &NPCTable, 
 		items: &ItemsTable, ships: &HashMap<(usize, usize), Ship>, dir: &str) -> Result<(), String> {
 	let mv = get_move_tuple(dir);
 
 	let start_loc = (state.player.row, state.player.col);
-	let start_tile = map[state.player.row][state.player.col];
+	let start_tile = state.map[state.player.row][state.player.col];
 	let next_row = state.player.row as i16 + mv.0;
 	let next_col = state.player.col as i16 + mv.1;
 	let next_loc = (next_row as usize, next_col as usize);
-	let tile = map[next_row as usize][next_col as usize];
+	let tile = state.map[next_row as usize][next_col as usize];
 	
 	if npcs.contains_key(&next_loc) {
 		state.write_msg_buff("There is someone in your way!");
@@ -400,12 +401,12 @@ fn show_character_sheet(state: &GameState, gui: &mut GameUI) {
 // This function is a testament to my terrible design mistakes :( I should have taken into account the
 // need to see if a square was open when choosing to use separate data structures for the map tiles, 
 // the items, the ships, and the NPCs...
-fn sq_open(map: &Map, state: &GameState, ships: &HashMap<(usize, usize), Ship>, row: usize, col: usize) -> bool {
-	if !map::in_bounds(map, row as i32, col as i32) {
+fn sq_open(state: &GameState, ships: &HashMap<(usize, usize), Ship>, row: usize, col: usize) -> bool {
+	if !map::in_bounds(state.map, row as i32, col as i32) {
 		return false;
 	}
 
-	if !map::is_passable(map[row][col]) {
+	if !map::is_passable(state.map[row][col]) {
 		return false;
 	}
 
@@ -426,30 +427,30 @@ fn sq_open(map: &Map, state: &GameState, ships: &HashMap<(usize, usize), Ship>, 
 	true
 }
 
-fn get_open_sq_adj_player(map: &Map, state: &GameState, ships: &HashMap<(usize, usize), Ship>) -> Option<(usize, usize)> {
+fn get_open_sq_adj_player(state: &GameState, ships: &HashMap<(usize, usize), Ship>) -> Option<(usize, usize)> {
 	let mut sqs: Vec<(usize, usize)> = Vec::new();
-	if sq_open(map, state, ships, state.player.row - 1, state.player.col - 1) {
+	if sq_open(state, ships, state.player.row - 1, state.player.col - 1) {
 		sqs.push((state.player.row - 1, state.player.col - 1));
 	}
-	if sq_open(map, state, ships, state.player.row - 1, state.player.col) {
+	if sq_open(state, ships, state.player.row - 1, state.player.col) {
 		sqs.push((state.player.row - 1, state.player.col));
 	}
-	if sq_open(map, state, ships, state.player.row - 1, state.player.col + 1) {
+	if sq_open(state, ships, state.player.row - 1, state.player.col + 1) {
 		sqs.push((state.player.row - 1, state.player.col + 1));
 	}
-	if sq_open(map, state, ships, state.player.row, state.player.col + 1) {
+	if sq_open(state, ships, state.player.row, state.player.col + 1) {
 		sqs.push((state.player.row, state.player.col + 1));
 	}
-	if sq_open(map, state, ships, state.player.row, state.player.col - 1) {
+	if sq_open(state, ships, state.player.row, state.player.col - 1) {
 		sqs.push((state.player.row, state.player.col - 1));
 	}
-	if sq_open(map, state, ships, state.player.row + 1, state.player.col - 1) {
+	if sq_open(state, ships, state.player.row + 1, state.player.col - 1) {
 		sqs.push((state.player.row + 1, state.player.col - 1));
 	}
-	if sq_open(map, state, ships, state.player.row + 1, state.player.col) {
+	if sq_open(state, ships, state.player.row + 1, state.player.col) {
 		sqs.push((state.player.row + 1, state.player.col));
 	}
-	if sq_open(map, state, ships, state.player.row + 1, state.player.col + 1) {
+	if sq_open(state, ships, state.player.row + 1, state.player.col + 1) {
 		sqs.push((state.player.row + 1, state.player.col + 1));
 	}
 
@@ -462,7 +463,7 @@ fn get_open_sq_adj_player(map: &Map, state: &GameState, ships: &HashMap<(usize, 
 	}
 }
 
-fn ship_hit_land(map: &Map, state: &mut GameState, ship: &mut Ship, ships: &HashMap<(usize, usize), Ship>) -> Result<(), String> {
+fn ship_hit_land(state: &mut GameState, ship: &mut Ship, ships: &HashMap<(usize, usize), Ship>) -> Result<(), String> {
 	state.write_msg_buff("Ye've run yer ship aground!!");
 	state.write_msg_buff("You lose control o' the wheel!");
 	let mut new_wheel = ship.wheel + 2 + dice::roll(5, 1, 0) as i8;	
@@ -471,7 +472,7 @@ fn ship_hit_land(map: &Map, state: &mut GameState, ship: &mut Ship, ships: &Hash
 	state.player.wheel = new_wheel;
 
 	if !do_ability_check(Player::mod_for_stat(state.player.dexterity), 13, 0) {
-		if let Some(loc)= get_open_sq_adj_player(map, state, ships) {
+		if let Some(loc)= get_open_sq_adj_player(state, ships) {
 			state.write_msg_buff("You're tossed from the ship!");
 			state.player.on_ship = false;
 			state.player.row = loc.0;
@@ -485,11 +486,11 @@ fn ship_hit_land(map: &Map, state: &mut GameState, ship: &mut Ship, ships: &Hash
 	Ok(())
 }
 
-fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
+fn sail(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
 	let mut ship = ships.remove(&(state.player.row, state.player.col)).unwrap();
 
-	let bow_tile = map[ship.bow_row][ship.bow_col];
-	let ship_tile = map[ship.row][ship.col];
+	let bow_tile = state.map[ship.bow_row][ship.bow_col];
+	let ship_tile = state.map[ship.row][ship.col];
 
 	if ship.anchored {
 		state.write_msg_buff("The ships bobs.");
@@ -587,10 +588,10 @@ fn sail(map: &Map, state: &mut GameState, ships: &mut HashMap<(usize, usize), Sh
 		ship.prev_move = delta;
 
 		//if map[ship.row][ship.col] == map::Tile::Water || 
-		if map[ship.bow_row][ship.bow_col] == map::Tile::Water {
+		if state.map[ship.bow_row][ship.bow_col] == map::Tile::Water {
 			state.write_msg_buff("Shallow water...");
-		} else if map[ship.bow_row][ship.bow_col] != map::Tile::DeepWater {
-			ship_hit_land(map, state, &mut ship, ships)?;
+		} else if state.map[ship.bow_row][ship.bow_col] != map::Tile::DeepWater {
+			ship_hit_land(state, &mut ship, ships)?;
 		}
 	}
 
@@ -683,14 +684,14 @@ fn show_title_screen(gui: &mut GameUI) {
 	gui.write_long_msg(&lines, true);
 }
 
-fn add_monster(map: &Map, state: &mut GameState, npcs: &mut NPCTable) {
+fn add_monster(state: &mut GameState, npcs: &mut NPCTable) {
 	let mut row = 0;
 	let mut col = 0;
 	loop {
-		row = rand::thread_rng().gen_range(0, map.len());
-		col = rand::thread_rng().gen_range(0, map[0].len());
+		row = rand::thread_rng().gen_range(0, state.map.len());
+		col = rand::thread_rng().gen_range(0, state.map[0].len());
 
-		let tile = map[row][col];
+		let tile = state.map[row][col];
 		if tile == map::Tile::DeepWater { break; }
 	}	
 	
@@ -704,7 +705,7 @@ fn is_putting_on_airs(name: &str) -> bool {
 		name.to_lowercase().starts_with("cap'n") 
 }
 
-fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Ship>) -> GameState {
+fn preamble<'a>(map: &'a Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Ship>) -> GameState<'a> {
 	let mut player_name: String;
 
 	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0, -1, -1, 0);
@@ -741,9 +742,9 @@ fn preamble(map: &Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Shi
 	let answer = gui.menu_picker(&menu, 2, true, true).unwrap();
 	let mut state: GameState;
 	if answer.contains(&0) {
-	 	state = GameState::new_pirate(player_name, PirateType::Swab);
+	 	state = GameState::new_pirate(player_name, PirateType::Swab, &map);
 	} else {
-	 	state = GameState::new_pirate(player_name, PirateType::Seadog);
+	 	state = GameState::new_pirate(player_name, PirateType::Seadog, &map);
 	}
 	state.player.on_ship = false;
 	state.player.bearing = 0;
@@ -836,20 +837,20 @@ fn start_game(map: &Map) {
 
 	let mut items = ItemsTable::new();
 
-	match run(&mut gui, &mut state, &map, &mut npcs, &mut items, &mut ships) {
+	match run(&mut gui, &mut state, &mut npcs, &mut items, &mut ships) {
 		Ok(_) => println!("Game over I guess? Probably the player won?!"),
 		Err(src) => death(&state, src, &mut gui),
 	}
 }
 
-fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
+fn run(gui: &mut GameUI, state: &mut GameState, 
 		npcs: &mut NPCTable, items: &mut ItemsTable, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
-	add_monster(map, state, npcs);
+	add_monster(state, npcs);
 	//add_monster(map, state, npcs);
 	//add_monster(map, state, npcs);
 
 	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
-	gui.v_matrix = fov::calc_v_matrix(map, npcs, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
+	gui.v_matrix = fov::calc_v_matrix(state.map, npcs, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
 	let sbi = state.curr_sidebar_info();
 	gui.write_screen(&mut state.msg_buff, &sbi);
 
@@ -859,35 +860,35 @@ fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 		match cmd {
 			Cmd::Exit => break 'mainloop,
 			Cmd::MoveW => {
-				do_move(map, state, npcs, items, ships, "W")?;
+				do_move(state, npcs, items, ships, "W")?;
 				update = true;
 			},
 			Cmd::MoveS => {
-				do_move(map, state, npcs, items, ships, "S")?;
+				do_move(state, npcs, items, ships, "S")?;
 				update = true;
 			},
 			Cmd::MoveN => {
-				do_move(map, state, npcs, items, ships, "N")?;
+				do_move(state, npcs, items, ships, "N")?;
 				update = true;
 			},
 			Cmd::MoveE => {
-				do_move(map, state, npcs, items, ships, "E")?;
+				do_move(state, npcs, items, ships, "E")?;
 				update = true;
 			},
 			Cmd::MoveNW => {
-				do_move(map, state, npcs, items, ships, "NW")?;
+				do_move(state, npcs, items, ships, "NW")?;
 				update = true;
 			},
 			Cmd::MoveNE => {
-				do_move(map, state, npcs, items, ships, "NE")?;
+				do_move(state, npcs, items, ships, "NE")?;
 				update = true;
 			},
 			Cmd::MoveSW => {
-				do_move(map, state, npcs, items, ships, "SW")?;
+				do_move(state, npcs, items, ships, "SW")?;
 				update = true;
 			},
 			Cmd::MoveSE => {
-				do_move(map, state, npcs, items, ships, "SE")?;
+				do_move(state, npcs, items, ships, "SE")?;
 				update = true;
 			},
 			Cmd::MsgHistory => {
@@ -916,25 +917,25 @@ fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 			},
 			Cmd::ToggleAnchor => {
 				if toggle_anchor(state, ships) {
-					sail(map, state, ships)?;
+					sail(state, ships)?;
 				}
 				update = true;
 			}
 			Cmd::Pass => {
 				if state.player.on_ship {
-					sail(map, state, ships)?;
-					state.turn += 1
+					sail(state, ships)?;
 				}
+				state.turn += 1;
 				update = true;
 			},
 			Cmd::TurnWheelClockwise => {
 				turn_wheel(state, ships, 1);
-				sail(map, state, ships)?;
+				sail(state, ships)?;
 				update = true;
 			},
 			 Cmd::TurnWheelAnticlockwise => {
 				turn_wheel(state, ships, -1);
-				sail(map, state, ships)?;
+				sail(state, ships)?;
 				update = true;
 			},
 			Cmd::ToggleHelm => {
@@ -948,7 +949,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
         }
 	
 		if update {
-			gui.v_matrix = fov::calc_v_matrix(map, npcs, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
+			gui.v_matrix = fov::calc_v_matrix(state.map, npcs, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
 			let sbi = state.curr_sidebar_info();
 			gui.write_screen(&mut state.msg_buff, &sbi);
 		}
@@ -961,16 +962,20 @@ fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 
 		for loc in locs {
 			let mut npc = npcs.remove(&loc).unwrap();
-			npc.act(state, map, npcs)?;
+			npc.act(state, npcs)?;
 			let npc_r = npc.row;
 			let npc_c = npc.col;
 			npcs.insert((npc.row, npc.col), npc);
 
 			if util::manhattan_d(state.player.row, state.player.col, npc_r, npc_c) < 21 {
-				gui.v_matrix = fov::calc_v_matrix(map, npcs, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
+				gui.v_matrix = fov::calc_v_matrix(state.map, npcs, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
 				let sbi = state.curr_sidebar_info();
 				gui.write_screen(&mut state.msg_buff, &sbi);
 			}
+		}
+
+		if state.turn % 50 == 0 && state.player.curr_stamina < state.player.max_stamina {
+			state.player.curr_stamina += 1;
 		}
     }
 
@@ -978,7 +983,7 @@ fn run(gui: &mut GameUI, state: &mut GameState, map: &Map,
 }
 
 fn main() {
-	let map = map::generate_island(33);
+	let map = map::generate_island(65);
 
 	//let map = map::generate_cave(20, 10);
 	

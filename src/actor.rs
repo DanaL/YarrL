@@ -189,8 +189,8 @@ impl Monster {
 			4, 8, 1, 2)
 	}
 
-	pub fn act(&mut self, state: &mut GameState, map: &Map, npcs: &mut NPCTable) -> Result<(), String> {
-		shark_action(self, state, map, npcs)?;
+	pub fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable) -> Result<(), String> {
+		shark_action(self, state, npcs)?;
 
 		Ok(())
 	}
@@ -222,7 +222,7 @@ fn find_adj_empty_sq(row: i32, col: i32, map: &Map, npcs: &NPCTable, passable: &
 }
 
 fn shark_action(m: &mut Monster, state: &mut GameState, 
-		map: &Map, npcs: &mut NPCTable) -> Result<(), String> {
+		npcs: &mut NPCTable) -> Result<(), String> {
 
 	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
 		if super::attack_player(state, m) {
@@ -237,7 +237,7 @@ fn shark_action(m: &mut Monster, state: &mut GameState,
 		let mut water = HashSet::new();
 		water.insert(map::Tile::DeepWater);
 
-		let path = find_path(map, m.row, m.col, 
+		let path = find_path(state.map, m.row, m.col, 
 			state.player.row, state.player.col, &water);
 	
 		if path.len() > 1 {
@@ -251,7 +251,7 @@ fn shark_action(m: &mut Monster, state: &mut GameState,
 			m.row = new_loc.0;
 			m.col = new_loc.1;
 		} else {
-			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, map, npcs, &water);
+			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, state.map, npcs, &water);
 			m.row = loc.0;
 			m.col = loc.1;
 		}
