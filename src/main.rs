@@ -67,6 +67,7 @@ pub enum Cmd {
 	ToggleAnchor,
 	ToggleHelm,
 	Quaff,
+	FireGun,
 }
 
 pub struct GameState<'a> {
@@ -178,7 +179,7 @@ fn attack_npc(state: &mut GameState, npc_row: usize, npc_col: usize) {
 			Some(w) => {
 				let s = format!("You hit the {}!", npc.name);
 				state.write_msg_buff(&s);
-				dmg = dice::roll(w.dmg, 1, w.bonus as i8) as i8 + str_mod;
+				dmg = dice::roll(w.dmg, w.dmg_dice, w.bonus as i8) as i8 + str_mod;
 			},
 			None => {
 				let s = format!("You punch the {}!", npc.name);
@@ -204,6 +205,104 @@ fn attack_npc(state: &mut GameState, npc_row: usize, npc_col: usize) {
 		let s = format!("You miss the {}!", npc.name);
 		state.write_msg_buff(&s);
 		state.npcs.insert((npc_row, npc_col), npc);
+	}
+}
+
+fn calc_bullet_ch(dir: (i32, i32)) -> char {
+	if dir == (0, -1)  || dir == (0, 1)  { return '-'; }
+	if dir == (1, 0)   || dir == (-1, 0) { return '|'; }
+	if dir == (-1, -1) || dir == (1, 1)  { return '\\'; }
+
+	('/')
+}
+
+fn shoot(state: &mut GameState, dir: (i32, i32), gun: &Item, dex_mod: i8, gui: &mut GameUI,
+			items: &ItemsTable, ships: &HashMap<(usize, usize), Ship>) {
+	let mut bullet_r = state.player.row as i32;
+	let mut bullet_c = state.player.col as i32;
+	let mut distance = 0;
+	let mut travelled = (0, 0);
+
+	loop {
+		bullet_r += dir.0;
+		bullet_c += dir.1;
+		travelled = (travelled.0 + dir.0, travelled.1 + dir.1);
+		distance += 1;
+
+		if !map::in_bounds(state.map, bullet_r, bullet_c) { break; }
+		if !map::is_passable(state.map[bullet_r as usize][bullet_c as usize]) { break; }
+		if distance > gun.range { break; }
+
+		// Sophisticated animation goes here!
+		gui.v_matrix = fov::calc_v_matrix(state, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
+		// Okay, need to calcuate where in the v_matrix the bullet currently is
+		let bullet_tile_r = (gui.v_matrix.len() / 2) as i32 + travelled.0;
+		let bullet_tile_c = (gui.v_matrix[0].len() / 2) as i32 + travelled.1;
+
+		// note, not currently checked for bounds because firearms don't have a range > screen dimensions...
+		if gui.v_matrix[bullet_tile_r as usize][bullet_tile_c as usize] != map::Tile::Blank {
+			let ch = calc_bullet_ch(dir);
+			gui.v_matrix[bullet_tile_r as usize][bullet_tile_c as usize] = map::Tile::Bullet(ch);
+		}
+		let sbi = state.curr_sidebar_info();
+		gui.write_screen(&mut state.msg_buff, &sbi);
+		// probably need to pause here, or I guess not because my frame drawing is so slow...
+
+		if state.npcs.contains_key(&(bullet_r as usize, bullet_c as usize)) {
+			let mut npc = state.npcs.remove(&(bullet_r as usize, bullet_c as usize)).unwrap();
+			if do_ability_check(dex_mod, npc.ac, state.player.prof_bonus as i8) {
+				let s = format!("Your bullet hits the {}", npc.name);
+				state.write_msg_buff(&s);
+
+				let mut dmg = dice::roll(gun.dmg, gun.dmg_dice, gun.bonus as i8) as i8 + dex_mod;
+
+				// The damanging npc code is duplicated from the attack_npc() method
+				// so maybe extract into a separate function?
+				if dmg < 0 {
+					dmg = 0;
+				}
+
+				if dmg as u8 > npc.hp {
+					let s = format!("You kill the {}!", npc.name);
+					state.write_msg_buff(&s);
+					state.player.score += npc.score;
+					return; // return here so the npc doesn't get added back into the npc structure
+				} else {
+					npc.hp -= dmg as u8;
+				}
+
+				state.npcs.insert((bullet_r as usize, bullet_c as usize), npc);
+				break; // We hit someone so the bullet stops
+			} else {
+				state.npcs.insert((bullet_r as usize, bullet_c as usize), npc);
+			}
+		}
+	}
+}
+
+fn fire_gun(state: &mut GameState, gui: &mut GameUI, items: &ItemsTable, 
+			ships: &HashMap<(usize, usize), Ship>) {
+	let dex_mod = Player::mod_for_stat(state.player.dexterity);
+
+	match state.player.inventory.get_equiped_firearm() {
+		Some(g) => {
+			if g.loaded {
+				let sbi = state.curr_sidebar_info();
+				match gui.pick_direction(&sbi) {
+					Some(dir) => { 
+						state.write_msg_buff("Bang!");
+						shoot(state, dir, &g, dex_mod, gui, items, ships);
+						state.turn += 1;
+					},
+					None => state.write_msg_buff("Nevermind."),
+				}
+				state.player.inventory.firearm_fired();
+			} else {
+				state.write_msg_buff("Click, click.");
+				state.turn += 1;
+			}
+		},
+		None => state.write_msg_buff("You don't have a firearm ready."),
 	}
 }
 
@@ -1031,6 +1130,10 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 			},
 			Cmd::Quaff => {
 				quaff(state, gui);
+				update = true;
+			}
+			Cmd::FireGun => {
+				fire_gun(state, gui, items, ships);
 				update = true;
 			}
         }

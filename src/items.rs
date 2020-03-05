@@ -55,6 +55,35 @@ impl Inventory {
 		}
 	}
 
+	// It's such a pain handling mutable refs in nested data
+	// structures in Rust that I'm just going to do this. I guess
+	// it's a message passing pattern, only terrible :/
+	pub fn firearm_fired(&mut self) {
+		let mut gun_slot = '\0';
+		for slot in self.inv.keys() {
+			let w = self.inv.get(&slot).unwrap();
+			if w.0.equiped && w.0.item_type == ItemType::Firearm {
+				gun_slot = *slot;
+			}
+		}
+
+		if gun_slot != '\0' {
+			let gun = self.inv.get_mut(&gun_slot).unwrap();
+			gun.0.loaded = false;
+		}	
+	}
+
+	pub fn get_equiped_firearm(&self) -> Option<Item> {
+		for slot in self.inv.keys() {
+			let w = self.inv.get(&slot).unwrap();
+			if w.0.equiped && w.0.item_type == ItemType::Firearm {
+				return Some(w.0.clone());
+			}
+		}
+
+		None
+	}
+
 	pub fn get_equiped_weapon(&self) -> Option<Item> {
 		for slot in self.inv.keys() {
 			let w = self.inv.get(&slot).unwrap();
@@ -334,16 +363,20 @@ pub struct Item {
 	pub stackable: bool,
 	pub prev_slot: char,
 	pub dmg: u8,
+	pub dmg_dice: u8,
 	pub bonus: u8,
+	pub range: u8,
 	pub armour_value: i8,
 	pub equiped: bool,
+	pub loaded: bool,
 }
 
 impl Item {
 	fn new(name: &str, item_type: ItemType, w: u8, stackable: bool, sym: char, color: Color) -> Item {
 		Item { name: String::from(name), 
 			item_type, weight: w, symbol: sym, color, stackable, prev_slot: '\0',
-				dmg: 1, bonus: 0, armour_value: 0, equiped: false }
+				dmg: 1, dmg_dice: 1, bonus: 0, range: 0, armour_value: 0, 
+				equiped: false, loaded: false }
 	}
 
 	pub fn equipable(&self) -> bool {
@@ -378,7 +411,10 @@ impl Item {
 			},
 			"flintlock pistol" => {
 				let mut i = Item::new(name, ItemType::Firearm, 2, false, '-', display::GREY);
-				i.dmg = 10;
+				i.loaded = true;
+				i.dmg = 6;
+				i.dmg_dice = 2;
+				i.range = 6;
 				Some(i)
 			},
 			"lead ball" => Some(Item::new(name, ItemType::Bullet, 1, true, '*', display::GREY)),

@@ -41,6 +41,7 @@ pub enum Tile {
 	Thing(Color, char), // ie., NPC or item so far,
 	Separator,
 	ShipPart(char),
+	Bullet(char),
 }
 
 // Probably at some point in the dev process, I'll need to begin 

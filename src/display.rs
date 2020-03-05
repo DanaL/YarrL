@@ -134,6 +134,27 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.wait_for_key_input()
 	}
 
+	pub fn pick_direction(&mut self, sbi: &SidebarInfo) -> Option<(i32, i32)> {
+		let mut m = VecDeque::new();
+		m.push_front(String::from("In which direction?"));
+		self.write_screen(&mut m, sbi);
+
+		loop {
+			match self.wait_for_key_input() {
+				Some('h') => { return Some((0, -1)); },
+				Some('j') => { return Some((1, 0)); },
+				Some('k') => { return Some((-1, 0)); },
+				Some('l') => { return Some((0, 1)); },
+				Some('y') => { return Some((-1, -1)); },
+				Some('u') => { return Some((-1, 1)); },
+				Some('b') => { return Some((1, -1)); },
+				Some('n') => { return Some((1, 1)); },
+				Some(_) => { continue; },
+				None => { return None; },
+			}
+		}
+	}
+
 	pub fn query_natural_num(&mut self, query: &str, sbi: &SidebarInfo) -> Option<u8> {
 		let mut answer = String::from("");
 
@@ -216,6 +237,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::ToggleHelm;
 						} else if val == "q" {
 							return Cmd::Quaff;
+						} else if val == "f" {
+							return Cmd::FireGun;
 						}
 
 						if state.player.on_ship {
@@ -358,6 +381,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::Thing(color, ch) => (ch, color),
 			map::Tile::Separator => ('|', WHITE),
 			map::Tile::ShipPart(ch) => (ch, BROWN),
+			map::Tile::Bullet(ch) => (ch, WHITE),
 		};
 
 		ti

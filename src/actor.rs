@@ -202,9 +202,9 @@ impl Monster {
 	}
 
 	pub fn new_boar(row: usize, col: usize) -> Monster {
-		let hp = dice::roll(8, 4, 0);
+		let hp = dice::roll(6, 2, 0);
 		Monster::new(String::from("wild boar"), 12, hp, 'b', row, col, DARK_BROWN,
-			4, 6, 1, 2, 10)
+			4, 6, 1, 2, 5)
 	}
 
 	pub fn act(&mut self, state: &mut GameState) -> Result<(), String> {
