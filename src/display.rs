@@ -284,21 +284,21 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							}
 						} else {
 							if val == "k" {
-								return Cmd::MoveN;
+								return Cmd::Move(String::from("N"));
 							} else if val == "j" {
-								return Cmd::MoveS;
+								return Cmd::Move(String::from("S"));
 							} else if val == "l" {
-								return Cmd::MoveE;
+								return Cmd::Move(String::from("E"));
 							} else if val == "h" {
-								return Cmd::MoveW;
+								return Cmd::Move(String::from("W"));
 							} else if val == "y" {
-								return Cmd::MoveNW;
+								return Cmd::Move(String::from("NW"));
 							} else if val == "u" {
-								return Cmd::MoveNE;
+								return Cmd::Move(String::from("NE"));
 							} else if val == "b" {
-								return Cmd::MoveSW;
+								return Cmd::Move(String::from("SW"));
 							} else if val == "n" {
-								return Cmd::MoveSE;
+								return Cmd::Move(String::from("SE"));
 							} else if val == "," {
 								return Cmd::PickUp;
 							} else if val == "d" {
