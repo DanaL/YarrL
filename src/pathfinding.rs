@@ -130,11 +130,12 @@ fn astar(
 	let mut g_scores = HashMap::new();
 	g_scores.insert((start_r, start_c), 0);
 
-	let dis_to_goal = manhattan_d(start_r, start_c, end_r, end_c); 
-	queue.push(ASQueueItem::new((start_r, start_c), -(dis_to_goal as i32))); 
+	queue.push(ASQueueItem::new((start_r, start_c), 0)); 
 	in_queue.insert((start_c, start_c));
 
+	let mut count = 0;
 	while queue.len() > 0 {
+		count += 1;
 		let node = queue.pop().unwrap();
 		let curr = node.loc;
 		if curr == (end_r, end_c) {
@@ -162,7 +163,10 @@ fn astar(
 							.and_modify(|v| { *v = tentative_score } )
 							.or_insert(tentative_score);
 
-					let d_to_goal = cartesian_d(nr, nc, end_r as i32, end_c as i32) as i32;
+					let mut d_to_goal = nr - end_r as i32 + nc - end_c as i32;
+					if d_to_goal < 0 { d_to_goal *= -1 }
+					d_to_goal += tentative_score as i32;
+
 					if !in_queue.contains(&n_loc) {
 						let p = parents.entry(n_loc).or_insert(curr);
 						*p = curr;

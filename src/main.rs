@@ -1034,15 +1034,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 				update = true;
 			}
         }
-	
-		if update {
-			gui.v_matrix = fov::calc_v_matrix(state, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
-			let sbi = state.curr_sidebar_info();
-			gui.write_screen(&mut state.msg_buff, &sbi);
-		}
-		
-		// Need to update the view after each NPC turn too (or maybe only if they are within a certain distance
-		// of the player?)
+
 		let locs = state.npcs.keys()
 					.map(|v| v.clone())
 					.collect::<Vec<(usize, usize)>>();
@@ -1053,16 +1045,16 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 			let npc_r = npc.row;
 			let npc_c = npc.col;
 			state.npcs.insert((npc.row, npc.col), npc);
-
-			if util::manhattan_d(state.player.row, state.player.col, npc_r, npc_c) < 21 {
-				gui.v_matrix = fov::calc_v_matrix(state, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
-				let sbi = state.curr_sidebar_info();
-				gui.write_screen(&mut state.msg_buff, &sbi);
-			}
 		}
 
 		if state.turn % 50 == 0 {
 			state.player.add_stamina(1);
+		}
+		
+		if update {
+			gui.v_matrix = fov::calc_v_matrix(state, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
+			let sbi = state.curr_sidebar_info();
+			gui.write_screen(&mut state.msg_buff, &sbi);
 		}
 		
 		state.msg_buff.drain(..);	

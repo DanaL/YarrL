@@ -254,6 +254,7 @@ fn boar_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 		}	
 	} else if manhattan_d(m.row, m.col, state.player.row, state.player.col) < 50 {
 		// Too far away and they just ignore the player
+		//println!("Boar on turn {}", state.turn);
 		let mut water = HashSet::new();
 		water.insert(map::Tile::Dirt);
 		water.insert(map::Tile::Grass);
@@ -298,9 +299,10 @@ fn shark_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 		let mut water = HashSet::new();
 		water.insert(map::Tile::DeepWater);
 
+		//println!("Shark on turn {}", state.turn);
 		let path = find_path(state.map, m.row, m.col, 
 			state.player.row, state.player.col, &water);
-	
+		
 		if path.len() > 1 {
 			let new_loc = path[1];
 			if state.npcs.contains_key(&new_loc) {
