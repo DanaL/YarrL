@@ -141,6 +141,13 @@ impl Player {
 		p
 	}
 
+	pub fn add_stamina(&mut self, stamina: u8) {
+		self.curr_stamina += stamina;
+		if self.curr_stamina > self.max_stamina {
+			self.curr_stamina = self.max_stamina;
+		}
+	}
+
 	pub fn calc_ac(&mut self) {
 		let mut total: i8 = 10;
 		total += self.inventory.total_armour_value();

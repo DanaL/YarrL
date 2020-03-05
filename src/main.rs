@@ -67,6 +67,7 @@ pub enum Cmd {
 	TurnWheelAnticlockwise,	
 	ToggleAnchor,
 	ToggleHelm,
+	Quaff,
 }
 
 pub struct GameState<'a> {
@@ -310,6 +311,36 @@ fn pluralize(name: &str, count: u8) -> String{
 	}
 
 	result	
+}
+
+fn drink_beverage(state: &mut GameState, beverage: &Item) {
+	if beverage.name == "draught of rum" {
+		state.player.add_stamina(10);
+		state.write_msg_buff("You drink some rum.");
+	}
+}
+
+fn quaff(state: &mut GameState, gui: &mut GameUI) {
+	if state.player.inventory.get_menu().len() == 0 {
+		state.write_msg_buff("You are empty handed.");
+		return
+	}
+
+	let sbi = state.curr_sidebar_info();
+	match gui.query_single_response("Quaff what?", &sbi) {
+		Some(ch) => {
+			match state.player.inventory.item_type_in_slot(ch) {	
+				Some(Drink) => {
+					let drink = state.player.inventory.remove_count(ch, 1);
+					drink_beverage(state, &drink[0]);
+					state.turn += 1;
+				},
+				Some(_) => state.write_msg_buff("Uh...ye can't drink that."),
+				None => state.write_msg_buff("You do not have that item."),
+			}
+		},
+		None => state.write_msg_buff("Nevermind."),
+	}
 }
 
 fn drop_item(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
@@ -778,7 +809,7 @@ fn preamble<'a>(map: &'a Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usiz
 	menu.push("      leg slows you down but experience has taught ye a few".to_string());
 	menu.push("      tricks. And ye start with yer trusty flintlock.".to_string());
 
-	let mut npcs: NPCTable = HashMap::new();
+	let npcs: NPCTable = HashMap::new();
 
 	let answer = gui.menu_picker(&menu, 2, true, true).unwrap();
 	let mut state: GameState;
@@ -985,6 +1016,10 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 				}
 				update = true;
 			},
+			Cmd::Quaff => {
+				quaff(state, gui);
+				update = true;
+			}
         }
 	
 		if update {
@@ -1013,8 +1048,8 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 			}
 		}
 
-		if state.turn % 50 == 0 && state.player.curr_stamina < state.player.max_stamina {
-			state.player.curr_stamina += 1;
+		if state.turn % 50 == 0 {
+			state.player.add_stamina(1);
 		}
 		
 		state.msg_buff.drain(..);	

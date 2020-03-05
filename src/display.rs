@@ -214,6 +214,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::Pass;
 						} else if val == "B" {
 							return Cmd::ToggleHelm;
+						} else if val == "q" {
+							return Cmd::Quaff;
 						}
 
 						if state.player.on_ship {

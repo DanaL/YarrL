@@ -23,7 +23,7 @@ pub trait TileInfo {
 	fn get_tile_info(&self) -> (Color, char);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Inventory {
 	next_slot: char,
 	inv: HashMap<char, (Item, u8)>,
@@ -169,7 +169,16 @@ impl Inventory {
 		v.0
 	}
 
-	pub fn count_in_slot(&mut self, slot: char) -> u8 {
+	pub fn item_type_in_slot(&self, slot: char) -> Option<ItemType> {
+		if !self.inv.contains_key(&slot) {
+			None
+		} else {
+			let v = self.inv.get(&slot).unwrap();
+			Some(v.0.item_type)
+		}
+	}
+
+	pub fn count_in_slot(&self, slot: char) -> u8 {
 		if !self.inv.contains_key(&slot) {
 			0
 		} else {
@@ -280,7 +289,7 @@ impl ItemsTable {
 		indices.reverse();
 
 		let mut items = Vec::new();
-		let mut stack = self.table.get_mut(&(r, c)).unwrap();
+		let stack = self.table.get_mut(&(r, c)).unwrap();
 		for i in indices {
 			let item = stack.remove(i).unwrap();
 			items.push(item);
