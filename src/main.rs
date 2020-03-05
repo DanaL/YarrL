@@ -68,6 +68,7 @@ pub enum Cmd {
 	ToggleHelm,
 	Quaff,
 	FireGun,
+	Reload,
 }
 
 pub struct GameState<'a> {
@@ -438,6 +439,25 @@ fn quaff(state: &mut GameState, gui: &mut GameUI) {
 		},
 		None => state.write_msg_buff("Nevermind."),
 	}
+}
+
+fn reload(state: &mut GameState, gui: &mut GameUI) {
+	match state.player.inventory.get_equiped_firearm() {
+		Some(g) => {
+			if g.loaded {
+				let s = format!("Your {} is already loaded.", g.name);
+				state.write_msg_buff(&s);
+			} else if state.player.inventory.find_ammo() {
+				let s = format!("You reload your {}", g.name);
+				state.write_msg_buff(&s);
+				state.player.inventory.reload_firearm();
+			} else {
+				state.write_msg_buff("Uhoh, all out of bullets...");
+			}
+			state.turn += 1;
+		},
+		None => state.write_msg_buff("You don't have a readied firearm."),
+	}	
 }
 
 fn drop_item(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
@@ -1131,11 +1151,15 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 			Cmd::Quaff => {
 				quaff(state, gui);
 				update = true;
-			}
+			},
 			Cmd::FireGun => {
 				fire_gun(state, gui, items, ships);
 				update = true;
-			}
+			},
+			Cmd::Reload => {
+				reload(state, gui);
+				update = true;
+			},
         }
 
 		let locs = state.npcs.keys()

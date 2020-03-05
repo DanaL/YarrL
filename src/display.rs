@@ -239,6 +239,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::Quaff;
 						} else if val == "f" {
 							return Cmd::FireGun;
+						} else if val == "r" {
+							return Cmd::Reload;
 						}
 
 						if state.player.on_ship {

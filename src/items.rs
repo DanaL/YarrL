@@ -58,7 +58,7 @@ impl Inventory {
 	// It's such a pain handling mutable refs in nested data
 	// structures in Rust that I'm just going to do this. I guess
 	// it's a message passing pattern, only terrible :/
-	pub fn firearm_fired(&mut self) {
+	fn toggle_loaded_status(&mut self) {
 		let mut gun_slot = '\0';
 		for slot in self.inv.keys() {
 			let w = self.inv.get(&slot).unwrap();
@@ -69,8 +69,16 @@ impl Inventory {
 
 		if gun_slot != '\0' {
 			let gun = self.inv.get_mut(&gun_slot).unwrap();
-			gun.0.loaded = false;
+			gun.0.loaded = !gun.0.loaded;
 		}	
+	}
+
+	pub fn firearm_fired(&mut self) {
+		self.toggle_loaded_status();
+	}
+
+	pub fn reload_firearm(&mut self) {
+		self.toggle_loaded_status();
 	}
 
 	pub fn get_equiped_firearm(&self) -> Option<Item> {
@@ -157,6 +165,22 @@ impl Inventory {
 		s.push('.');
 
 		s
+	}
+
+	pub fn find_ammo(&mut self) -> bool {
+		// sigh...
+		let slots = self.inv.keys()
+					.map(|s| s.clone())
+					.collect::<Vec<char>>();
+
+		for s in slots {
+			if self.item_type_in_slot(s).unwrap() == ItemType::Bullet {
+				self.remove_count(s, 1);
+				return true;
+			}
+		}
+
+		false
 	}
 
 	pub fn remove_count(&mut self, slot: char, count: u8) -> Vec<Item> {
