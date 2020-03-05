@@ -19,7 +19,7 @@ use crate::actor::Player;
 use crate::display::{WHITE, LIGHT_BLUE, BROWN};
 use crate::map;
 use crate::map::in_bounds;
-use super::{Map, NPCTable};
+use super::{GameState, Map, NPCTable};
 use crate::items::{ItemsTable, TileInfo};
 use crate::ship;
 use crate::ship::Ship;
@@ -209,8 +209,7 @@ fn add_ships_to_v_matrix(
 
 // not yet taking into account objects on the ground and monsters...
 pub fn calc_v_matrix(
-		map: &Vec<Vec<map::Tile>>,
-		npcs: &NPCTable,
+		state: &GameState,
 		items: &ItemsTable,
 		ships: &HashMap<(usize, usize), Ship>,
 		player: &Player,
@@ -231,15 +230,15 @@ pub fn calc_v_matrix(
 			let actual_c: i32 = player.col as i32 + offset_c;
 
 			mark_visible(player.row as i32, player.col as i32,
-				actual_r as i32, actual_c as i32, map, npcs, items, &mut v_matrix);
+				actual_r as i32, actual_c as i32, state.map, &state.npcs, items, &mut v_matrix);
 		}
 	}
 
-	add_ships_to_v_matrix(map, &mut v_matrix, ships, player.row, player.col, height, width);
+	add_ships_to_v_matrix(state.map, &mut v_matrix, ships, player.row, player.col, height, width);
 
 	if player.on_ship {
 		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(BROWN);
-	} else if map[player.row][player.col] == map::Tile::DeepWater {
+	} else if state.map[player.row][player.col] == map::Tile::DeepWater {
 		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(LIGHT_BLUE);
 	} else {
 		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(WHITE);

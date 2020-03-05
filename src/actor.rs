@@ -189,8 +189,8 @@ impl Monster {
 			4, 8, 1, 2)
 	}
 
-	pub fn act(&mut self, state: &mut GameState, npcs: &mut NPCTable) -> Result<(), String> {
-		shark_action(self, state, npcs)?;
+	pub fn act(&mut self, state: &mut GameState) -> Result<(), String> {
+		shark_action(self, state)?;
 
 		Ok(())
 	}
@@ -221,8 +221,7 @@ fn find_adj_empty_sq(row: i32, col: i32, map: &Map, npcs: &NPCTable, passable: &
 	}
 }
 
-fn shark_action(m: &mut Monster, state: &mut GameState, 
-		npcs: &mut NPCTable) -> Result<(), String> {
+fn shark_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 
 	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
 		if super::attack_player(state, m) {
@@ -242,7 +241,7 @@ fn shark_action(m: &mut Monster, state: &mut GameState,
 	
 		if path.len() > 1 {
 			let new_loc = path[1];
-			if npcs.contains_key(&new_loc) {
+			if state.npcs.contains_key(&new_loc) {
 				let s = format!("The {} is blocked.", m.name);
 				state.write_msg_buff(&s);
 				return Ok(());
@@ -251,7 +250,7 @@ fn shark_action(m: &mut Monster, state: &mut GameState,
 			m.row = new_loc.0;
 			m.col = new_loc.1;
 		} else {
-			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, state.map, npcs, &water);
+			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, state.map, &state.npcs, &water);
 			m.row = loc.0;
 			m.col = loc.1;
 		}

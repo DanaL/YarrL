@@ -74,18 +74,20 @@ pub struct GameState<'a> {
 	msg_buff: VecDeque<String>,
 	msg_history: VecDeque<(String, u32)>,
 	map: &'a Map,
+	npcs: NPCTable,
 	turn: u32,
 }
 
 impl<'a> GameState<'a> {
-	pub fn new_pirate(name: String, p_type: PirateType, map: &'a Map) -> GameState<'a> {
+	pub fn new_pirate(name: String, p_type: PirateType, 
+			map: &'a Map, npcs: NPCTable) -> GameState<'a> {
 		let player = match p_type {
 			PirateType::Swab => Player::new_swab(name),
 			PirateType::Seadog => Player::new_seadog(name),
 		};
 
 		GameState {player, msg_buff: VecDeque::new(), 
-			msg_history: VecDeque::new(), turn: 0, map }
+			msg_history: VecDeque::new(), turn: 0, map, npcs }
 	}
 
 	pub fn curr_sidebar_info(&self) -> SidebarInfo {
@@ -166,8 +168,8 @@ fn player_takes_dmg(player: &mut Player, dmg: u8, source: &str) -> Result<(), St
 	}
 }
 
-fn do_move(state: &mut GameState, npcs: &NPCTable, 
-		items: &ItemsTable, ships: &HashMap<(usize, usize), Ship>, dir: &str) -> Result<(), String> {
+fn do_move(state: &mut GameState, items: &ItemsTable, 
+			ships: &HashMap<(usize, usize), Ship>, dir: &str) -> Result<(), String> {
 	let mv = get_move_tuple(dir);
 
 	let start_loc = (state.player.row, state.player.col);
@@ -177,7 +179,7 @@ fn do_move(state: &mut GameState, npcs: &NPCTable,
 	let next_loc = (next_row as usize, next_col as usize);
 	let tile = state.map[next_row as usize][next_col as usize];
 	
-	if npcs.contains_key(&next_loc) {
+	if state.npcs.contains_key(&next_loc) {
 		state.write_msg_buff("There is someone in your way!");
 	}
 	else if ships.contains_key(&next_loc) {
@@ -684,7 +686,7 @@ fn show_title_screen(gui: &mut GameUI) {
 	gui.write_long_msg(&lines, true);
 }
 
-fn add_monster(state: &mut GameState, npcs: &mut NPCTable) {
+fn add_monster(state: &mut GameState) {
 	let mut row = 0;
 	let mut col = 0;
 	loop {
@@ -696,7 +698,7 @@ fn add_monster(state: &mut GameState, npcs: &mut NPCTable) {
 	}	
 	
 	let s = actor::Monster::new_shark(row, col);
-	npcs.insert((row, col), s);
+	state.npcs.insert((row, col), s);
 }
 
 fn is_putting_on_airs(name: &str) -> bool {
@@ -739,12 +741,14 @@ fn preamble<'a>(map: &'a Map, gui: &mut GameUI, ships: &mut HashMap<(usize, usiz
 	menu.push("      leg slows you down but experience has taught ye a few".to_string());
 	menu.push("      tricks. And ye start with yer trusty flintlock.".to_string());
 
+	let mut npcs: NPCTable = HashMap::new();
+
 	let answer = gui.menu_picker(&menu, 2, true, true).unwrap();
 	let mut state: GameState;
 	if answer.contains(&0) {
-	 	state = GameState::new_pirate(player_name, PirateType::Swab, &map);
+	 	state = GameState::new_pirate(player_name, PirateType::Swab, &map, npcs);
 	} else {
-	 	state = GameState::new_pirate(player_name, PirateType::Seadog, &map);
+	 	state = GameState::new_pirate(player_name, PirateType::Seadog, &map, npcs);
 	}
 	state.player.on_ship = false;
 	state.player.bearing = 0;
@@ -833,24 +837,21 @@ fn start_game(map: &Map) {
 
 	show_character_sheet(&state, &mut gui);
 	
-	let mut npcs: NPCTable = HashMap::new();
 
 	let mut items = ItemsTable::new();
 
-	match run(&mut gui, &mut state, &mut npcs, &mut items, &mut ships) {
+	match run(&mut gui, &mut state, &mut items, &mut ships) {
 		Ok(_) => println!("Game over I guess? Probably the player won?!"),
 		Err(src) => death(&state, src, &mut gui),
 	}
 }
 
 fn run(gui: &mut GameUI, state: &mut GameState, 
-		npcs: &mut NPCTable, items: &mut ItemsTable, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
-	add_monster(state, npcs);
-	//add_monster(map, state, npcs);
-	//add_monster(map, state, npcs);
+		items: &mut ItemsTable, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
+	add_monster(state);
 
 	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
-	gui.v_matrix = fov::calc_v_matrix(state.map, npcs, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
+	gui.v_matrix = fov::calc_v_matrix(state, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
 	let sbi = state.curr_sidebar_info();
 	gui.write_screen(&mut state.msg_buff, &sbi);
 
@@ -860,35 +861,35 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 		match cmd {
 			Cmd::Exit => break 'mainloop,
 			Cmd::MoveW => {
-				do_move(state, npcs, items, ships, "W")?;
+				do_move(state, items, ships, "W")?;
 				update = true;
 			},
 			Cmd::MoveS => {
-				do_move(state, npcs, items, ships, "S")?;
+				do_move(state, items, ships, "S")?;
 				update = true;
 			},
 			Cmd::MoveN => {
-				do_move(state, npcs, items, ships, "N")?;
+				do_move(state, items, ships, "N")?;
 				update = true;
 			},
 			Cmd::MoveE => {
-				do_move(state, npcs, items, ships, "E")?;
+				do_move(state, items, ships, "E")?;
 				update = true;
 			},
 			Cmd::MoveNW => {
-				do_move(state, npcs, items, ships, "NW")?;
+				do_move(state, items, ships, "NW")?;
 				update = true;
 			},
 			Cmd::MoveNE => {
-				do_move(state, npcs, items, ships, "NE")?;
+				do_move(state, items, ships, "NE")?;
 				update = true;
 			},
 			Cmd::MoveSW => {
-				do_move(state, npcs, items, ships, "SW")?;
+				do_move(state, items, ships, "SW")?;
 				update = true;
 			},
 			Cmd::MoveSE => {
-				do_move(state, npcs, items, ships, "SE")?;
+				do_move(state, items, ships, "SE")?;
 				update = true;
 			},
 			Cmd::MsgHistory => {
@@ -949,26 +950,26 @@ fn run(gui: &mut GameUI, state: &mut GameState,
         }
 	
 		if update {
-			gui.v_matrix = fov::calc_v_matrix(state.map, npcs, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
+			gui.v_matrix = fov::calc_v_matrix(state, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
 			let sbi = state.curr_sidebar_info();
 			gui.write_screen(&mut state.msg_buff, &sbi);
 		}
 		
 		// Need to update the view after each NPC turn too (or maybe only if they are within a certain distance
 		// of the player?)
-		let locs = npcs.keys()
+		let locs = state.npcs.keys()
 					.map(|v| v.clone())
 					.collect::<Vec<(usize, usize)>>();
 
 		for loc in locs {
-			let mut npc = npcs.remove(&loc).unwrap();
-			npc.act(state, npcs)?;
+			let mut npc = state.npcs.remove(&loc).unwrap();
+			npc.act(state)?;
 			let npc_r = npc.row;
 			let npc_c = npc.col;
-			npcs.insert((npc.row, npc.col), npc);
+			state.npcs.insert((npc.row, npc.col), npc);
 
 			if util::manhattan_d(state.player.row, state.player.col, npc_r, npc_c) < 21 {
-				gui.v_matrix = fov::calc_v_matrix(state.map, npcs, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
+				gui.v_matrix = fov::calc_v_matrix(state, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
 				let sbi = state.curr_sidebar_info();
 				gui.write_screen(&mut state.msg_buff, &sbi);
 			}
