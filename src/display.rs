@@ -17,6 +17,7 @@ extern crate sdl2;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use crate::content_factory::{WORLD_WIDTH, WORLD_HEIGHT};
 use crate::map;
 use super::{Cmd, GameState, Map, FOV_WIDTH, FOV_HEIGHT};
 
@@ -127,6 +128,31 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				}
 			}
 		}
+	}
+
+	pub fn show_world_map(&mut self, state: &GameState) {
+		self.canvas.clear();
+
+		let title = "~Ye Olde World Map~";
+		let mut line = String::from("");
+		let padding = (SCREEN_WIDTH as usize / 2 - title.len() / 2) as usize;
+		for _ in 0..padding {
+			line.push(' ');
+		}
+		line.push_str(title);
+		self.write_line(0, &line, false);
+
+		for sq in state.world_seen.iter() {
+			let (_, color) = self.sq_info_for_tile(state.map[sq.0][sq.1]);
+			
+			self.canvas.set_draw_color(color);
+			self.canvas.fill_rect(Rect::new(sq.1 as i32 * 3, 
+					(self.font_height + sq.0 as u32) as i32 * 3, 3, 3));		
+		}
+
+		self.canvas.present();
+		
+		self.wait_for_key_input();
 	}
 
 	pub fn query_single_response(&mut self, question: &str, sbi: &SidebarInfo) -> Option<char> {
@@ -244,6 +270,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::FireGun;
 						} else if val == "r" {
 							return Cmd::Reload;
+						} else if val == "M" {
+							return Cmd::WorldMap;
 						}
 
 						if state.player.on_ship {

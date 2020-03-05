@@ -57,8 +57,8 @@ fn calc_actual_tile(r: usize, c: usize, map: &Map,
 // As well, I wanted to have the trees obscure/reduce the FOV instead of outright
 // blocking vision and I couldn't think of a simple way to do that with 
 // shadowcasting.
-fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, map: &Map,
-		npcs: &NPCTable, items: &ItemsTable,
+fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, 
+		state: &mut GameState, items: &ItemsTable,
 		v_matrix: &mut Vec<Vec<map::Tile>>) {
 	let mut r = r1;
 	let mut c = c1;
@@ -89,20 +89,21 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, map: &Map,
 				break;
 			}
 
-			if !map::in_bounds(map, r, c) {
+			if !map::in_bounds(&state.map, r, c) {
 				return;
 			}
 
 			let vm_r = (r - r1 + 10) as usize;
 			let vm_c = (c - c1 + 20) as usize;
-			v_matrix[vm_r][vm_c] = calc_actual_tile(r as usize, c as usize, map, npcs, items);
+			v_matrix[vm_r][vm_c] = calc_actual_tile(r as usize, c as usize, &state.map, &state.npcs, items);
+			state.world_seen.insert((r as usize, c as usize));
 
-			if !map::is_clear(map[r as usize][c as usize]) {
+			if !map::is_clear(state.map[r as usize][c as usize]) {
 				return;
 			}
 
 			// I want trees to not totally block light, but instead reduce visibility
-			if map::Tile::Tree == map[r as usize][c as usize] && !(r == r1 && c == c1) {
+			if map::Tile::Tree == state.map[r as usize][c as usize] && !(r == r1 && c == c1) {
 				if r_step > 0 {
 					r_end -= 3;
 				} else {
@@ -126,21 +127,22 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, map: &Map,
 				break;
 			}
 
-			if !map::in_bounds(map, r, c) {
+			if !map::in_bounds(&state.map, r, c) {
 				return;
 			}
 
 			let vm_r = (r - r1 + 10) as usize;
 			let vm_c = (c - c1 + 20) as usize;
-			v_matrix[vm_r][vm_c] = calc_actual_tile(r as usize, c as usize, map, npcs, items);
+			v_matrix[vm_r][vm_c] = calc_actual_tile(r as usize, c as usize, &state.map, &state.npcs, items);
+			state.world_seen.insert((r as usize, c as usize));
 
-			if !map::is_clear(map[r as usize][c as usize]) {
+			if !map::is_clear(state.map[r as usize][c as usize]) {
 				return;
 			}
 		
 			// Same as above, trees partially block vision instead of cutting it off
 			// altogether
-			if map::Tile::Tree == map[r as usize][c as usize] && !(r == r1 && c == c1) {
+			if map::Tile::Tree == state.map[r as usize][c as usize] && !(r == r1 && c == c1) {
 				if c_step > 0 {
 					c_end -= 3;
 				} else {
@@ -205,10 +207,9 @@ fn add_ships_to_v_matrix(
 
 // not yet taking into account objects on the ground and monsters...
 pub fn calc_v_matrix(
-		state: &GameState,
+		state: &mut GameState,
 		items: &ItemsTable,
 		ships: &HashMap<(usize, usize), Ship>,
-		player: &Player,
 		height: usize, width: usize) -> Vec<Vec<map::Tile>> {
 	let mut v_matrix: Vec<Vec<map::Tile>> = Vec::new();
 	for _ in 0..height {
@@ -222,19 +223,20 @@ pub fn calc_v_matrix(
 		for col in 0..width {
 			let offset_r = row as i32 - fov_center_r as i32;
 			let offset_c = col as i32 - fov_center_c as i32;
-			let actual_r: i32 = player.row as i32 + offset_r;
-			let actual_c: i32 = player.col as i32 + offset_c;
+			let actual_r: i32 = state.player.row as i32 + offset_r;
+			let actual_c: i32 = state.player.col as i32 + offset_c;
 
-			mark_visible(player.row as i32, player.col as i32,
-				actual_r as i32, actual_c as i32, &state.map, &state.npcs, items, &mut v_matrix);
+			mark_visible(state.player.row as i32, state.player.col as i32,
+				actual_r as i32, actual_c as i32, state, items, &mut v_matrix);
 		}
 	}
 
-	add_ships_to_v_matrix(&state.map, &mut v_matrix, ships, player.row, player.col, height, width);
+	add_ships_to_v_matrix(&state.map, &mut v_matrix, ships, 
+			state.player.row, state.player.col, height, width);
 
-	if player.on_ship {
+	if state.player.on_ship {
 		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(BROWN);
-	} else if state.map[player.row][player.col] == map::Tile::DeepWater {
+	} else if state.map[state.player.row][state.player.col] == map::Tile::DeepWater {
 		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(LIGHT_BLUE);
 	} else {
 		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(WHITE);

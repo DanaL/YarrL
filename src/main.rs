@@ -37,7 +37,7 @@ use crate::ship::Ship;
 
 use rand::Rng;
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
 
 const MSG_HISTORY_LENGTH: usize = 50;
@@ -71,6 +71,7 @@ pub enum Cmd {
 	Quaff,
 	FireGun,
 	Reload,
+	WorldMap,
 }
 
 pub struct GameState {
@@ -80,6 +81,7 @@ pub struct GameState {
 	map: Map,
 	npcs: NPCTable,
 	turn: u32,
+	world_seen: HashSet<(usize, usize)>,
 }
 
 impl GameState {
@@ -90,7 +92,8 @@ impl GameState {
 		};
 
 		GameState {player, msg_buff: VecDeque::new(), 
-			msg_history: VecDeque::new(), turn: 0, map: Vec::new(), npcs }
+			msg_history: VecDeque::new(), turn: 0, map: Vec::new(), npcs,
+			world_seen: HashSet::new() }
 	}
 
 	pub fn curr_sidebar_info(&self) -> SidebarInfo {
@@ -126,7 +129,6 @@ impl GameState {
 		}
 	}
 }
-
 
 fn get_move_tuple(mv: &str) -> (i16, i16) {
 	let res: (i16, i16);
@@ -238,7 +240,7 @@ fn shoot(state: &mut GameState, dir: (i32, i32), gun: &Item, dex_mod: i8, gui: &
 		if distance > gun.range { break; }
 
 		// Sophisticated animation goes here!
-		gui.v_matrix = fov::calc_v_matrix(state, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
+		gui.v_matrix = fov::calc_v_matrix(state, items, ships, FOV_HEIGHT, FOV_WIDTH);
 		// Okay, need to calcuate where in the v_matrix the bullet currently is
 		let bullet_tile_r = (gui.v_matrix.len() / 2) as i32 + travelled.0;
 		let bullet_tile_c = (gui.v_matrix[0].len() / 2) as i32 + travelled.1;
@@ -944,7 +946,7 @@ fn preamble(gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Ship>) -> Game
 	let npcs: NPCTable = HashMap::new();
 
 	let answer = gui.menu_picker(&menu, 2, true, true).unwrap();
-	let mut state: GameState;
+	let state: GameState;
 	if answer.contains(&0) {
 	 	state = GameState::new_pirate(player_name, PirateType::Swab, npcs);
 	} else {
@@ -1018,95 +1020,48 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 	}
 
 	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
-	gui.v_matrix = fov::calc_v_matrix(state, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
+	gui.v_matrix = fov::calc_v_matrix(state, items, ships, FOV_HEIGHT, FOV_WIDTH);
 	let sbi = state.curr_sidebar_info();
 	gui.write_screen(&mut state.msg_buff, &sbi);
 	state.msg_buff.drain(..0);
 
     'mainloop: loop {
 		let start_turn = state.turn;
-		let mut update = false;
 		let cmd = gui.get_command(&state);
 		match cmd {
 			Cmd::Exit => break 'mainloop,
-			Cmd::MoveW => {
-				do_move(state, items, ships, "W")?;
-				update = true;
-			},
-			Cmd::MoveS => {
-				do_move(state, items, ships, "S")?;
-				update = true;
-			},
-			Cmd::MoveN => {
-				do_move(state, items, ships, "N")?;
-				update = true;
-			},
-			Cmd::MoveE => {
-				do_move(state, items, ships, "E")?;
-				update = true;
-			},
-			Cmd::MoveNW => {
-				do_move(state, items, ships, "NW")?;
-				update = true;
-			},
-			Cmd::MoveNE => {
-				do_move(state, items, ships, "NE")?;
-				update = true;
-			},
-			Cmd::MoveSW => {
-				do_move(state, items, ships, "SW")?;
-				update = true;
-			},
-			Cmd::MoveSE => {
-				do_move(state, items, ships, "SE")?;
-				update = true;
-			},
-			Cmd::MsgHistory => {
-				show_message_history(state, gui);
-				update = true;
-			},
-			Cmd::DropItem => {
-				drop_item(state, items, gui);
-				update = true;
-			}
-			Cmd::PickUp => {
-				pick_up(state, items, gui);
-				update = true;
-			}
-			Cmd::ShowInventory => {
-				show_inventory(state, gui);
-				update = true;
-			},
-			Cmd::ShowCharacterSheet => {
-				show_character_sheet(state, gui);
-				update = true;
-			},
-			Cmd::ToggleEquipment => {
-				toggle_equipment(state, gui);
-				update = true;
-			},
+			Cmd::MoveW => do_move(state, items, ships, "W")?,
+			Cmd::MoveS => do_move(state, items, ships, "S")?,
+			Cmd::MoveN => do_move(state, items, ships, "N")?,
+			Cmd::MoveE => do_move(state, items, ships, "E")?,
+			Cmd::MoveNW => do_move(state, items, ships, "NW")?,
+			Cmd::MoveNE => do_move(state, items, ships, "NE")?,
+			Cmd::MoveSW => do_move(state, items, ships, "SW")?,
+			Cmd::MoveSE => do_move(state, items, ships, "SE")?,
+			Cmd::MsgHistory => show_message_history(state, gui),
+			Cmd::DropItem => drop_item(state, items, gui),
+			Cmd::PickUp => pick_up(state, items, gui),
+			Cmd::ShowInventory => show_inventory(state, gui),
+			Cmd::ShowCharacterSheet => show_character_sheet(state, gui),
+			Cmd::ToggleEquipment => toggle_equipment(state, gui),
 			Cmd::ToggleAnchor => {
 				if toggle_anchor(state, ships) {
 					sail(state, ships)?;
 				}
-				update = true;
 			}
 			Cmd::Pass => {
 				if state.player.on_ship {
 					sail(state, ships)?;
 				}
 				state.turn += 1;
-				update = true;
 			},
 			Cmd::TurnWheelClockwise => {
 				turn_wheel(state, ships, 1);
 				sail(state, ships)?;
-				update = true;
 			},
 			 Cmd::TurnWheelAnticlockwise => {
 				turn_wheel(state, ships, -1);
 				sail(state, ships)?;
-				update = true;
 			},
 			Cmd::ToggleHelm => {
 				if !state.player.on_ship {
@@ -1114,20 +1069,11 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 				} else {
 					leave_helm(state);
 				}
-				update = true;
 			},
-			Cmd::Quaff => {
-				quaff(state, gui);
-				update = true;
-			},
-			Cmd::FireGun => {
-				fire_gun(state, gui, items, ships);
-				update = true;
-			},
-			Cmd::Reload => {
-				reload(state, gui);
-				update = true;
-			},
+			Cmd::Quaff => quaff(state, gui),
+			Cmd::FireGun => fire_gun(state, gui, items, ships),
+			Cmd::Reload => reload(state, gui),
+			Cmd::WorldMap => gui.show_world_map(state),
         }
 
 		// Some of the commands don't count as a turn for the player, so
@@ -1150,11 +1096,9 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 			}
 		}
 	
-		if update {
-			gui.v_matrix = fov::calc_v_matrix(state, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);
-			let sbi = state.curr_sidebar_info();
-			gui.write_screen(&mut state.msg_buff, &sbi);
-		}
+		gui.v_matrix = fov::calc_v_matrix(state, items, ships, FOV_HEIGHT, FOV_WIDTH);
+		let sbi = state.curr_sidebar_info();
+		gui.write_screen(&mut state.msg_buff, &sbi);
 		
 		state.msg_buff.drain(..);	
     }

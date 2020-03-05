@@ -21,8 +21,8 @@ use crate::ship::Ship;
 use crate::map;
 use crate::map::Tile;
 
-const WORLD_WIDTH: usize = 200;
-const WORLD_HEIGHT: usize = 200;
+pub const WORLD_WIDTH: usize = 200;
+pub const WORLD_HEIGHT: usize = 200;
 
 fn initialize_map(map: &mut Map) {
 	let mut top = Vec::new();
