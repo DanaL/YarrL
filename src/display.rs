@@ -96,7 +96,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 		let v_matrix = vec![vec![map::Tile::Blank; FOV_WIDTH]; FOV_HEIGHT];
 		let canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
-		let mut gui = GameUI { 
+		let gui = GameUI { 
 			screen_width_px, screen_height_px, 
 			font, font_width, font_height, 
 			canvas,

@@ -21,7 +21,6 @@ use crate::map;
 use crate::map::in_bounds;
 use super::{GameState, Map, NPCTable};
 use crate::items::{ItemsTable, TileInfo};
-use crate::ship;
 use crate::ship::Ship;
 
 // I really regret not doing something like in crashRun where instead of 
@@ -160,7 +159,6 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, map: &Map,
 }
 
 fn add_ship(v_matrix: &mut Vec<Vec<map::Tile>>, row: usize, col: usize, ship: &Ship) {
-	let bearing = ship.bearing;
 	v_matrix[row][col] = map::Tile::ShipPart(ship.deck_ch);
 	
 	let delta_row_bow = ship.bow_row as i8 - ship.row as i8;
@@ -195,8 +193,6 @@ fn add_ships_to_v_matrix(
 		for c in -half_width..half_width {
 			// I'm very in love with how Rust refuses to do any integer casting right now...
 			if !in_bounds(map, r + player_row as i32, c + player_col as i32) { continue; }
-			let curr_r = (r + player_row as i32) as usize;
-			let curr_c = (c + player_col as i32) as usize;
 			let loc = ((r + player_row as i32) as usize, (c + player_col as i32) as usize);
 			if v_matrix[(r + half_height) as usize][(c + half_width) as usize] != 
 					map::Tile::Blank && ships.contains_key(&loc) {

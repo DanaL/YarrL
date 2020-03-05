@@ -20,7 +20,6 @@ use std::collections::VecDeque;
 use std::cmp::Ordering;
 
 use crate::map;
-use crate::map::in_bounds;
 use crate::util::{manhattan_d, cartesian_d};
 
 #[derive(Eq, Debug)]

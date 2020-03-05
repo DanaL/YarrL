@@ -29,14 +29,13 @@ mod ship;
 mod util;
 
 use crate::actor::{Monster, Player, PirateType};
-use crate::dice::roll;
 use crate::display::{GameUI, SidebarInfo};
-use crate::items::{Item, ItemsTable};
+use crate::items::{Item, ItemType, ItemsTable};
 use crate::ship::Ship;
 
 use rand::Rng;
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::path::Path;
 
 const MSG_HISTORY_LENGTH: usize = 50;
@@ -212,7 +211,6 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 			ships: &HashMap<(usize, usize), Ship>, dir: &str) -> Result<(), String> {
 	let mv = get_move_tuple(dir);
 
-	let start_loc = (state.player.row, state.player.col);
 	let start_tile = state.map[state.player.row][state.player.col];
 	let next_row = state.player.row as i16 + mv.0;
 	let next_col = state.player.col as i16 + mv.1;
@@ -285,7 +283,7 @@ fn show_message_history(state: &GameState, gui: &mut GameUI) {
 // I'm going to assume a fairly standard form of names of things that
 // can be pluralized. Like, "foo of bar" so I can asssume the result will
 // be foos of bar.
-fn pluralize(name: &str, count: u8) -> String{
+fn pluralize(name: &str) -> String{
 	let mut result = String::from("");
 	let words = name.split(' ').collect::<Vec<&str>>();
 	
@@ -330,7 +328,7 @@ fn quaff(state: &mut GameState, gui: &mut GameUI) {
 	match gui.query_single_response("Quaff what?", &sbi) {
 		Some(ch) => {
 			match state.player.inventory.item_type_in_slot(ch) {	
-				Some(Drink) => {
+				Some(ItemType::Drink) => {
 					let drink = state.player.inventory.remove_count(ch, 1);
 					drink_beverage(state, &drink[0]);
 					state.turn += 1;
@@ -361,7 +359,7 @@ fn drop_item(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 					Some(v) => {
 						let pile = state.player.inventory.remove_count(ch, v);
 						if pile.len() > 0 {
-							let pluralized = pluralize(&pile[0].name, v);
+							let pluralized = pluralize(&pile[0].name);
 							let s = format!("You drop {} {}", v, pluralized);
 							state.write_msg_buff(&s);
 							state.turn += 1;
@@ -755,8 +753,8 @@ fn show_title_screen(gui: &mut GameUI) {
 }
 
 fn add_monster(state: &mut GameState) {
-	let mut row = 0;
-	let mut col = 0;
+	let mut row;
+	let mut col;
 	loop {
 		row = rand::thread_rng().gen_range(0, state.map.len());
 		col = rand::thread_rng().gen_range(0, state.map[0].len());
@@ -767,6 +765,18 @@ fn add_monster(state: &mut GameState) {
 	
 	let s = actor::Monster::new_shark(row, col);
 	state.npcs.insert((row, col), s);
+
+	loop {
+		row = rand::thread_rng().gen_range(0, state.map.len());
+		col = rand::thread_rng().gen_range(0, state.map[0].len());
+
+		let tile = state.map[row][col];
+		if tile == map::Tile::Sand { break; }
+	}	
+	
+	let b = actor::Monster::new_boar(row, col);
+	state.npcs.insert((row, col), b);
+
 }
 
 fn is_putting_on_airs(name: &str) -> bool {
@@ -916,7 +926,10 @@ fn start_game(map: &Map) {
 
 fn run(gui: &mut GameUI, state: &mut GameState, 
 		items: &mut ItemsTable, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
+
+	for _ in 0..3 {
 	add_monster(state);
+	}
 
 	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
 	gui.v_matrix = fov::calc_v_matrix(state, items, ships, &state.player, FOV_HEIGHT, FOV_WIDTH);

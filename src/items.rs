@@ -14,7 +14,6 @@
 // along with YarrL.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::collections::hash_map::Entry::{Occupied, Vacant};
 use sdl2::pixels::Color;
 
 use crate::display;
@@ -67,7 +66,7 @@ impl Inventory {
 		None
 	}
 
-	fn type_already_equiped(&self, slot: char, i_type: ItemType) -> bool {
+	fn type_already_equiped(&self, i_type: ItemType) -> bool {
 		for slot in self.inv.keys() {
 			let v = self.inv.get(&slot).unwrap();
 			if v.0.item_type == i_type && v.0.equiped {
@@ -102,7 +101,7 @@ impl Inventory {
 			return String::from("You cannot equip that!");
 		}
 
-		if !item.equiped && self.type_already_equiped(slot, item.item_type) {
+		if !item.equiped && self.type_already_equiped(item.item_type) {
 			return match item.item_type {
 				ItemType::Weapon => String::from("You are already holding a weapon."),
 				ItemType::Firearm => String::from("You are already holding a gun."),

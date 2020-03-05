@@ -13,10 +13,6 @@
 // You should have received a copy of the GNU General Public License
 // along with YarrL.  If not, see <https://www.gnu.org/licenses/>.
 
-use sdl2::pixels::Color;
-
-use crate::display;
-
 pub const DECK_STRAIGHT: char = '\u{25A0}'; 
 pub const DECK_ANGLE: char = '\u{25C6}'; 
 pub const BOW_NE: char = '\u{25E5}';

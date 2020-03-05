@@ -20,7 +20,7 @@ use std::collections::HashSet;
 use sdl2::pixels::Color;
 
 use crate::dice;
-use crate::display::{GREY};
+use crate::display::{DARK_BROWN, GREY};
 use crate::items::{Item, Inventory};
 use crate::map;
 use crate::pathfinding::find_path;
@@ -201,8 +201,18 @@ impl Monster {
 			4, 8, 1, 2, 10)
 	}
 
+	pub fn new_boar(row: usize, col: usize) -> Monster {
+		let hp = dice::roll(8, 4, 0);
+		Monster::new(String::from("wild boar"), 12, hp, 'b', row, col, DARK_BROWN,
+			4, 6, 1, 2, 10)
+	}
+
 	pub fn act(&mut self, state: &mut GameState) -> Result<(), String> {
-		shark_action(self, state)?;
+		if self.name == "shark" {
+			shark_action(self, state)?;
+		} else if self.name == "wild boar" {
+			boar_action(self, state)?;
+		}
 
 		Ok(())
 	}
@@ -233,8 +243,48 @@ fn find_adj_empty_sq(row: i32, col: i32, map: &Map, npcs: &NPCTable, passable: &
 	}
 }
 
-fn shark_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
+fn boar_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
+	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
+		if super::attack_player(state, m) {
+			state.write_msg_buff("The wild boar bites you!");
+			let dmg_roll = dice::roll(m.dmg, m.dmg_dice, m.dmg_bonus as i8);
+			super::player_takes_dmg(&mut state.player, dmg_roll, "wild boar")?;
+		} else {
+			state.write_msg_buff("The wild boar misses!");
+		}	
+	} else if manhattan_d(m.row, m.col, state.player.row, state.player.col) < 50 {
+		// Too far away and they just ignore the player
+		let mut water = HashSet::new();
+		water.insert(map::Tile::Dirt);
+		water.insert(map::Tile::Grass);
+		water.insert(map::Tile::Water);
+		water.insert(map::Tile::Sand);
+		water.insert(map::Tile::Tree);
 
+		let path = find_path(state.map, m.row, m.col, 
+			state.player.row, state.player.col, &water);
+	
+		if path.len() > 1 {
+			let new_loc = path[1];
+			if state.npcs.contains_key(&new_loc) {
+				let s = format!("The {} is blocked.", m.name);
+				state.write_msg_buff(&s);
+				return Ok(());
+			} 
+
+			m.row = new_loc.0;
+			m.col = new_loc.1;
+		} else {
+			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, state.map, &state.npcs, &water);
+			m.row = loc.0;
+			m.col = loc.1;
+		}
+	}
+
+	Ok(())
+}
+
+fn shark_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
 		if super::attack_player(state, m) {
 			state.write_msg_buff("The shark bites you!");
