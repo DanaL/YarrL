@@ -74,6 +74,9 @@ pub fn generate_world(state: &mut GameState,
 	find_hidden_valleys(&island);
 	let seacoast = find_all_seacoast(&island);
 	add_shipwreck(&mut island, &seacoast, items, 5, 5);
+	for _ in 0..5 {
+		set_campsite(&mut island, items, 5, 5);
+	}
 
 	for r in nw.0..island.len() {
 		for c in nw.1..island.len() {
@@ -88,6 +91,10 @@ pub fn generate_world(state: &mut GameState,
 	}
 	let map = set_treasure_map(&island, &seacoast, items, 2, 100).unwrap();
 	state.player.inventory.add(map);
+
+	for _ in 0..5 {
+		set_campsite(&mut island, items, 5, 5);
+	}
 
 	for r in 0..island.len() {
 		for c in 0..island.len() {
@@ -189,6 +196,34 @@ fn generate_volcanic_island() -> Vec<Vec<Tile>> {
 	}
 
 	island
+}
+
+fn set_campsite(map: &mut Vec<Vec<Tile>>, items: &mut ItemsTable,
+				world_offset_r: usize,
+				world_offset_c: usize) {
+	
+	loop {
+		let r = rand::thread_rng().gen_range(0, map.len());
+		let c = rand::thread_rng().gen_range(0, map.len());
+		
+		let tile = &map[r][c];
+		if map::is_passable(tile) && *tile != Tile::Water && *tile != Tile::DeepWater
+				&& *tile != Tile::Lava {
+			map[r][c] = Tile::OldFirePit;
+		
+			let actual_r = r + world_offset_r;
+			let actual_c = c + world_offset_c;
+			let rum_count = rand::thread_rng().gen_range(0, 3) + 1;
+			for _ in 0..rum_count {
+				let delta = rnd_adj();
+				let rum = Item::get_item("draught of rum").unwrap();
+				items.add((actual_r as i32 + delta.0) as usize, 
+						(actual_c as i32 + delta.1) as usize, rum);
+			}	
+			
+			break;
+		}	
+	}
 }
 
 fn set_treasure_map(map: &Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>, 

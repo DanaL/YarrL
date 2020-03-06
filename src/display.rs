@@ -462,6 +462,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::Shipwreck(ch, _) => (*ch, BROWN),
 			map::Tile::Mast(ch) => (*ch, BROWN),
 			map::Tile::Bullet(ch) => (*ch, WHITE),
+			map::Tile::OldFirePit => ('"', GREY),
 		};
 
 		ti

@@ -46,6 +46,7 @@ pub enum Tile {
 	Mast(char),
 	Bullet(char),
 	Lava,
+	OldFirePit,
 }
 
 // Probably at some point in the dev process, I'll need to begin 

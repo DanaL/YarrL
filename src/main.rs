@@ -348,6 +348,7 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 				let s = format!("The wreck of the {}", name);
 				state.write_msg_buff(&s);
 			},
+			map::Tile::OldFirePit => state.write_msg_buff("An old campsite! Rum runners? A castaway?"),
 			_ => {
 				if *start_tile == map::Tile::DeepWater && state.player.curr_stamina < 10 {
 					state.write_msg_buff("Whew, you stumble ashore.");
