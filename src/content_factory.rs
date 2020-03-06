@@ -67,6 +67,7 @@ pub fn generate_world(state: &mut GameState,
 
 	let island = generate_volcanic_island();
 	let nw = find_nearest_clear_nw(&island);
+	find_hidden_valleys(&island);
 	for r in nw.0..island.len() {
 		for c in nw.1..island.len() {
 			state.map[r + 5][c + 5] = island[r][c];
@@ -177,6 +178,64 @@ fn generate_volcanic_island() -> Vec<Vec<Tile>> {
 }
 					
 // Some map analytics functions
+
+fn is_hidden_valley(map: &Vec<Vec<Tile>>, r: usize, c: usize) -> HashSet<(usize, usize)> {
+	let mut valley = HashSet::new();
+	let mut queue = VecDeque::new();
+	queue.push_back((r, c));
+
+	while queue.len() > 0 {
+		let loc = queue.pop_front().unwrap();
+		valley.insert(loc);
+
+		for r in -1..=1 {
+			for c in -1..=1 {
+				if r == 0 && c == 0 { continue; }
+				let nr = (loc.0 as i32 + r) as usize;
+				let nc = (loc.1 as i32 + c) as usize;
+
+				if !map::in_bounds(map, nr as i32, nc as i32) {
+					return HashSet::new();
+				}
+
+				let tile = map[nr][nc];
+				if tile != Tile::Tree && tile != Tile::Mountain && tile != Tile::SnowPeak {
+					return HashSet::new();
+				}
+
+				if tile == Tile::Tree && !valley.contains(&(nr, nc)) {
+					queue.push_back((nr, nc));
+				}
+			}
+		}
+	}
+
+	valley
+}
+
+// Sometimes the map generator will create pockets of (almost
+// always forest) inside mountain ranges, completely cut off.
+// I thought it would be fun to find them and use them if they 
+// exist.
+//
+// Look for any blocks of trees where all their neighbours are 
+// either trees, mountains or snow peeaks. (And maybe I should 
+// include lava?) Another floodfill type search...
+fn find_hidden_valleys(map: &Vec<Vec<Tile>>) {
+	//let valleys = Vec::new();
+
+	for r in 0..map.len() {
+		for c in 0..map.len() {
+			if map[r][c] == Tile::Tree {
+				let c = is_hidden_valley(map, r, c);
+				if c.len() > 0 {
+					println!("found a hidden valley!");
+					println!("{:?}", c);
+				}
+			}
+		}
+	}	
+}
 
 // Since the maps can be generated sometimes small (especially
 // the atoll type) and ceneterd, find the NW square closest to
