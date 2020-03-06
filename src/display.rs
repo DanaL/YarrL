@@ -18,6 +18,7 @@ extern crate sdl2;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::content_factory::{WORLD_WIDTH, WORLD_HEIGHT};
+use crate::items::Item;
 use crate::map;
 use super::{Cmd, GameState, Map, FOV_WIDTH, FOV_HEIGHT};
 
@@ -132,6 +133,43 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
+	pub fn show_treasure_map(&mut self, state: &GameState, map: &Item) {
+		self.canvas.clear();
+
+		let title = "~Scrawled on a scrap of paper~";
+		let mut line = String::from("");
+		let padding = (SCREEN_WIDTH as usize / 2 - title.len() / 2) as usize;
+		for _ in 0..padding {
+			line.push(' ');
+		}
+		line.push_str(title);
+		self.write_line(0, &line, false);
+
+		// Maps are all 15x15 and we want to draw them in the centre of the
+		// screen
+		let screen_col = SCREEN_WIDTH / 2 - 7;
+		for r in 0..25 {
+			for c in 0..30 {
+				let loc_r = map.nw_corner.0 + r;
+				let loc_c = map.nw_corner.1 + c;
+				let actual_c = screen_col as usize + c;
+				if loc_r == map.x_coord.0 && loc_c == map.x_coord.1 {
+					self.write_map_sq(1 + r, actual_c, ('X', BLACK));
+				} else {
+					let tile = &state.map[loc_r][loc_c];
+					let (mut ch, _) = self.sq_info_for_tile(tile);
+					if ch == '}' {
+						ch = ' ';	
+					}
+					self.write_map_sq(1 + r, actual_c, (ch, BRIGHT_RED));
+				}
+			}
+		}
+		
+		self.canvas.present();
+		self.wait_for_key_input();
+	}
+
 	pub fn show_world_map(&mut self, state: &GameState) {
 		self.canvas.clear();
 
@@ -153,7 +191,6 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 
 		self.canvas.present();
-		
 		self.wait_for_key_input();
 	}
 
@@ -274,6 +311,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::Reload;
 						} else if val == "M" {
 							return Cmd::WorldMap;
+						} else if val == "R" {
+							return Cmd::Read;
 						}
 
 						if state.player.on_ship {
@@ -426,6 +465,28 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		};
 
 		ti
+	}
+
+	fn write_map_sq(&mut self, r: usize, c: usize, tile_info: (char, sdl2::pixels::Color)) {
+		let rect = Rect::new(c as i32 * self.sm_font_width as i32, 
+			(r as i32 + 1) * self.sm_font_height as i32, self.sm_font_width, self.sm_font_height);
+
+		self.canvas.set_draw_color(BEIGE);
+		self.canvas.fill_rect(rect);
+		let (ch, char_colour) = tile_info;
+			
+		let surface = self.sm_font.render_char(ch)
+				.blended(char_colour)
+				.expect("Error creating character!");  
+
+		let texture_creator = self.canvas.texture_creator();
+		let texture = texture_creator.create_texture_from_surface(&surface)
+			.expect("Error creating texture!");
+
+		self.canvas.set_draw_color(BLACK);
+
+		self.canvas.copy(&texture, None, Some(rect))
+			.expect("Error copying to canvas!");
 	}
 
 	fn write_sq(&mut self, r: usize, c: usize, tile_info: (char, sdl2::pixels::Color)) {

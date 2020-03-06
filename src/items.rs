@@ -230,6 +230,15 @@ impl Inventory {
 		}
 	}
 
+	pub fn peek_at(&self, slot: char) -> Option<&Item> {
+		if !self.inv.contains_key(&slot) {
+			None
+		} else {
+			let v = self.inv.get(&slot).unwrap();
+			Some(&v.0)
+		}
+	}
+
 	pub fn count_in_slot(&self, slot: char) -> u8 {
 		if !self.inv.contains_key(&slot) {
 			0
@@ -414,8 +423,16 @@ pub enum ItemType {
 	Firearm,
 	Bullet,
 	Coin,
+	TreasureMap,
 }
 
+// Cleaning up this struct and making it less of a dog's 
+// breakfast is big on my post-7DRL list of things to do
+// Not quite sure yet how to use Traits to achieve something 
+// analogous to polymorphism so I can have a list of various 
+// items of different categories. Like, doubloons should not
+// have an armour value, a bottle of rum doesn't need range
+// or loaded attributes
 #[derive(Debug, Clone)]
 pub struct Item {
 	pub name: String,
@@ -433,6 +450,8 @@ pub struct Item {
 	pub equiped: bool,
 	pub loaded: bool,
 	pub hidden: bool,
+	pub nw_corner: (usize, usize),
+	pub x_coord: (usize, usize),
 }
 
 impl Item {
@@ -440,7 +459,8 @@ impl Item {
 		Item { name: String::from(name), 
 			item_type, weight: w, symbol: sym, color, stackable, prev_slot: '\0',
 				dmg: 1, dmg_dice: 1, bonus: 0, range: 0, armour_value: 0, 
-				equiped: false, loaded: false, hidden: false }
+				equiped: false, loaded: false, hidden: false, nw_corner: (0, 0),
+				x_coord: (0, 0) }
 	}
 
 	pub fn equipable(&self) -> bool {
@@ -448,6 +468,14 @@ impl Item {
 			ItemType::Weapon | ItemType::Coat | ItemType::Hat | ItemType::Firearm => true,
 			_ => false, 
 		}
+	}
+
+	pub fn get_map(nw_corner: (usize, usize), x_coord: (usize, usize)) -> Item {
+		let mut map = Item::new("treasure map", ItemType::TreasureMap, 0, false, '?', display::WHITE);
+		map.nw_corner =	nw_corner; 
+		map.x_coord = x_coord;
+
+		map
 	}
 
 	pub fn get_item(name: &str) -> Option<Item> {

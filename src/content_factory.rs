@@ -100,6 +100,9 @@ pub fn generate_world(state: &mut GameState,
 	state.player.row = 5;
 	state.player.col = 5;
 
+	let map = Item::get_map((15, 15), (22, 20));
+	state.player.inventory.add(map);
+
 	let mut ship = Ship::new(ship::random_name());
 	ship.row = state.player.row;
 	ship.col = state.player.col;

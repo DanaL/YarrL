@@ -66,6 +66,7 @@ pub enum Cmd {
 	Reload,
 	WorldMap,
 	Search,
+	Read,
 }
 
 pub struct GameState {
@@ -442,6 +443,29 @@ fn quaff(state: &mut GameState, gui: &mut GameUI) {
 					state.turn += 1;
 				},
 				Some(_) => state.write_msg_buff("Uh...ye can't drink that."),
+				None => state.write_msg_buff("You do not have that item."),
+			}
+		},
+		None => state.write_msg_buff("Nevermind."),
+	}
+}
+
+fn read(state: &mut GameState, gui: &mut GameUI) {
+	if state.player.inventory.get_menu().len() == 0 {
+		state.write_msg_buff("You are empty handed.");
+		return
+	}
+	
+	let sbi = state.curr_sidebar_info();
+	match gui.query_single_response("Read what?", &sbi) {
+		Some(ch) => {
+			match state.player.inventory.item_type_in_slot(ch) {	
+				Some(ItemType::TreasureMap) => {
+					let map = state.player.inventory.peek_at(ch).unwrap();
+					gui.show_treasure_map(state, &map);
+					state.turn += 1;
+				},
+				Some(_) => state.write_msg_buff("Hmm...nary a label nor instructions."),
 				None => state.write_msg_buff("You do not have that item."),
 			}
 		},
@@ -1086,6 +1110,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 			Cmd::Reload => reload(state, gui),
 			Cmd::WorldMap => gui.show_world_map(state),
 			Cmd::Search => search(state, items),
+			Cmd::Read => read(state, gui),
         }
 
 		// Some of the commands don't count as a turn for the player, so
