@@ -41,7 +41,7 @@ fn calc_actual_tile(r: usize, c: usize, map: &Map,
 		let m = npcs.get(&(r, c)).unwrap();
 		map::Tile::Thing(m.color, m.symbol)
 	} else {
-		map[r][c]
+		map[r][c].clone()
 	}
 }
 
@@ -98,7 +98,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 			v_matrix[vm_r][vm_c] = calc_actual_tile(r as usize, c as usize, &state.map, &state.npcs, items);
 			state.world_seen.insert((r as usize, c as usize));
 
-			if !map::is_clear(state.map[r as usize][c as usize]) {
+			if !map::is_clear(&state.map[r as usize][c as usize]) {
 				return;
 			}
 
@@ -136,7 +136,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 			v_matrix[vm_r][vm_c] = calc_actual_tile(r as usize, c as usize, &state.map, &state.npcs, items);
 			state.world_seen.insert((r as usize, c as usize));
 
-			if !map::is_clear(state.map[r as usize][c as usize]) {
+			if !map::is_clear(&state.map[r as usize][c as usize]) {
 				return;
 			}
 		

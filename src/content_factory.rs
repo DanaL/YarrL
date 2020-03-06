@@ -20,9 +20,12 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use rand::Rng;
 
 use super::{GameState, ItemsTable, Map};
+use crate::dice;
 use crate::map;
-use crate::ship::Ship;
 use crate::map::Tile;
+use crate::ship;
+use crate::ship::Ship;
+use crate::util::rnd_adj;
 
 pub const WORLD_WIDTH: usize = 200;
 pub const WORLD_HEIGHT: usize = 200;
@@ -65,19 +68,22 @@ pub fn generate_world(state: &mut GameState,
 	//	}
 	//}
 
-	let island = generate_volcanic_island();
+	let mut island = generate_volcanic_island();
 	let nw = find_nearest_clear_nw(&island);
 	find_hidden_valleys(&island);
+	let seacoast = find_all_seacoast(&island);
+	add_shipwreck(&mut island, &seacoast);
+
 	for r in nw.0..island.len() {
 		for c in nw.1..island.len() {
-			state.map[r + 5][c + 5] = island[r][c];
+			state.map[r + 5][c + 5] = island[r][c].clone();
 		}
 	}
 
 	let island = map::generate_std_island();
 	for r in 0..island.len() {
 		for c in 0..island.len() {
-			state.map[r + 5][c + 125] = island[r][c];
+			state.map[r + 5][c + 125] = island[r][c].clone();
 		}
 	}
 
@@ -143,7 +149,7 @@ fn generate_volcanic_island() -> Vec<Vec<Tile>> {
 	let mut snowpeaks;
 
 	loop {
-		snowpeaks = largest_contiguous_block(&island, Tile::SnowPeak);
+		snowpeaks = largest_contiguous_block(&island, &Tile::SnowPeak);
 		if snowpeaks.len() > 20 {
 			break;
 		}
@@ -176,9 +182,62 @@ fn generate_volcanic_island() -> Vec<Vec<Tile>> {
 
 	island
 }
+
+fn add_shipwreck(map: &mut Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>) {
+	let loc = rand::thread_rng().gen_range(0, seacoast.len());
+	let centre = seacoast[loc];	
+
+	let deck = Tile::Shipwreck(ship::DECK_ANGLE, String::from("Edmund Fitzgerald")); 
+	map[centre.0][centre.1] = deck;
+
+	let r = dice::roll(3, 1, 0);
+	let mast_ch = if r == 1 { '|' }
+					else if r == 2 { '\\' }
+					else { '/' };
+	let mast_loc = rnd_adj();
+	let mast_r = (centre.0 as i32 + mast_loc.0) as usize;
+	let mast_c = (centre.1 as i32 + mast_loc.1) as usize;
+	map[mast_r][mast_c] = Tile::Mast(mast_ch);
+
+	loop {
+		let part_loc = rnd_adj();
+		if part_loc != mast_loc {
+			let r = dice::roll(2, 1, 0);
+			if r == 1 {
+				let part_r = (centre.0 as i32 + part_loc.0) as usize;
+				let part_c = (centre.1 as i32 + part_loc.1) as usize;
+				map[part_r][part_c] = Tile::Mast(ship::DECK_ANGLE);
+			} else {
+				let part_r = (centre.0 as i32 + part_loc.0) as usize;
+				let part_c = (centre.1 as i32 + part_loc.1) as usize;
+				map[part_r][part_c] = Tile::Mast(ship::DECK_STRAIGHT);
+			}
+			break;
+		}
+	}
+		
+	let part_loc = rnd_adj();
+	let r = dice::roll(4, 1, 0);
+	if r == 1 {
+		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
+		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
+		map[part_r][part_c] = Tile::ShipPart(ship::BOW_NE);
+	} else if r == 2 {
+		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
+		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
+		map[part_r][part_c] = Tile::Mast(ship::BOW_NW);
+	} else if r == 3 {
+		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
+		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
+		map[part_r][part_c] = Tile::Mast(ship::BOW_SE);
+	} else if r == 3 {
+		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
+		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
+		map[part_r][part_c] = Tile::Mast(ship::BOW_SW);
+	}
+}
 					
 // Some map analytics functions
-
 fn is_hidden_valley(map: &Vec<Vec<Tile>>, r: usize, c: usize) -> HashSet<(usize, usize)> {
 	let mut valley = HashSet::new();
 	let mut queue = VecDeque::new();
@@ -198,12 +257,12 @@ fn is_hidden_valley(map: &Vec<Vec<Tile>>, r: usize, c: usize) -> HashSet<(usize,
 					return HashSet::new();
 				}
 
-				let tile = map[nr][nc];
-				if tile != Tile::Tree && tile != Tile::Mountain && tile != Tile::SnowPeak {
+				if map[nr][nc] != Tile::Tree && map[nr][nc] != Tile::Mountain 
+						&& map[nr][nc] != Tile::SnowPeak {
 					return HashSet::new();
 				}
 
-				if tile == Tile::Tree && !valley.contains(&(nr, nc)) {
+				if map[nr][nc] == Tile::Tree && !valley.contains(&(nr, nc)) {
 					queue.push_back((nr, nc));
 				}
 			}
@@ -262,7 +321,7 @@ fn find_nearest_clear_nw(map: &Vec<Vec<Tile>>) -> (usize, usize) {
 	(0, 0)
 }
 
-fn flood_fill_search(map: &Vec<Vec<Tile>>, target: Tile, r: usize, c: usize) 
+fn flood_fill_search(map: &Vec<Vec<Tile>>, target: &Tile, r: usize, c: usize) 
 		-> HashSet<(usize, usize)> {
 	let mut block = HashSet::new();
 	let mut queue = VecDeque::new();
@@ -281,7 +340,7 @@ fn flood_fill_search(map: &Vec<Vec<Tile>>, target: Tile, r: usize, c: usize)
 				let nr = (curr.0 as i32 + r) as usize;
 				let nc = (curr.1 as i32 + c) as usize;
 
-				if map[nr][nc] != target || block.contains(&(nr, nc)) {
+				if map[nr][nc] != *target || block.contains(&(nr, nc)) {
 					continue;
 				}
 
@@ -295,13 +354,13 @@ fn flood_fill_search(map: &Vec<Vec<Tile>>, target: Tile, r: usize, c: usize)
 }
 	
 // Floodfill to find the largest block of a given tile type
-fn largest_contiguous_block(map: &Vec<Vec<Tile>>, target: Tile) -> HashSet<(usize, usize)> {
+fn largest_contiguous_block(map: &Vec<Vec<Tile>>, target: &Tile) -> HashSet<(usize, usize)> {
 	let mut targets_found: HashSet<(usize, usize)> = HashSet::new();
 	let mut best = HashSet::new();
 
 	'fuck: for r in 0..map.len() {
 		for c in 0..map.len() {
-			if map[r][c] == target {
+			if map[r][c] == *target {
 				if !targets_found.contains(&(r, c)) {
 					let block = flood_fill_search(map, target, r, c);
 					for sq in block.clone() {
@@ -317,4 +376,45 @@ fn largest_contiguous_block(map: &Vec<Vec<Tile>>, target: Tile) -> HashSet<(usiz
 	}
 
 	best
+}
+
+// Yep, our old pal floodfill again
+fn find_all_seacoast(map: &Vec<Vec<Tile>>) -> VecDeque<(usize, usize)> {
+	let mut queue = VecDeque::new();
+	let mut visited = HashSet::new();
+	let mut seacoast = VecDeque::new();
+
+	// Sometimes the island generator does write land on the very edge
+	// of the map so make sure we're actually starting on an ocean square
+	for c in 0..map.len() {
+		if map[0][c] == Tile::DeepWater {
+			queue.push_back((0, c));
+			visited.insert((0, c));
+			break;
+		}
+	}
+
+	while queue.len() > 0 {
+		let curr = queue.pop_front().unwrap();
+	
+		for r in -1..=1 {
+			for c in -1..=1 {
+				let nr = curr.0 as i32 + r;
+				let nc = curr.1 as i32 + c;
+	
+				if !map::in_bounds(&map, nr, nc) { continue; }
+				
+				let loc = (nr as usize, nc as usize);
+				if map[nr as usize][nc as usize] != Tile::DeepWater 
+						&& map[nr as usize][nc as usize] != Tile::Water {
+					seacoast.push_back(loc);
+				} else if !visited.contains(&loc) {
+					visited.insert(loc);
+					queue.push_back(loc);
+				}
+			}
+		}	
+	}
+
+	seacoast
 }

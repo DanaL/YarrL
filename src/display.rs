@@ -144,7 +144,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.write_line(0, &line, false);
 
 		for sq in state.world_seen.iter() {
-			let (_, color) = self.sq_info_for_tile(state.map[sq.0][sq.1]);
+			let (_, color) = self.sq_info_for_tile(&state.map[sq.0][sq.1]);
 			
 			self.canvas.set_draw_color(color);
 			self.canvas.fill_rect(Rect::new(sq.1 as i32 * 3, 
@@ -397,14 +397,14 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.pause_for_more();
 	}
 
-	pub fn sq_info_for_tile(&self, tile: map::Tile) -> (char, sdl2::pixels::Color) {
+	pub fn sq_info_for_tile(&self, tile: &map::Tile) -> (char, sdl2::pixels::Color) {
 		let ti = match tile {
 			map::Tile::Blank => (' ', BLACK),
 			map::Tile::Wall => ('#', GREY),
 			map::Tile::Tree => ('\u{03D9}', GREEN),
 			map::Tile::Dirt => ('.', BROWN),
 			map::Tile::Grass => ('\u{0316}', GREEN),
-			map::Tile::Player(color) => ('@', color),
+			map::Tile::Player(color) => ('@', *color),
 			map::Tile::Water => ('}', LIGHT_BLUE),
 			map::Tile::DeepWater => ('}', BLUE),
 			map::Tile::WorldEdge => ('}', BLUE),
@@ -414,10 +414,12 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::SnowPeak => ('\u{039B}', WHITE),
 			map::Tile::Lava => ('{', BRIGHT_RED),
 			map::Tile::Gate => ('#', LIGHT_BLUE),
-			map::Tile::Thing(color, ch) => (ch, color),
+			map::Tile::Thing(color, ch) => (*ch, *color),
 			map::Tile::Separator => ('|', WHITE),
-			map::Tile::ShipPart(ch) => (ch, BROWN),
-			map::Tile::Bullet(ch) => (ch, WHITE),
+			map::Tile::ShipPart(ch) => (*ch, BROWN),
+			map::Tile::Shipwreck(ch, _) => (*ch, BROWN),
+			map::Tile::Mast(ch) => (*ch, BROWN),
+			map::Tile::Bullet(ch) => (*ch, WHITE),
 		};
 
 		ti
@@ -524,10 +526,10 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.write_line(0, msg, false);
 		for row in 0..FOV_HEIGHT {
 			for col in 0..FOV_WIDTH {
-				let ti = self.sq_info_for_tile(self.v_matrix[row][col]);
+				let ti = self.sq_info_for_tile(&self.v_matrix[row][col]);
 				self.write_sq(row, col, ti);
 			}
-			self.write_sq(row, FOV_WIDTH, self.sq_info_for_tile(map::Tile::Separator));
+			self.write_sq(row, FOV_WIDTH, self.sq_info_for_tile(&map::Tile::Separator));
 		}
 
 		if sbi.name != "" {

@@ -97,7 +97,7 @@ fn find_nearest_reachable(map: &Vec<Vec<map::Tile>>,
 				let nr = curr.0 as i32 + r;
 				let nc = curr.1 as i32 + c;
 				if !map::in_bounds(map, nr, nc) { continue; }
-				if !passable_by_me(map[nr as usize][nc as usize], passable_tiles) { continue; }
+				if !passable_by_me(&map[nr as usize][nc as usize], passable_tiles) { continue; }
 
 				let dis_from_start = manhattan_d(start_r, start_c, nr as usize, nc as usize) as i32;
 				if dis_from_start > 30 { continue; }
@@ -148,7 +148,7 @@ fn astar(
 				if !map::in_bounds(map, nr, nc) { continue; }
 
 				let n_loc = (nr as usize, nc as usize);
-				if !passable_by_me(map[n_loc.0][n_loc.1], passable_tiles) { continue; }
+				if !passable_by_me(&map[n_loc.0][n_loc.1], passable_tiles) { continue; }
 
 				let tentative_score = *g_scores.get(&curr).unwrap() + 1;
 				let mut g = std::u32::MAX;
@@ -179,7 +179,7 @@ fn astar(
 	Vec::new()
 }
 	
-pub fn passable_by_me(tile: map::Tile, valid: &HashSet<map::Tile>) -> bool {
+pub fn passable_by_me(tile: &map::Tile, valid: &HashSet<map::Tile>) -> bool {
 	valid.contains(&tile)
 }
 
@@ -198,7 +198,7 @@ pub fn find_path(
 	//
 	// (I could also do this if the astar() returns no path but worry that would 
 	// start to get expensive)
-	if !passable_by_me(map[end_r][end_c], &passable_tiles) {
+	if !passable_by_me(&map[end_r][end_c], &passable_tiles) {
 		// The goal is on an impassable sq so gotta try something else
 		let res = find_nearest_reachable(map, start_r, start_c, end_r, end_c, passable_tiles);
 		if res == (0, 0) {

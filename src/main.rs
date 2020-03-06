@@ -229,7 +229,7 @@ fn shoot(state: &mut GameState, dir: (i32, i32), gun: &Item, dex_mod: i8, gui: &
 		distance += 1;
 
 		if !map::in_bounds(&state.map, bullet_r, bullet_c) { break; }
-		if !map::is_passable(state.map[bullet_r as usize][bullet_c as usize]) { break; }
+		if !map::is_passable(&state.map[bullet_r as usize][bullet_c as usize]) { break; }
 		if distance > gun.range { break; }
 
 		// Sophisticated animation goes here!
@@ -309,11 +309,11 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 			ships: &HashMap<(usize, usize), Ship>, dir: &str) -> Result<(), String> {
 	let mv = get_move_tuple(dir);
 
-	let start_tile = state.map[state.player.row][state.player.col];
+	let start_tile = &state.map[state.player.row][state.player.col];
 	let next_row = state.player.row as i16 + mv.0;
 	let next_col = state.player.col as i16 + mv.1;
 	let next_loc = (next_row as usize, next_col as usize);
-	let tile = state.map[next_row as usize][next_col as usize];
+	let tile = &state.map[next_row as usize][next_col as usize];
 	
 	if state.npcs.contains_key(&next_loc) {
 		attack_npc(state, next_loc.0, next_loc.1);
@@ -328,20 +328,29 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 		state.player.col = next_col as usize;
 		state.player.row = next_row as usize;
 
-		if tile == map::Tile::Water {
-			state.write_msg_buff("You splash in the shallow water.");
-		} else if tile == map::Tile::DeepWater {
-			if start_tile != map::Tile::DeepWater {
-				state.write_msg_buff("You begin to swim.");
-			}
+		match tile {
+			map::Tile::Water => state.write_msg_buff("You splash in the shallow water."),
+			map::Tile::DeepWater => {
+				if *start_tile != map::Tile::DeepWater {
+					state.write_msg_buff("You begin to swin.");				
+				}
 
-			player_takes_dmg(&mut state.player, 2, "swimming")?;
+				player_takes_dmg(&mut state.player, 2, "swimming")?;
 
-			if state.player.curr_stamina < 10 {
-				state.write_msg_buff("You're getting tired...");
-			}
-		} else if start_tile == map::Tile::DeepWater && state.player.curr_stamina < 10 {
-			state.write_msg_buff("Whew, you stumble ashore.");
+				if state.player.curr_stamina < 10 {
+					state.write_msg_buff("You're getting tired...");
+				}
+			},
+			map::Tile::Lava => state.write_msg_buff("Ouch! Ouch! It's hot!"),
+			map::Tile::Shipwreck(_, name) => {
+				let s = format!("The wreck of the {}", name);
+				state.write_msg_buff(&s);
+			},
+			_ => {
+				if *start_tile == map::Tile::DeepWater && state.player.curr_stamina < 10 {
+					state.write_msg_buff("Whew, you stumble ashore.");
+				}
+			},
 		}
 
 		let items_count = items.count_at(state.player.row, state.player.col);
@@ -591,7 +600,7 @@ fn sq_open(state: &GameState, ships: &HashMap<(usize, usize), Ship>, row: usize,
 		return false;
 	}
 
-	if !map::is_passable(state.map[row][col]) {
+	if !map::is_passable(&state.map[row][col]) {
 		return false;
 	}
 
@@ -674,8 +683,8 @@ fn ship_hit_land(state: &mut GameState, ship: &mut Ship, ships: &HashMap<(usize,
 fn sail(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
 	let mut ship = ships.remove(&(state.player.row, state.player.col)).unwrap();
 
-	let bow_tile = state.map[ship.bow_row][ship.bow_col];
-	let ship_tile = state.map[ship.row][ship.col];
+	let bow_tile = state.map[ship.bow_row][ship.bow_col].clone();
+	let ship_tile = state.map[ship.row][ship.col].clone();
 
 	if ship.anchored {
 		state.write_msg_buff("The ships bobs.");
@@ -876,8 +885,7 @@ fn add_monster(state: &mut GameState) {
 		row = rand::thread_rng().gen_range(0, state.map.len());
 		col = rand::thread_rng().gen_range(0, state.map[0].len());
 
-		let tile = state.map[row][col];
-		if tile == map::Tile::DeepWater { break; }
+		if state.map[row][col] == map::Tile::DeepWater { break; }
 	}	
 	
 	let s = actor::Monster::new_shark(row, col);
@@ -887,8 +895,7 @@ fn add_monster(state: &mut GameState) {
 		row = rand::thread_rng().gen_range(0, state.map.len());
 		col = rand::thread_rng().gen_range(0, state.map[0].len());
 
-		let tile = state.map[row][col];
-		if tile == map::Tile::Sand { break; }
+		if state.map[row][col] == map::Tile::Sand { break; }
 	}	
 	
 	let b = actor::Monster::new_boar(row, col);

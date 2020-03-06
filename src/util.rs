@@ -18,6 +18,20 @@
 
 use std::f32;
 
+use crate::dice::roll;
+
+pub fn rnd_adj() -> (i32, i32) {
+	let x = roll(8, 1, 0);
+	if x == 1 { return (-1, -1); }
+	else if x == 2 { return (-1, 0); }
+	else if x == 3 { return (-1, 1); }
+	else if x == 4 { return (0, -1); }
+	else if x == 5 { return (0, 1); }
+	else if x == 6 { return (1, -1); }
+	else if x == 7 { return (1, 0); }
+	else { return (1, 1); }
+}
+
 pub fn sqs_adj(r0: usize, c0: usize, r1: usize, c1: usize) -> bool {
 	let x0 = r0 as i32;
 	let y0 = c0 as i32;

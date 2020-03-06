@@ -23,7 +23,7 @@ use std::f32;
 use rand::Rng;
 use sdl2::pixels::Color;
 
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum Tile {
 	Blank,
 	Wall,
@@ -42,6 +42,8 @@ pub enum Tile {
 	Thing(Color, char), // ie., NPC or item so far,
 	Separator,
 	ShipPart(char),
+	Shipwreck(char, String),
+	Mast(char),
 	Bullet(char),
 	Lava,
 }
@@ -57,14 +59,14 @@ pub fn in_bounds(map: &Vec<Vec<Tile>>, r: i32, c: i32) -> bool {
 	r >= 0 && c >= 0 && r < height && c < width
 }
 
-pub fn is_clear(tile: Tile) -> bool {
+pub fn is_clear(tile: &Tile) -> bool {
 	match tile {
 		Tile::Wall | Tile::Blank | Tile::Mountain | Tile::SnowPeak => true,
 		_ => true,
 	}
 }
 
-pub fn is_passable(tile: Tile) -> bool {
+pub fn is_passable(tile: &Tile) -> bool {
 	match tile {
 		Tile::Wall | Tile::Blank | Tile::WorldEdge |
 		Tile::Mountain | Tile::SnowPeak | Tile::Gate => false,
