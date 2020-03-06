@@ -8,6 +8,7 @@ red
 fuschia
 green
 yellow
+magenta
 silent
 malevolent
 insolvent
@@ -42,6 +43,9 @@ sea
 golden
 dauntless
 heroic
+anxious
+perplexed
+vexing
 
 # Nouns
 storm

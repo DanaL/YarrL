@@ -312,11 +312,23 @@ impl ItemsTable {
 		stack.push_front(item);
 	}
 
+	fn count_visible(&self, loc: (usize, usize)) -> usize {
+		let mut count = 0;
+		let pile = &self.table[&(loc.0, loc.1)];
+		for item in pile {
+			if !item.hidden { 
+				count += 1; 
+			}
+		}
+		
+		count
+	}
+
 	pub fn count_at(&self, r: usize, c: usize) -> u8 {
 		let res = if !self.table.contains_key(&(r, c)) {
 			0
 		} else {
-			self.table[&(r, c)].len()
+			self.count_visible((r, c))
 		};
 
 		res as u8
@@ -375,6 +387,7 @@ pub enum ItemType {
 	Drink,
 	Firearm,
 	Bullet,
+	Coin,
 }
 
 #[derive(Debug, Clone)]
@@ -393,6 +406,7 @@ pub struct Item {
 	pub armour_value: i8,
 	pub equiped: bool,
 	pub loaded: bool,
+	pub hidden: bool,
 }
 
 impl Item {
@@ -400,7 +414,7 @@ impl Item {
 		Item { name: String::from(name), 
 			item_type, weight: w, symbol: sym, color, stackable, prev_slot: '\0',
 				dmg: 1, dmg_dice: 1, bonus: 0, range: 0, armour_value: 0, 
-				equiped: false, loaded: false }
+				equiped: false, loaded: false, hidden: false }
 	}
 
 	pub fn equipable(&self) -> bool {
@@ -442,6 +456,7 @@ impl Item {
 				Some(i)
 			},
 			"lead ball" => Some(Item::new(name, ItemType::Bullet, 1, true, '*', display::GREY)),
+			"doubloon" => Some(Item::new(name, ItemType::Coin, 1, true, '$', display::GOLD)),
 			_ => None,
 
 		}

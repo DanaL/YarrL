@@ -35,8 +35,12 @@ fn calc_actual_tile(r: usize, c: usize, map: &Map,
 		npcs: &NPCTable, items: &ItemsTable) -> map::Tile {
 	if items.count_at(r, c) > 0 {
 		let i = items.peek_top(r, c);
-		let ti = i.get_tile_info();
-		map::Tile::Thing(ti.0, ti.1)
+		if !i.hidden {
+			let ti = i.get_tile_info();
+			map::Tile::Thing(ti.0, ti.1)
+		} else {
+			map[r][c].clone()
+		}
 	} else if npcs.contains_key(&(r, c)) {
 		let m = npcs.get(&(r, c)).unwrap();
 		map::Tile::Thing(m.color, m.symbol)
