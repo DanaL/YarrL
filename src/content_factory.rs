@@ -21,6 +21,7 @@ use rand::Rng;
 
 use super::{GameState, ItemsTable, Map};
 use crate::dice;
+use crate::items::Item;
 use crate::map;
 use crate::map::Tile;
 use crate::ship;
@@ -72,7 +73,7 @@ pub fn generate_world(state: &mut GameState,
 	let nw = find_nearest_clear_nw(&island);
 	find_hidden_valleys(&island);
 	let seacoast = find_all_seacoast(&island);
-	add_shipwreck(&mut island, &seacoast);
+	add_shipwreck(&mut island, &seacoast, items, 5, 5);
 
 	for r in nw.0..island.len() {
 		for c in nw.1..island.len() {
@@ -83,7 +84,7 @@ pub fn generate_world(state: &mut GameState,
 	let mut island = map::generate_atoll();
 	let seacoast = find_all_seacoast(&island);
 	for _ in 0..3 {
-		add_shipwreck(&mut island, &seacoast);
+		add_shipwreck(&mut island, &seacoast, items, 2, 100);
 	}
 
 	for r in 0..island.len() {
@@ -188,7 +189,42 @@ fn generate_volcanic_island() -> Vec<Vec<Tile>> {
 	island
 }
 
-fn add_shipwreck(map: &mut Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>) {
+fn add_cache(items: &mut ItemsTable, row: usize, col: usize) {
+	if rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
+		for _ in 0..rand::thread_rng().gen_range(0, 3) {
+			let mut i = Item::get_item("draught of rum").unwrap();
+			i.hidden = true;
+			items.add(row, col, i);
+		}
+	}
+
+	if rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
+		for _ in 0..rand::thread_rng().gen_range(0, 6) {
+			let mut i = Item::get_item("lead ball").unwrap();
+			i.hidden = true;
+			items.add(row, col, i);
+		}
+	} 
+
+	if rand::thread_rng().gen_range(0.0, 1.0) < 0.333 {
+		for _ in 0..rand::thread_rng().gen_range(0, 12) {
+			let mut i = Item::get_item("doubloon").unwrap();
+			i.hidden = true;
+			items.add(row, col, i);
+		}
+	} 
+
+	if rand::thread_rng().gen_range(0.0, 1.0) < 0.10 {
+		let mut i = Item::get_item("rusty cutlass").unwrap();
+		i.hidden = true;
+		items.add(row, col, i);
+	} 
+}
+
+fn add_shipwreck(map: &mut Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>,
+			items: &mut ItemsTable,
+			world_offset_r: usize,
+			world_offset_c: usize,) {
 	let loc = rand::thread_rng().gen_range(0, seacoast.len());
 	let centre = seacoast[loc];	
 
@@ -217,6 +253,14 @@ fn add_shipwreck(map: &mut Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>) 
 				let part_c = (centre.1 as i32 + part_loc.1) as usize;
 				map[part_r][part_c] = Tile::Mast(ship::DECK_STRAIGHT);
 			}
+
+			// chance of there being a hidden cache
+			if rand::thread_rng().gen_range(0.0, 1.0) < 0.50 {
+				let loc_r = (centre.0 as i32 + part_loc.0) as usize + world_offset_r;
+				let loc_c = (centre.1 as i32 + part_loc.1) as usize + world_offset_c;
+				add_cache(items, loc_r, loc_c);
+			}
+
 			break;
 		}
 	}
