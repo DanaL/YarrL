@@ -12,6 +12,13 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with YarrL.  If not, see <https://www.gnu.org/licenses/>.
+extern crate rand;
+use rand::Rng;
+
+use crate::dice;
+use crate::util;
+use crate::util::capitalize_word;
+use crate::util::NameSeeds;
 
 pub const DECK_STRAIGHT: char = '\u{25A0}'; 
 pub const DECK_ANGLE: char = '\u{25C6}'; 
@@ -92,8 +99,38 @@ impl Ship {
 		self.aft_col = ((self.col as i32) + boat_tiles.5 as i32) as usize;
 		self.deck_ch = boat_tiles.6;
 	}
+}
 
-	pub fn random_name() -> String {
-		"The Guppy".to_string()
+pub fn random_name() -> String {
+	let mut name = String::from("");
+	let ns = util::read_names_file();
+	
+	// not every ship gets to be part of the Royal Yendorian Navy!
+	if dice::roll(7, 1, 0) == 1 {
+		name.push_str("Y.S. "); 
 	}
+
+	let r = rand::thread_rng().gen_range(0, ns.adjectives.len());
+	let adj = &ns.adjectives[r];
+
+	let r = rand::thread_rng().gen_range(0, ns.nouns.len());
+	let mut noun = &ns.nouns[r];
+
+	loop {
+		// Veto-ing this one. I imagine in the future I'll probably
+		// find more cross combos
+		if !(adj == "flirty" && noun == "child") { break }
+
+		let r = rand::thread_rng().gen_range(0, ns.nouns.len());
+		noun = &ns.nouns[r];
+	}
+
+	if dice::roll(10, 1, 0) < 10 {
+		name.push_str(&capitalize_word(adj));
+		name.push(' ');
+	}
+
+	name.push_str(&capitalize_word(noun));
+
+	name
 }

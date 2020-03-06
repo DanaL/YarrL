@@ -17,8 +17,59 @@
 // Some miscellaneous strucs and functions used in a few plces
 
 use std::f32;
+use std::fs;
 
 use crate::dice::roll;
+
+#[derive(Debug)]
+pub struct NameSeeds {
+	pub adjectives: Vec<String>,
+	pub nouns: Vec<String>,
+	pub proper_nouns: Vec<String>,
+}
+
+impl NameSeeds {
+	pub fn new() -> NameSeeds {
+		NameSeeds { adjectives: Vec::new(), nouns: Vec::new(), 
+			proper_nouns: Vec::new() }
+	}
+}
+
+pub fn read_names_file() -> NameSeeds {
+	let mut ns = NameSeeds::new();
+
+	let contents = fs::read_to_string("names.txt")
+        .expect("Unable to find names file!"); 	// I should probably shoot a warning and 
+												// a return a small default version of NS
+	
+	let mut reading = 0;
+	for line in contents.split('\n') {
+		if line == "" {
+			continue;
+		} if line == "# Adjectives" {
+			reading = 0;
+		} else if line == "# Nouns" {
+			reading = 1;
+		} else if line == "# Proper Nouns" {
+			reading = 2;	
+		} else {
+			if reading == 0 { ns.adjectives.push(line.trim().to_string()); }
+			else if reading == 1 { ns.nouns.push(line.trim().to_string()); }
+			else if reading == 2 { ns.proper_nouns.push(line.trim().to_string()); }
+		}
+	}
+
+	ns
+}
+
+pub fn capitalize_word(word: &str) -> String {
+	// Rust is so intuitive...
+	let mut c = word.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}
 
 pub fn rnd_adj() -> (i32, i32) {
 	let x = roll(8, 1, 0);
