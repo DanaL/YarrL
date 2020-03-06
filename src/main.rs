@@ -1103,9 +1103,6 @@ fn main() {
 
 	//let map = map::generate_cave(20, 10);
 
-	println!("{:?}", ship::random_name());
-	println!("{:?}", ship::random_name());
-	println!("{:?}", ship::random_name());
 	/*
 	let map = map::generate_test_map();
 	let mut hs = HashSet::new();
@@ -1113,6 +1110,6 @@ fn main() {
 	let path = pathfinding::find_path(&map, 4, 1, 1, 3, &hs);
 	println!("{:?}", path);
 	*/
-	//start_game();
+	start_game();
 }
 

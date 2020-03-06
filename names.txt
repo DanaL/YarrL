@@ -14,6 +14,7 @@ insolvent
 damnable
 twice-damned
 thrice-damned
+terrible
 stormy
 deceitful
 lying
@@ -51,6 +52,7 @@ summer
 autumn
 winter
 spring
+dove
 surprise
 child
 hound
@@ -69,8 +71,10 @@ hero
 tiger
 lion
 dragon
+guppy
 minnow
 dolphin
+carp
 pearl
 skull
 shark
@@ -99,7 +103,10 @@ jack
 tom
 jean
 jean-luc
-
+rose
+scarlet
+sarah
+jennifer
 
 
 

@@ -27,8 +27,8 @@ use crate::ship;
 use crate::ship::Ship;
 use crate::util::rnd_adj;
 
-pub const WORLD_WIDTH: usize = 200;
-pub const WORLD_HEIGHT: usize = 200;
+pub const WORLD_WIDTH: usize = 250;
+pub const WORLD_HEIGHT: usize = 150;
 
 fn initialize_map(map: &mut Map) {
 	let mut top = Vec::new();
@@ -80,10 +80,15 @@ pub fn generate_world(state: &mut GameState,
 		}
 	}
 
-	let island = map::generate_std_island();
+	let mut island = map::generate_atoll();
+	let seacoast = find_all_seacoast(&island);
+	for _ in 0..3 {
+		add_shipwreck(&mut island, &seacoast);
+	}
+
 	for r in 0..island.len() {
 		for c in 0..island.len() {
-			state.map[r + 5][c + 125] = island[r][c].clone();
+			state.map[r+2][c + 100] = island[r][c].clone();
 		}
 	}
 
@@ -94,7 +99,7 @@ pub fn generate_world(state: &mut GameState,
 	state.player.row = 5;
 	state.player.col = 5;
 
-	let mut ship = Ship::new("The Minnow".to_string());
+	let mut ship = Ship::new(ship::random_name());
 	ship.row = state.player.row;
 	ship.col = state.player.col;
 	ship.bearing = 6;
@@ -187,7 +192,7 @@ fn add_shipwreck(map: &mut Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>) 
 	let loc = rand::thread_rng().gen_range(0, seacoast.len());
 	let centre = seacoast[loc];	
 
-	let deck = Tile::Shipwreck(ship::DECK_ANGLE, String::from("Edmund Fitzgerald")); 
+	let deck = Tile::Shipwreck(ship::DECK_ANGLE, ship::random_name()); 
 	map[centre.0][centre.1] = deck;
 
 	let r = dice::roll(3, 1, 0);
