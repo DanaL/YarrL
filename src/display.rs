@@ -41,6 +41,7 @@ pub static DARK_BROWN: Color = Color::RGBA(101, 67, 33, 255);
 pub static BLUE: Color = Color::RGBA(0, 0, 200, 255);
 pub static LIGHT_BLUE: Color = Color::RGBA(55, 198, 255, 255);
 pub static BEIGE: Color = Color::RGBA(255, 178, 127, 255);
+pub static BRIGHT_RED: Color = Color::RGBA(208, 28, 31, 255);
 
 const SCREEN_WIDTH: u32 = 58;
 const SCREEN_HEIGHT: u32 = 22;
@@ -411,6 +412,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::StoneFloor => ('.', GREY),
 			map::Tile::Mountain => ('\u{039B}', GREY),
 			map::Tile::SnowPeak => ('\u{039B}', WHITE),
+			map::Tile::Lava => ('{', BRIGHT_RED),
 			map::Tile::Gate => ('#', LIGHT_BLUE),
 			map::Tile::Thing(color, ch) => (ch, color),
 			map::Tile::Separator => ('|', WHITE),

@@ -43,6 +43,7 @@ pub enum Tile {
 	Separator,
 	ShipPart(char),
 	Bullet(char),
+	Lava,
 }
 
 // Probably at some point in the dev process, I'll need to begin 
@@ -208,13 +209,14 @@ fn warp_to_island(grid: &mut Vec<Vec<f32>>, width: usize, shift_y: f32) {
 	}
 }
 
-pub fn generate_island(width: usize) -> Vec<Vec<Tile>> {
+fn generate_island(width: usize,
+		nw: f32, ne: f32, sw: f32, se: f32) -> Vec<Vec<Tile>> {
 	let mut grid = vec![vec![0.0f32; width]; width];
 
-	grid[0][0] = rand::thread_rng().gen_range(0.0, 1.0);
-	grid[0][width - 1] = rand::thread_rng().gen_range(0.0, 1.0);
-	grid[width - 1][0] = rand::thread_rng().gen_range(0.0, 1.0);
-	grid[width - 1][width - 1] = rand::thread_rng().gen_range(0.0, 1.0);
+	grid[0][0] = nw;
+	grid[0][width - 1] = ne;
+	grid[width - 1][0] = sw;
+	grid[width - 1][width - 1] = se;
 
 	let initial_scale = 1.0 / width as f32;
 	diamond_sq(&mut grid, 0, 0, width, initial_scale);
@@ -231,6 +233,26 @@ pub fn generate_island(width: usize) -> Vec<Vec<Tile>> {
 	}
 
 	map
+}
+
+pub fn generate_std_island() -> Vec<Vec<Tile>> {
+	generate_island(65, 
+		rand::thread_rng().gen_range(0.0, 1.0),
+ 		rand::thread_rng().gen_range(0.0, 1.0),
+		rand::thread_rng().gen_range(0.0, 1.0),
+		rand::thread_rng().gen_range(0.0, 1.0))
+}
+
+pub fn generate_atoll() -> Vec<Vec<Tile>> {
+	generate_island(129, -1.0, -0.75, -0.5, -1.0)
+}
+
+// It's far from an exact science but these parameters
+// seem to generate a mountainous island fairly often
+pub fn generate_mountainous_island() -> Vec<Vec<Tile>> {
+	// size 129 makes some great looking islands but I think
+	// they are a bit too big for my purposes
+	generate_island(65, 1.25, 1.75, 1.5, 1.0)
 }
 
 fn ds_union(ds: &mut Vec<i32>, r1: i32, r2: i32) {
