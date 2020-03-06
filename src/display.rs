@@ -305,6 +305,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 								return Cmd::PickUp;
 							} else if val == "d" {
 								return Cmd::DropItem;
+							} else if val == "s" {
+								return Cmd::Search;
 							}
 						}
 					},

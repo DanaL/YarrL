@@ -312,6 +312,32 @@ impl ItemsTable {
 		stack.push_front(item);
 	}
 
+	pub fn reveal_hidden(&mut self, loc: &(usize, usize)) {
+		if !self.table.contains_key(loc) {
+			return;
+		}
+
+		let pile = self.table.get_mut(loc).unwrap();
+		for item in pile {
+			item.hidden = false;
+		}
+	}
+
+	pub fn any_hidden(&self, loc: &(usize, usize)) -> bool {
+		if !self.table.contains_key(loc) {
+			return false;
+		}
+
+		let pile = &self.table[&(loc.0, loc.1)];
+		for item in pile {
+			if item.hidden { 
+				return true
+			}
+		}
+		
+		false
+	}
+ 
 	fn count_visible(&self, loc: (usize, usize)) -> usize {
 		let mut count = 0;
 		let pile = &self.table[&(loc.0, loc.1)];

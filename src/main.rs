@@ -65,6 +65,7 @@ pub enum Cmd {
 	FireGun,
 	Reload,
 	WorldMap,
+	Search,
 }
 
 pub struct GameState {
@@ -446,6 +447,23 @@ fn quaff(state: &mut GameState, gui: &mut GameUI) {
 		},
 		None => state.write_msg_buff("Nevermind."),
 	}
+}
+
+fn search(state: &mut GameState, items: &mut ItemsTable) {
+	let loc = (state.player.row, state.player.col);
+
+	if items.any_hidden(&loc) && do_ability_check(0, 15, state.player.prof_bonus as i8) {
+		// hmm I wonder if I should give the player a perception skill?
+		// also should have a way to have harder to find things
+		state.write_msg_buff("You find a hidden cache!");
+		items.reveal_hidden(&loc);
+	} else if items.count_at(state.player.row, state.player.col) > 0 {
+		state.write_msg_buff("You find no secrets.");
+	} else {
+		state.write_msg_buff("You find nothing.");
+	}
+
+	state.turn += 1;
 }
 
 fn reload(state: &mut GameState, gui: &mut GameUI) {
@@ -1067,6 +1085,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 			Cmd::FireGun => fire_gun(state, gui, items, ships),
 			Cmd::Reload => reload(state, gui),
 			Cmd::WorldMap => gui.show_world_map(state),
+			Cmd::Search => search(state, items),
         }
 
 		// Some of the commands don't count as a turn for the player, so
