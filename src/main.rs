@@ -642,7 +642,7 @@ fn get_open_sq_adj_player(state: &GameState, ships: &HashMap<(usize, usize), Shi
 	if sqs.len() == 0 {
 		None
 	} else {
-		let j = (dice::roll(sqs.len() as u8 + 1, 1, 0) - 1) as usize;
+		let j = (dice::roll(sqs.len() as u8, 1, 0) - 1) as usize;
 		let loc = sqs[j];
 		Some(loc)
 	}
