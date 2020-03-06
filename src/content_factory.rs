@@ -86,6 +86,8 @@ pub fn generate_world(state: &mut GameState,
 	for _ in 0..3 {
 		add_shipwreck(&mut island, &seacoast, items, 2, 100);
 	}
+	let map = set_treasure_map(&island, &seacoast, items, 2, 100).unwrap();
+	state.player.inventory.add(map);
 
 	for r in 0..island.len() {
 		for c in 0..island.len() {
@@ -99,9 +101,6 @@ pub fn generate_world(state: &mut GameState,
 	state.player.wheel = 0;
 	state.player.row = 5;
 	state.player.col = 5;
-
-	let map = Item::get_map((15, 15), (22, 20));
-	state.player.inventory.add(map);
 
 	let mut ship = Ship::new(ship::random_name());
 	ship.row = state.player.row;
@@ -190,6 +189,45 @@ fn generate_volcanic_island() -> Vec<Vec<Tile>> {
 	}
 
 	island
+}
+
+fn set_treasure_map(map: &Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>, 
+				items: &mut ItemsTable,
+				world_offset_r: usize,
+				world_offset_c: usize) -> Option<Item> {
+	// Okay, I want to pick a random seacoast location and stick the treasure near
+	// it. 
+	//
+	// A cooler way to do this might be to pathfind my way inland like a real
+	// pirate might have but we'll save that for later
+
+	loop {
+		let j = rand::thread_rng().gen_range(0, seacoast.len());
+		let loc = seacoast[j];	
+		
+		// I *could* probably figure out the centre of the island from
+		// averaging the seacoast points and so focus my search on inland 
+		// squares but I'd have to scratch my head over the geometry and this way
+		// shouldn't take toooo long
+		let r_delta = rand::thread_rng().gen_range(5, 10);
+		let c_delta = rand::thread_rng().gen_range(5, 10);
+
+		let tile = &map[loc.0 + r_delta][loc.1 + c_delta];
+		if map::is_passable(tile) && *tile != Tile::Water && *tile != Tile::DeepWater {
+			let nw_r = rand::thread_rng().gen_range(5, 15);
+			let nw_c = rand::thread_rng().gen_range(10, 20);
+			let actual_nw_r = ((loc.0 + r_delta + world_offset_r) as i32 - nw_r) as usize;
+			let actual_nw_c = ((loc.1 + c_delta + world_offset_c) as i32 - nw_c) as usize;
+			let actual_x_r = loc.0 + r_delta + world_offset_r;
+			let actual_x_c = loc.1 + c_delta + world_offset_c;
+			let map = Item::get_map((actual_nw_r, actual_nw_c), (actual_x_r, actual_x_c));
+			add_cache(items, actual_x_r, actual_x_c);
+
+			return Some(map);
+		}
+	}
+
+	None
 }
 
 fn add_cache(items: &mut ItemsTable, row: usize, col: usize) {
