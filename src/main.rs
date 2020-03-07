@@ -67,6 +67,7 @@ pub enum Cmd {
 	WorldMap,
 	Search,
 	Read,
+	Eat,
 }
 
 pub struct GameState {
@@ -421,10 +422,18 @@ fn pluralize(name: &str) -> String{
 	result	
 }
 
-fn drink_beverage(state: &mut GameState, beverage: &Item) {
-	if beverage.name == "draught of rum" {
-		state.player.add_stamina(10);
+fn consume_nourishment(state: &mut GameState, item: &Item) {
+	let hp = dice::roll(item.bonus, 1, 0);
+	state.player.add_stamina(hp);
+
+	if item.name == "draught of rum" {
 		state.write_msg_buff("You drink some rum.");
+	} else if item.name == "coconut" {
+		state.write_msg_buff("Munch munch.");
+	} else if item.name == "banana" {
+		state.write_msg_buff("Munch munch.");
+	} else if item.name == "salted pork" {
+		state.write_msg_buff("Not very satisfying.");
 	}
 }
 
@@ -440,10 +449,33 @@ fn quaff(state: &mut GameState, gui: &mut GameUI) {
 			match state.player.inventory.item_type_in_slot(ch) {	
 				Some(ItemType::Drink) => {
 					let drink = state.player.inventory.remove_count(ch, 1);
-					drink_beverage(state, &drink[0]);
+					consume_nourishment(state, &drink[0]);
 					state.turn += 1;
 				},
 				Some(_) => state.write_msg_buff("Uh...ye can't drink that."),
+				None => state.write_msg_buff("You do not have that item."),
+			}
+		},
+		None => state.write_msg_buff("Nevermind."),
+	}
+}
+
+fn eat(state: &mut GameState, gui: &mut GameUI) {
+	if state.player.inventory.get_menu().len() == 0 {
+		state.write_msg_buff("You are empty handed.");
+		return
+	}
+
+	let sbi = state.curr_sidebar_info();
+	match gui.query_single_response("Eat what?", &sbi) {
+		Some(ch) => {
+			match state.player.inventory.item_type_in_slot(ch) {	
+				Some(ItemType::Food) => {
+					let food = state.player.inventory.remove_count(ch, 1);
+					consume_nourishment(state, &food[0]);
+					state.turn += 1;
+				},
+				Some(_) => state.write_msg_buff("Uh...ye can't eat that."),
 				None => state.write_msg_buff("You do not have that item."),
 			}
 		},
@@ -1107,6 +1139,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 				}
 			},
 			Cmd::Quaff => quaff(state, gui),
+			Cmd::Eat => eat(state, gui),
 			Cmd::FireGun => fire_gun(state, gui, items, ships),
 			Cmd::Reload => reload(state, gui),
 			Cmd::WorldMap => gui.show_world_map(state),

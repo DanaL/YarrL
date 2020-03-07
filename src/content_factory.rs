@@ -77,6 +77,7 @@ pub fn generate_world(state: &mut GameState,
 	for _ in 0..5 {
 		set_campsite(&mut island, items, 5, 5);
 	}
+	add_random_fruit(&island, items, 5, 5);
 
 	for r in nw.0..island.len() {
 		for c in nw.1..island.len() {
@@ -91,9 +92,10 @@ pub fn generate_world(state: &mut GameState,
 	}
 	let map = set_treasure_map(&island, &seacoast, items, 2, 100).unwrap();
 	state.player.inventory.add(map);
+	add_random_fruit(&island, items, 2, 100);
 
 	for _ in 0..5 {
-		set_campsite(&mut island, items, 5, 5);
+		set_campsite(&mut island, items, 2, 100);
 	}
 
 	for r in 0..island.len() {
@@ -198,6 +200,45 @@ fn generate_volcanic_island() -> Vec<Vec<Tile>> {
 	island
 }
 
+fn add_random_fruit(map: &Vec<Vec<Tile>>, items: &mut ItemsTable,
+				world_offset_r: usize,
+				world_offset_c: usize) {
+
+	// Let's make sure there's actually forests to place fruit on
+	let mut found_tree = false;
+	'outer: for r in 0..map.len() {
+		for c in 0..map.len() {
+			if map[r][c] == Tile::Tree {
+				found_tree = true;
+				break 'outer;
+			}
+		}
+	}
+	if !found_tree {
+		return;
+	}
+
+	let count = rand::thread_rng().gen_range(5, 10);
+	for _ in 0..count {
+		loop {
+			let r = rand::thread_rng().gen_range(0, map.len());
+			let c = rand::thread_rng().gen_range(0, map.len());
+
+			let tile = &map[r][c];
+			if *tile == Tile::Tree {
+				let fruit = if rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
+					Item::get_item("coconut")	
+				} else {
+					Item::get_item("banana")	
+				};
+				
+				items.add(r + world_offset_r, c + world_offset_c, fruit.unwrap());	
+				break;
+			}
+		}
+	}
+}
+
 fn set_campsite(map: &mut Vec<Vec<Tile>>, items: &mut ItemsTable,
 				world_offset_r: usize,
 				world_offset_c: usize) {
@@ -213,6 +254,7 @@ fn set_campsite(map: &mut Vec<Vec<Tile>>, items: &mut ItemsTable,
 		
 			let actual_r = r + world_offset_r;
 			let actual_c = c + world_offset_c;
+
 			let rum_count = rand::thread_rng().gen_range(0, 3) + 1;
 			for _ in 0..rum_count {
 				let delta = rnd_adj();
@@ -221,6 +263,13 @@ fn set_campsite(map: &mut Vec<Vec<Tile>>, items: &mut ItemsTable,
 						(actual_c as i32 + delta.1) as usize, rum);
 			}	
 			
+			let pork_count = rand::thread_rng().gen_range(0, 2) + 1;
+			for _ in 0..pork_count {
+				let delta = rnd_adj();
+				let pork = Item::get_item("salted pork").unwrap();
+				items.add((actual_r as i32 + delta.0) as usize, 
+						(actual_c as i32 + delta.1) as usize, pork);
+			}	
 			break;
 		}	
 	}

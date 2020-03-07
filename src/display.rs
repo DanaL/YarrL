@@ -44,6 +44,7 @@ pub static LIGHT_BLUE: Color = Color::RGBA(55, 198, 255, 255);
 pub static BEIGE: Color = Color::RGBA(255, 178, 127, 255);
 pub static BRIGHT_RED: Color = Color::RGBA(208, 28, 31, 255);
 pub static GOLD: Color = Color::RGBA(255, 215, 0, 255);
+pub static YELLOW: Color = Color::RGBA(255, 225, 53, 255);
 
 const SCREEN_WIDTH: u32 = 58;
 const SCREEN_HEIGHT: u32 = 22;
@@ -313,6 +314,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::WorldMap;
 						} else if val == "R" {
 							return Cmd::Read;
+						} else if val == "E" {
+							return Cmd::Eat;
 						}
 
 						if state.player.on_ship {

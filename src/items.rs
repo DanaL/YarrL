@@ -424,6 +424,7 @@ pub enum ItemType {
 	Bullet,
 	Coin,
 	TreasureMap,
+	Food,
 }
 
 // Cleaning up this struct and making it less of a dog's 
@@ -480,7 +481,11 @@ impl Item {
 
 	pub fn get_item(name: &str) -> Option<Item> {
 		match name {
-			"draught of rum" => Some(Item::new(name, ItemType::Drink, 1, true, '!', display::BROWN)),
+			"draught of rum" => { 
+				let mut r = (Item::new(name, ItemType::Drink, 1, true, '!', display::BROWN));
+				r.bonus = 15;
+				Some(r)
+			},
 			"rusty cutlass" => {
 				let mut i = Item::new(name, ItemType::Weapon, 3, false, '|', display::WHITE);
 				i.dmg = 5;
@@ -511,6 +516,21 @@ impl Item {
 			},
 			"lead ball" => Some(Item::new(name, ItemType::Bullet, 1, true, '*', display::GREY)),
 			"doubloon" => Some(Item::new(name, ItemType::Coin, 1, true, '$', display::GOLD)),
+			"coconut" => {
+				let mut i = Item::new(name, ItemType::Food, 1, true, '%', display::BEIGE);
+				i.bonus = 7;
+				Some(i)
+			},
+			"banana" => {
+				let mut i = Item::new(name, ItemType::Food, 1, true, '(', display::YELLOW);
+				i.bonus = 5;
+				Some(i)
+			},
+			"salted pork" => {
+				let mut i = Item::new(name, ItemType::Food, 1, true, '%', display::BROWN);
+				i.bonus = 3;
+				Some(i)
+			},
 			_ => None,
 
 		}
