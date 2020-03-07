@@ -523,7 +523,7 @@ fn read(state: &mut GameState, gui: &mut GameUI) {
 
 fn search(state: &mut GameState, items: &mut ItemsTable) {
 	let loc = (state.player.row, state.player.col);
-
+	
 	if items.any_hidden(&loc) && do_ability_check(0, 15, state.player.prof_bonus as i8) {
 		// hmm I wonder if I should give the player a perception skill?
 		// also should have a way to have harder to find things

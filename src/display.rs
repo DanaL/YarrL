@@ -624,8 +624,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			while words.len() > 0 {
 				let word = words.pop_front().unwrap();
 
-				// 3 states, if we can't fit the new word in the message
-				// push it back on the queue and display what we have so far
+				// If we can't fit the new word in the message put it back
+				// on the queue and display what we have so far
 				if s.len() + word.len() + 1 >=  SCREEN_WIDTH as usize - 9 {
 					words.push_front(word);
 					s.push_str("--More--");

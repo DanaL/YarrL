@@ -33,6 +33,19 @@ use crate::util::rnd_adj;
 pub const WORLD_WIDTH: usize = 250;
 pub const WORLD_HEIGHT: usize = 250;
 
+struct IslandInfo {
+	coastline: VecDeque<(usize, usize)>,
+	length: usize,
+	offset_r: usize,
+	offset_c: usize,
+}
+
+impl IslandInfo {
+	fn new(offset_r: usize, offset_c: usize) -> IslandInfo {
+		IslandInfo { coastline: VecDeque::new(), length: 0, offset_r, offset_c }
+	}
+}
+
 fn initialize_map(map: &mut Map) {
 	let mut top = Vec::new();
 	for _ in 0..WORLD_WIDTH {
@@ -86,67 +99,68 @@ pub fn generate_world(state: &mut GameState,
 		1
 	};
 
-	let q1_seacoast = create_island(&mut state.map, items, 5, 5);
-	let q2_seacoast = create_island(&mut state.map, items, 10, 100);
-	let q3_seacoast = create_island(&mut state.map, items, 100, 10);
-	let q4_seacoast = create_island(&mut state.map, items, 100, 100);
-	let coasts = vec![q1_seacoast, q2_seacoast, q3_seacoast, q4_seacoast];
-	let offsets = vec![(5, 5), (10, 100), (100, 10), (100,100)];
+	let mut q1_info = IslandInfo::new(5, 5);
+	create_island(&mut state.map, items, &mut q1_info);
+	let mut q2_info = IslandInfo::new(10, 100);
+	create_island(&mut state.map, items, &mut q2_info);
+	let mut q3_info = IslandInfo::new(100, 10);
+	create_island(&mut state.map, items, &mut q3_info);
+	let mut q4_info = IslandInfo::new(100, 100);
+	create_island(&mut state.map, items, &mut q4_info);
+
+	let islands = vec![q1_info, q2_info, q3_info, q4_info];
 
 	state.pirate_lord = get_pirate_lord();
 	state.player_ship = ship::random_name();
 	state.starter_clue = clue_1;
 
-	let eye_patch = Item::get_item("magic eyepatch").unwrap();
+	let mut eye_patch = Item::get_item("magic eyepatch").unwrap();
+	eye_patch.hidden = true;
 	let mut c = Vec::new();
 	c.push(eye_patch);
-	let hint_to_final_clue;
+	let mut hint_to_final_clue;
 
 	// We also need to include the location of the treasure along with the 
 	// eye patch
 	if final_clue == 0 {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		hint_to_final_clue = set_treasure_map(&state.map, &coasts[roll],
-			items, offsets[roll].0, offsets[roll].1, c).unwrap();
+		hint_to_final_clue = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
 	} else {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let ship_name = add_shipwreck(&mut state.map, &coasts[roll],
-			items, offsets[roll].0, offsets[roll].1, c);
+		let ship_name = add_shipwreck(&mut state.map, &islands[roll], items, c, true);
 		hint_to_final_clue = Item::get_note(state.note_count);
 		state.notes.insert(state.note_count, Item::get_note_text(&ship_name));
 		state.note_count += 1;
 	}
+	hint_to_final_clue.hidden = true;
 
 	// Now the second clue
 	let mut c = Vec::new();
 	c.push(hint_to_final_clue);
-	let hint_to_2nd_clue;
+	let mut hint_to_2nd_clue;
 
 	if clue_2 == 0 {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		hint_to_2nd_clue = set_treasure_map(&state.map, &coasts[roll],
-			items, offsets[roll].0, offsets[roll].1, c).unwrap();
+		hint_to_2nd_clue = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
 	} else {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let ship_name = add_shipwreck(&mut state.map, &coasts[roll],
-			items, offsets[roll].0, offsets[roll].1, c);
+		let ship_name = add_shipwreck(&mut state.map, &islands[roll], items, c, true);
 		hint_to_2nd_clue = Item::get_note(state.note_count);
 		state.notes.insert(state.note_count, Item::get_note_text(&ship_name));
 		state.note_count += 1;
 	}
+	hint_to_2nd_clue.hidden = true;
 
 	// Now the first clue
 	let mut c = Vec::new();
 	c.push(hint_to_2nd_clue);
 	if clue_1 == 0 {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let map = set_treasure_map(&state.map, &coasts[roll],
-			items, offsets[roll].0, offsets[roll].1, c).unwrap();
+		let map = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
 		state.player.inventory.add(map);
 	} else {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let ship_name = add_shipwreck(&mut state.map, &coasts[roll],
-			items, offsets[roll].0, offsets[roll].1, c);
+		let ship_name = add_shipwreck(&mut state.map, &islands[roll], items, c, true);
 		state.pirate_lord_ship = ship_name.clone();
 	}
 
@@ -154,7 +168,6 @@ pub fn generate_world(state: &mut GameState,
 		state.notes.insert(state.note_count, Item::get_note_text("Boaty McBoatFace"));
 		state.note_count += 1;
 		state.player.inventory.add(n);
-
 
 	// place the player
 	state.player.on_ship = true;
@@ -172,10 +185,9 @@ pub fn generate_world(state: &mut GameState,
 	ships.insert((state.player.row, state.player.col), ship);
 }
 
-fn create_island(map: &mut Vec<Vec<Tile>>, 
+fn create_island(world_map: &mut Vec<Vec<Tile>>, 
 					items: &mut ItemsTable,
-					offset_r: usize,
-					offset_c: usize) -> VecDeque<(usize, usize)> {
+					island_info: &mut IslandInfo) {
 	let mut island;
 	let island_type = rand::thread_rng().gen_range(0.0, 1.0);
 	let mut max_shipwrecks = 0;
@@ -188,41 +200,49 @@ fn create_island(map: &mut Vec<Vec<Tile>>,
 		max_shipwrecks = 2;
 		max_campsites = 4;
 		max_fruit = 8;		
+		island_info.length = 65;
 	} else if island_type < 0.85 {
 		// atoll
 		island = map::generate_atoll();
 		max_shipwrecks = 6;
 		max_campsites = 2;
-		max_fruit = 3;
+		max_fruit = 3; 
+		island_info.length = 129;
 	} else {
 		// volcano
 		island = generate_volcanic_island();
 		max_shipwrecks = 3;
 		max_campsites = 2;
-		max_fruit = 6;
+		max_fruit = 6; 
+		island_info.length = 65;
 	}
 
-	// find_hidden_valleys(&island);
-	let seacoast = find_all_seacoast(&island);
-	for _ in 0..rand::thread_rng().gen_range(0, max_shipwrecks) {
-		let cache = get_cache_items();
-		add_shipwreck(&mut island, &seacoast, items, offset_r, offset_c, cache);
-	}
-	for _ in 0..rand::thread_rng().gen_range(0, max_campsites) {
-		set_campsite(&mut island, items, offset_r, offset_c);
-	}
-	for _ in 0..rand::thread_rng().gen_range(0, max_fruit) {
-		add_fruit(&island, items, offset_r, offset_c);
-	}
-
+	// this doesn't do what I wanted it to, I don't think
+	// I want to transpose islands that are very small but this
+	// just skips copying some of their water squares. But transposing
+	// the island would break how I'm calculating the coastline anyhow
+	// (or well I'm not taking into account the transposing that doesn't
+	// work yet)
 	let nw = find_nearest_clear_nw(&island);
 	for r in nw.0..island.len() {
 		for c in nw.1..island.len() {
-			map[r + offset_r][c + offset_c] = island[r][c].clone();
+			world_map[r + island_info.offset_r][c + island_info.offset_c] = island[r][c].clone();
 		}
 	}
 
-	seacoast
+	// find_hidden_valleys(&island);
+	
+	find_coastline(world_map, island_info);
+	for _ in 0..rand::thread_rng().gen_range(0, max_shipwrecks) {
+		let cache = get_cache_items();
+		add_shipwreck(world_map, island_info, items, cache, false);
+	}
+	for _ in 0..rand::thread_rng().gen_range(0, max_campsites) {
+		set_campsite(world_map, island_info, items);
+	}
+	for _ in 0..rand::thread_rng().gen_range(0, max_fruit) {
+		add_fruit(world_map, island_info, items);
+	}
 }
 
 fn get_pirate_lord() -> String {
@@ -313,29 +333,32 @@ fn generate_volcanic_island() -> Vec<Vec<Tile>> {
 	island
 }
 
-fn add_fruit(map: &Vec<Vec<Tile>>, items: &mut ItemsTable,
-				world_offset_r: usize,
-				world_offset_c: usize) {
+fn add_fruit(world_map: &Vec<Vec<Tile>>, 
+				island_info: &IslandInfo,
+				items: &mut ItemsTable) {
+	let south_edge = island_info.offset_r + island_info.length;
+	let east_edge = island_info.offset_c + island_info.length;
 
 	// Let's make sure there's actually forests to place fruit on
 	let mut found_tree = false;
-	'outer: for r in 0..map.len() {
-		for c in 0..map.len() {
-			if map[r][c] == Tile::Tree {
+	'outer: for r in island_info.offset_r..south_edge {
+		for c in island_info.offset_c..east_edge {
+			if world_map[r][c] == Tile::Tree {
 				found_tree = true;
 				break 'outer;
 			}
 		}
 	}
+
 	if !found_tree {
 		return;
 	}
 
 	loop {
-		let r = rand::thread_rng().gen_range(0, map.len());
-		let c = rand::thread_rng().gen_range(0, map.len());
+		let r = rand::thread_rng().gen_range(island_info.offset_r, south_edge);
+		let c = rand::thread_rng().gen_range(island_info.offset_c, east_edge);
 
-		let tile = &map[r][c];
+		let tile = &world_map[r][c];
 		if *tile == Tile::Tree {
 			let fruit = if rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
 				Item::get_item("coconut")	
@@ -343,52 +366,49 @@ fn add_fruit(map: &Vec<Vec<Tile>>, items: &mut ItemsTable,
 				Item::get_item("banana")	
 			};
 			
-			items.add(r + world_offset_r, c + world_offset_c, fruit.unwrap());	
+			items.add(r, c, fruit.unwrap());	
 			break;
 		}
 	}
 }
 
-fn set_campsite(map: &mut Vec<Vec<Tile>>, items: &mut ItemsTable,
-				world_offset_r: usize,
-				world_offset_c: usize) {
+fn set_campsite(world_map: &mut Vec<Vec<Tile>>, 
+				island_info: &IslandInfo,	
+				items: &mut ItemsTable) {
 	
 	loop {
-		let r = rand::thread_rng().gen_range(0, map.len());
-		let c = rand::thread_rng().gen_range(0, map.len());
+		let r = rand::thread_rng().gen_range(island_info.offset_r,
+												island_info.offset_r + island_info.length);
+		let c = rand::thread_rng().gen_range(island_info.offset_c, 
+												island_info.offset_c + island_info.length);
 		
-		let tile = &map[r][c];
+		let tile = &world_map[r][c];
 		if map::is_passable(tile) && *tile != Tile::Water && *tile != Tile::DeepWater
 				&& *tile != Tile::Lava {
-			map[r][c] = Tile::OldFirePit;
-		
-			let actual_r = r + world_offset_r;
-			let actual_c = c + world_offset_c;
+			world_map[r][c] = Tile::OldFirePit;
 
 			let rum_count = rand::thread_rng().gen_range(0, 3) + 1;
 			for _ in 0..rum_count {
 				let delta = rnd_adj();
 				let rum = Item::get_item("draught of rum").unwrap();
-				items.add((actual_r as i32 + delta.0) as usize, 
-						(actual_c as i32 + delta.1) as usize, rum);
+				items.add((r as i32 + delta.0) as usize, 
+						(c as i32 + delta.1) as usize, rum);
 			}	
 			
 			let pork_count = rand::thread_rng().gen_range(0, 2) + 1;
 			for _ in 0..pork_count {
 				let delta = rnd_adj();
 				let pork = Item::get_item("salted pork").unwrap();
-				items.add((actual_r as i32 + delta.0) as usize, 
-						(actual_c as i32 + delta.1) as usize, pork);
+				items.add((r as i32 + delta.0) as usize, 
+						(c as i32 + delta.1) as usize, pork);
 			}	
 			break;
 		}	
 	}
 }
 
-fn set_treasure_map(map: &Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>, 
+fn set_treasure_map(world_map: &Vec<Vec<Tile>>, island_info: &IslandInfo,
 				items: &mut ItemsTable,
-				world_offset_r: usize,
-				world_offset_c: usize,
 				cache: Vec<Item>) -> Option<Item> {
 	// Okay, I want to pick a random seacoast location and stick the treasure near
 	// it. 
@@ -397,8 +417,8 @@ fn set_treasure_map(map: &Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>,
 	// pirate might have but we'll save that for later
 
 	loop {
-		let j = rand::thread_rng().gen_range(0, seacoast.len());
-		let loc = seacoast[j];	
+		let j = rand::thread_rng().gen_range(0, island_info.coastline.len());
+		let loc = island_info.coastline[j];	
 		
 		// I *could* probably figure out the centre of the island from
 		// averaging the seacoast points and so focus my search on inland 
@@ -407,14 +427,14 @@ fn set_treasure_map(map: &Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>,
 		let r_delta = rand::thread_rng().gen_range(5, 10);
 		let c_delta = rand::thread_rng().gen_range(5, 10);
 
-		let tile = &map[loc.0 + r_delta][loc.1 + c_delta];
+		let tile = &world_map[loc.0 + r_delta][loc.1 + c_delta];
 		if map::is_passable(tile) && *tile != Tile::Water && *tile != Tile::DeepWater {
 			let nw_r = rand::thread_rng().gen_range(5, 15);
 			let nw_c = rand::thread_rng().gen_range(10, 20);
-			let actual_nw_r = ((loc.0 + r_delta + world_offset_r) as i32 - nw_r) as usize;
-			let actual_nw_c = ((loc.1 + c_delta + world_offset_c) as i32 - nw_c) as usize;
-			let actual_x_r = loc.0 + r_delta + world_offset_r;
-			let actual_x_c = loc.1 + c_delta + world_offset_c;
+			let actual_nw_r = ((loc.0 + r_delta) as i32 - nw_r) as usize;
+			let actual_nw_c = ((loc.1 + c_delta) as i32 - nw_c) as usize;
+			let actual_x_r = loc.0 + r_delta;
+			let actual_x_c = loc.1 + c_delta;
 			let map = Item::get_map((actual_nw_r, actual_nw_c), (actual_x_r, actual_x_c));
 			for i in cache {
 				items.add(actual_x_r, actual_x_c, i);
@@ -463,17 +483,17 @@ fn get_cache_items() -> Vec<Item> {
 	cache
 }
 
-fn add_shipwreck(map: &mut Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>,
+fn add_shipwreck(world_map: &mut Vec<Vec<Tile>>, 
+			island_info: &IslandInfo,
 			items: &mut ItemsTable,
-			world_offset_r: usize,
-			world_offset_c: usize,
-			cache: Vec<Item>) -> String {
-	let loc = rand::thread_rng().gen_range(0, seacoast.len());
-	let centre = seacoast[loc];	
+			cache: Vec<Item>,
+			guarantee_cache: bool) -> String {
+	let loc = rand::thread_rng().gen_range(0, island_info.coastline.len());
+	let centre = island_info.coastline[loc];	
 
 	let wreck_name = ship::random_name();
 	let deck = Tile::Shipwreck(ship::DECK_ANGLE, wreck_name.clone()); 
-	map[centre.0][centre.1] = deck;
+	world_map[centre.0][centre.1] = deck;
 
 	let r = dice::roll(3, 1, 0);
 	let mast_ch = if r == 1 { '|' }
@@ -482,7 +502,7 @@ fn add_shipwreck(map: &mut Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>,
 	let mast_loc = rnd_adj();
 	let mast_r = (centre.0 as i32 + mast_loc.0) as usize;
 	let mast_c = (centre.1 as i32 + mast_loc.1) as usize;
-	map[mast_r][mast_c] = Tile::Mast(mast_ch);
+	world_map[mast_r][mast_c] = Tile::Mast(mast_ch);
 
 	loop {
 		let part_loc = rnd_adj();
@@ -491,17 +511,17 @@ fn add_shipwreck(map: &mut Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>,
 			if r == 1 {
 				let part_r = (centre.0 as i32 + part_loc.0) as usize;
 				let part_c = (centre.1 as i32 + part_loc.1) as usize;
-				map[part_r][part_c] = Tile::Mast(ship::DECK_ANGLE);
+				world_map[part_r][part_c] = Tile::Mast(ship::DECK_ANGLE);
 			} else {
 				let part_r = (centre.0 as i32 + part_loc.0) as usize;
 				let part_c = (centre.1 as i32 + part_loc.1) as usize;
-				map[part_r][part_c] = Tile::Mast(ship::DECK_STRAIGHT);
+				world_map[part_r][part_c] = Tile::Mast(ship::DECK_STRAIGHT);
 			}
 
 			// chance of there being a hidden cache
-			if rand::thread_rng().gen_range(0.0, 1.0) < 0.50 {
-				let loc_r = (centre.0 as i32 + part_loc.0) as usize + world_offset_r;
-				let loc_c = (centre.1 as i32 + part_loc.1) as usize + world_offset_c;
+			if guarantee_cache || rand::thread_rng().gen_range(0.0, 1.0) < 0.50 {
+				let loc_r = (centre.0 as i32 + part_loc.0) as usize;
+				let loc_c = (centre.1 as i32 + part_loc.1) as usize;
 				for i in cache {
 					items.add(loc_r, loc_c, i);
 				}
@@ -516,19 +536,19 @@ fn add_shipwreck(map: &mut Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>,
 	if r == 1 {
 		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
 		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
-		map[part_r][part_c] = Tile::ShipPart(ship::BOW_NE);
+		world_map[part_r][part_c] = Tile::ShipPart(ship::BOW_NE);
 	} else if r == 2 {
 		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
 		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
-		map[part_r][part_c] = Tile::Mast(ship::BOW_NW);
+		world_map[part_r][part_c] = Tile::Mast(ship::BOW_NW);
 	} else if r == 3 {
 		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
 		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
-		map[part_r][part_c] = Tile::Mast(ship::BOW_SE);
+		world_map[part_r][part_c] = Tile::Mast(ship::BOW_SE);
 	} else if r == 3 {
 		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
 		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
-		map[part_r][part_c] = Tile::Mast(ship::BOW_SW);
+		world_map[part_r][part_c] = Tile::Mast(ship::BOW_SW);
 	}
 
 	wreck_name
@@ -676,21 +696,22 @@ fn largest_contiguous_block(map: &Vec<Vec<Tile>>, target: &Tile) -> HashSet<(usi
 }
 
 // Yep, our old pal floodfill again
-fn find_all_seacoast(map: &Vec<Vec<Tile>>) -> VecDeque<(usize, usize)> {
+fn find_coastline(world_map: &Vec<Vec<Tile>>, island_info: &mut IslandInfo) {
 	let mut queue = VecDeque::new();
 	let mut visited = HashSet::new();
-	let mut seacoast = VecDeque::new();
 
 	// Sometimes the island generator does write land on the very edge
 	// of the map so make sure we're actually starting on an ocean square
-	for c in 0..map.len() {
-		if map[0][c] == Tile::DeepWater {
-			queue.push_back((0, c));
-			visited.insert((0, c));
+	for c in island_info.offset_c..island_info.offset_c + island_info.length {
+		if world_map[island_info.offset_r][c] == Tile::DeepWater {
+			queue.push_back((island_info.offset_r, c));
+			visited.insert((island_info.offset_r, c));
 			break;
 		}
 	}
 
+	let south_edge = (island_info.offset_r + island_info.length) as i32;
+	let east_edge = (island_info.offset_c + island_info.length) as i32;
 	while queue.len() > 0 {
 		let curr = queue.pop_front().unwrap();
 	
@@ -698,13 +719,14 @@ fn find_all_seacoast(map: &Vec<Vec<Tile>>) -> VecDeque<(usize, usize)> {
 			for c in -1..=1 {
 				let nr = curr.0 as i32 + r;
 				let nc = curr.1 as i32 + c;
-	
-				if !map::in_bounds(&map, nr, nc) { continue; }
+
+				if nr < island_info.offset_r as i32 || nr >= south_edge { continue }	
+				if nc < island_info.offset_c as i32 || nc >= east_edge { continue }	
 				
 				let loc = (nr as usize, nc as usize);
-				if map[nr as usize][nc as usize] != Tile::DeepWater 
-						&& map[nr as usize][nc as usize] != Tile::Water {
-					seacoast.push_back(loc);
+				if world_map[nr as usize][nc as usize] != Tile::DeepWater 
+						&& world_map[nr as usize][nc as usize] != Tile::Water {
+					island_info.coastline.push_back(loc);
 				} else if !visited.contains(&loc) {
 					visited.insert(loc);
 					queue.push_back(loc);
@@ -712,6 +734,4 @@ fn find_all_seacoast(map: &Vec<Vec<Tile>>) -> VecDeque<(usize, usize)> {
 			}
 		}	
 	}
-
-	seacoast
 }
