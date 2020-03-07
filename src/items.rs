@@ -611,6 +611,15 @@ impl Item {
 				i.range = 6;
 				Some(i)
 			},
+			"corroded flintlock" => {
+				let mut i = Item::new(name, ItemType::Firearm, 2, false, '-', display::GREY);
+				i.loaded = false;
+				i.dmg = 5;
+				i.dmg_dice = 2;
+				i.range = 6;
+				Some(i)
+			},
+
 			"lead ball" => Some(Item::new(name, ItemType::Bullet, 1, true, '*', display::GREY)),
 			"doubloon" => Some(Item::new(name, ItemType::Coin, 1, true, '$', display::GOLD)),
 			"coconut" => {

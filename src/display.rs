@@ -456,6 +456,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		let ti = match tile {
 			map::Tile::Blank => (' ', BLACK),
 			map::Tile::Wall => ('#', GREY),
+			map::Tile::WoodWall => ('#', BROWN),
 			map::Tile::Tree => ('\u{03D9}', GREEN),
 			map::Tile::Dirt => ('.', BROWN),
 			map::Tile::Grass => ('\u{0316}', GREEN),
@@ -476,6 +477,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::Mast(ch) => (*ch, BROWN),
 			map::Tile::Bullet(ch) => (*ch, WHITE),
 			map::Tile::OldFirePit => ('"', GREY),
+			map::Tile::Floor => ('.', BEIGE),
+			map::Tile::Window(ch) => (*ch, BROWN),
 		};
 
 		ti

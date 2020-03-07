@@ -27,6 +27,7 @@ use sdl2::pixels::Color;
 pub enum Tile {
 	Blank,
 	Wall,
+	WoodWall,
 	Tree,
 	Dirt,
 	Grass,
@@ -47,6 +48,8 @@ pub enum Tile {
 	Bullet(char),
 	Lava,
 	OldFirePit,
+	Floor,
+	Window(char),
 }
 
 // Probably at some point in the dev process, I'll need to begin 
@@ -62,7 +65,8 @@ pub fn in_bounds(map: &Vec<Vec<Tile>>, r: i32, c: i32) -> bool {
 
 pub fn is_clear(tile: &Tile) -> bool {
 	match tile {
-		Tile::Wall | Tile::Blank | Tile::Mountain | Tile::SnowPeak => true,
+		Tile::Wall | Tile::Blank | Tile::Mountain | Tile::SnowPeak |
+			Tile::WoodWall => false,
 		_ => true,
 	}
 }
@@ -70,7 +74,8 @@ pub fn is_clear(tile: &Tile) -> bool {
 pub fn is_passable(tile: &Tile) -> bool {
 	match tile {
 		Tile::Wall | Tile::Blank | Tile::WorldEdge |
-		Tile::Mountain | Tile::SnowPeak | Tile::Gate => false,
+		Tile::Mountain | Tile::SnowPeak | Tile::Gate |
+		Tile::WoodWall | Tile::Window(_) => false,
 		_ => true,
 	}
 }

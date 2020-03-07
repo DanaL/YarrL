@@ -209,7 +209,7 @@ fn create_island(world_map: &mut Vec<Vec<Tile>>,
 	} else if island_type < 0.85 {
 		// atoll
 		island = map::generate_atoll();
-		max_shipwrecks = 6;
+		max_shipwrecks = 5;
 		max_campsites = 2;
 		max_fruit = 3; 
 		island_info.length = 129;
@@ -247,6 +247,9 @@ fn create_island(world_map: &mut Vec<Vec<Tile>>,
 	}
 	for _ in 0..rand::thread_rng().gen_range(0, max_fruit) {
 		add_fruit(world_map, island_info, items);
+	}
+	if rand::thread_rng().gen_range(0.0, 1.0) < 0.2 {
+		place_fort(world_map, island_info, items);
 	}
 }
 
@@ -486,6 +489,133 @@ fn get_cache_items() -> Vec<Item> {
 	} 
 
 	cache
+}
+
+fn good_for_fort(tile: &Tile) -> bool {
+	if *tile == Tile::Tree || *tile == Tile::Grass ||
+		*tile  == Tile::Sand || *tile == Tile::Dirt {
+		true
+	} else {
+		false
+	}
+}
+
+fn write_fort_sqs(loc: (usize, usize), world_map: &mut Vec<Vec<Tile>>,
+			island_info: &IslandInfo,
+			items: &mut ItemsTable) {
+	let tile = if rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
+		Tile::WoodWall
+	} else {
+		Tile::Wall
+	};
+
+	world_map[loc.0][loc.1] = tile.clone();
+	world_map[loc.0][loc.1 + 1] = Tile::Window('-');
+	world_map[loc.0][loc.1 + 2] = tile.clone();
+	world_map[loc.0][loc.1 + 3] = tile.clone();
+	world_map[loc.0 + 1][loc.1] = Tile::Window('|');
+	world_map[loc.0 + 1][loc.1 + 3] = tile.clone();
+	world_map[loc.0 + 2][loc.1] = tile.clone();
+	world_map[loc.0 + 2][loc.1 + 3] = tile.clone();
+	world_map[loc.0 + 2][loc.1 + 4] = tile.clone();
+	world_map[loc.0 + 2][loc.1 + 5] = tile.clone();
+	world_map[loc.0 + 2][loc.1 + 6] = tile.clone();
+	world_map[loc.0 + 2][loc.1 + 7] = tile.clone();
+	world_map[loc.0 + 3][loc.1] = tile.clone();
+	world_map[loc.0 + 3][loc.1 + 1] = tile.clone();
+	world_map[loc.0 + 3][loc.1 + 3] = tile.clone();
+	world_map[loc.0 + 3][loc.1 + 7] = tile.clone();
+	world_map[loc.0 + 4][loc.1 + 1] = tile.clone();
+	world_map[loc.0 + 4][loc.1 + 7] = tile.clone();
+	world_map[loc.0 + 5][loc.1 + 1] = tile.clone();
+	world_map[loc.0 + 5][loc.1 + 7] = tile.clone();
+	world_map[loc.0 + 6][loc.1 + 1] = tile.clone();
+	world_map[loc.0 + 6][loc.1 + 2] = tile.clone();
+	world_map[loc.0 + 6][loc.1 + 5] = tile.clone();
+	world_map[loc.0 + 6][loc.1 + 6] = tile.clone();
+	world_map[loc.0 + 6][loc.1 + 7] = tile.clone();
+
+	world_map[loc.0 + 1][loc.1 + 1] = Tile::Floor;
+	world_map[loc.0 + 1][loc.1 + 2] = Tile::Floor;
+	world_map[loc.0 + 2][loc.1 + 1] = Tile::Floor;
+	world_map[loc.0 + 2][loc.1 + 2] = Tile::Floor;
+	world_map[loc.0 + 3][loc.1 + 2] = Tile::Floor;
+	world_map[loc.0 + 3][loc.1 + 4] = Tile::Floor;
+	world_map[loc.0 + 3][loc.1 + 5] = Tile::Floor;
+	world_map[loc.0 + 3][loc.1 + 6] = Tile::Floor;
+	world_map[loc.0 + 4][loc.1 + 2] = Tile::Floor;
+	world_map[loc.0 + 4][loc.1 + 3] = Tile::Floor;
+	world_map[loc.0 + 4][loc.1 + 4] = Tile::Floor;
+	world_map[loc.0 + 4][loc.1 + 5] = Tile::Floor;
+	world_map[loc.0 + 4][loc.1 + 6] = Tile::Floor;
+	world_map[loc.0 + 5][loc.1 + 2] = Tile::Floor;
+	world_map[loc.0 + 5][loc.1 + 3] = Tile::Floor;
+	world_map[loc.0 + 5][loc.1 + 4] = Tile::Mast('|');
+	world_map[loc.0 + 5][loc.1 + 5] = Tile::Floor;
+	world_map[loc.0 + 5][loc.1 + 6] = Tile::Floor;
+
+	world_map[loc.0 + 7][loc.1 + 2] = Tile::Mast('/');
+
+	if rand::thread_rng().gen_range(0.0, 1.0) < 0.99 {
+		let c = rand::thread_rng().gen_range(0, 5);
+		let r = rand::thread_rng().gen_range(0, 2);
+
+		if rand::thread_rng().gen_range(0.0, 1.0) < 0.2 {
+			let mut i = Item::get_item("corroded flintlock").unwrap();
+			i.hidden = true;
+			items.add(loc.0 + 4 + r, loc.1 + 2 + c, i);
+		}
+		for _ in 0..rand::thread_rng().gen_range(0, 5) {
+			let mut i = Item::get_item("lead ball").unwrap();
+			i.hidden = true;
+			items.add(loc.0 + 4 + r, loc.1 + 2 + c, i);
+		}
+		for _ in 0..rand::thread_rng().gen_range(0, 3) {
+			let mut i = Item::get_item("draught of rum").unwrap();
+			i.hidden = true;
+			items.add(loc.0 + 4 + r, loc.1 + 2 + c, i);
+		}
+	}
+}
+
+fn place_fort(world_map: &mut Vec<Vec<Tile>>,
+			island_info: &IslandInfo,
+			items: &mut ItemsTable) {
+
+	// Find all grass, dirt, sand or trees
+	let mut potentials = VecDeque::new();
+	for r in island_info.offset_r..island_info.offset_r+island_info.length-8 {
+		for c in island_info.offset_c..island_info.offset_c+island_info.length-8 {
+			if good_for_fort(&world_map[r][c]) {
+				potentials.push_back((r, c));
+			}
+		}
+	}
+
+	let mut count = 0;
+	while count < 20 {
+		let loc = rand::thread_rng().gen_range(0, potentials.len());
+		let sq = potentials[loc];
+		
+		let mut good_sqs = 0;
+		for r in sq.0..sq.0+8 {
+			for c in sq.1..sq.1+8 {
+				if world_map[r][c] == Tile::Mountain || world_map[r][c] == Tile::SnowPeak {
+					good_sqs -= 10;
+				}
+				if good_for_fort(&world_map[r][c]) {
+					good_sqs += 1;
+				}
+			}
+		}
+
+		if good_sqs > 10 {
+			write_fort_sqs(sq, world_map, island_info, items);
+			break;
+		}	
+
+		count += 1;
+	}	
 }
 
 fn add_shipwreck(world_map: &mut Vec<Vec<Tile>>, 
@@ -740,3 +870,5 @@ fn find_coastline(world_map: &Vec<Vec<Tile>>, island_info: &mut IslandInfo) {
 		}	
 	}
 }
+
+

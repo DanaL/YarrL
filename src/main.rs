@@ -1080,7 +1080,7 @@ fn preamble(gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Ship>) -> Game
 
 fn death(state: &mut GameState, src: String, gui: &mut GameUI) {
 	let sbi = state.curr_sidebar_info();
-	state.write_msg_buff("Game over!");
+	state.write_msg_buff("Game over! --More--");
 	gui.write_screen(&mut state.msg_buff, &sbi);
 	gui.pause_for_more();
 	
