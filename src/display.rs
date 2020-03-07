@@ -611,27 +611,35 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		if msgs.len() == 0 {
 			self.draw_frame("", sbi);
 		} else {
-			let mut s = String::from("");
-			let mut msg_num = 0;
-			loop {
-				if msg_num == msgs.len() {
-					self.draw_frame(&s, sbi);
-					break;
-				} 
+			let mut words = VecDeque::new();
+			while msgs.len() > 0 {
+				let line = msgs.pop_front().unwrap();
+				for w in line.split(" ") {
+					let s = String::from(w);
+					words.push_back(s);
+				}
+			}
 
-				let msg = &msgs[msg_num];
-				if s.len() + msg.len() < SCREEN_WIDTH as usize - 9 {
-					s.push_str(&msg);
-					s.push_str(" ");
-					msg_num += 1;
-				} else {
-					msgs.drain(..msg_num);
+			let mut s = String::from("");
+			while words.len() > 0 {
+				let word = words.pop_front().unwrap();
+
+				// 3 states, if we can't fit the new word in the message
+				// push it back on the queue and display what we have so far
+				if s.len() + word.len() + 1 >=  SCREEN_WIDTH as usize - 9 {
+					words.push_front(word);
 					s.push_str("--More--");
 					self.draw_frame(&s, sbi);
 					self.pause_for_more();
-					s = String::from("");
-					msg_num = 0;
+					s = String::from("");	
+				} else {
+					s.push_str(&word);
+					s.push(' ');
 				}
+			}
+
+			if s.len() > 0 {
+				self.draw_frame(&s, sbi);
 			}
 		}
 	}

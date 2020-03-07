@@ -507,6 +507,12 @@ fn read(state: &mut GameState, gui: &mut GameUI) {
 					gui.show_treasure_map(state, &map);
 					state.turn += 1;
 				},
+				Some(ItemType::Note) => {
+					let note = state.player.inventory.peek_at(ch).unwrap();
+					let txt = state.notes[&note.bonus].clone();
+					state.write_msg_buff(&txt);
+					state.turn += 1;
+				},
 				Some(_) => state.write_msg_buff("Hmm...nary a label nor instructions."),
 				None => state.write_msg_buff("You do not have that item."),
 			}
@@ -1086,7 +1092,7 @@ fn prologue(state: &GameState, gui: &mut GameUI) {
 	lines.push("".to_string());
 
 	if state.starter_clue == 0 {
-		lines.push("The sailors talked about searching the Obstrperous Strait and a map".to_string());
+		lines.push("The sailors talked about searching the Obstreperous Strait and a map".to_string());
 		lines.push("to one of the old pirates' caches. When they got too far into their".to_string());
 		lines.push("cups, you saw your chance and pilfered the map.".to_string()); 
 	} else {

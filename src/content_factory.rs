@@ -150,6 +150,12 @@ pub fn generate_world(state: &mut GameState,
 		state.pirate_lord_ship = ship_name.clone();
 	}
 
+		let n = Item::get_note(state.note_count);
+		state.notes.insert(state.note_count, Item::get_note_text("Boaty McBoatFace"));
+		state.note_count += 1;
+		state.player.inventory.add(n);
+
+
 	// place the player
 	state.player.on_ship = true;
 	state.player.bearing = 6;
