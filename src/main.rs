@@ -48,7 +48,7 @@ pub type Map = Vec<Vec<map::Tile>>;
 type NPCTable = HashMap<(usize, usize), Monster>;
 
 pub enum Cmd {
-	Exit,
+	Quit,
 	Move(String),
 	MsgHistory,
 	PickUp,
@@ -347,7 +347,7 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 					state.write_msg_buff("You begin to swin.");				
 				}
 
-				player_takes_dmg(&mut state.player, 2, "swimming")?;
+				//player_takes_dmg(&mut state.player, 2, "swimming")?;
 
 				if state.player.curr_stamina < 10 {
 					state.write_msg_buff("You're getting tired...");
@@ -993,6 +993,14 @@ fn add_monster(state: &mut GameState) {
 
 }
 
+fn confirm_quit(state: &GameState, gui: &mut GameUI) -> Result<(), String> {
+	let sbi = state.curr_sidebar_info();
+	match gui.query_yes_no("Do you really want to Quit? (y/n)", &sbi) {
+		'y' => Err("quit".to_string()),
+		_ => Ok(()),
+	}
+}
+
 fn is_putting_on_airs(name: &str) -> bool {
 	name.to_lowercase().starts_with("capt") ||
 		name.to_lowercase().starts_with("capn") ||
@@ -1048,25 +1056,34 @@ fn preamble(gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Ship>) -> Game
 
 fn death(state: &GameState, src: String, gui: &mut GameUI) {
 	let mut lines = vec![String::from("")];
-	let s = format!("Well shiver me timbers, {}, ye've died!", state.player.name);
-	lines.push(s);
-
-	if src == "swimming" {
-		lines.push(String::from(""));
-		lines.push(String::from("Ye died from drowning! Davy Jones'll have you for sure!"));
-	} else if src == "falling" {
-		lines.push(String::from(""));
-		lines.push(String::from("Ye took a nasty fall! But it's like they say: it don't be the fall"));
-		lines.push(String::from("what gets you, it be the landing..."));
-	} else  {
-		lines.push(String::from(""));
-		let s = format!("Killed by a {}!", src);
+	if src != "quit" {
+		let s = format!("Well shiver me timbers, {}, ye've died!", state.player.name);
 		lines.push(s);
+
+		if src == "swimming" {
+			lines.push(String::from(""));
+			lines.push(String::from("Ye died from drowning! Davy Jones'll have you for sure!"));
+		} else if src == "falling" {
+			lines.push(String::from(""));
+			lines.push(String::from("Ye took a nasty fall! But it's like they say: it don't be the fall"));
+			lines.push(String::from("what gets you, it be the landing..."));
+		} else  {
+			lines.push(String::from(""));
+			let s = format!("Killed by a {}!", src);
+			lines.push(s);
+		}
+	} else {
+		lines.push(String::from("Ye've quit. Abandoned your quest and the treasure. Perhaps the next"));
+		lines.push(String::from("pirate will have more pluck."));
 	}
 
 	lines.push(String::from(""));
-	lines.push(String::from("Silverbeard's treasure remains for some other swab..."));
+	let s = format!("{}'s treasure remains for some other swab...", state.pirate_lord);
+	lines.push(s);
 	lines.push(String::from(""));
+	
+	let s = format!("So long, mate!");
+	lines.push(s);
 
 	gui.write_long_msg(&lines, true);
 }
@@ -1153,11 +1170,11 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 	gui.write_screen(&mut state.msg_buff, &sbi);
 	state.msg_buff.drain(..0);
 
-    'mainloop: loop {
+    loop {
 		let start_turn = state.turn;
 		let cmd = gui.get_command(&state);
 		match cmd {
-			Cmd::Exit => break 'mainloop,
+			Cmd::Quit => confirm_quit(state, gui)?,
 			Cmd::Move(dir) => do_move(state, items, ships, &dir)?,
 			Cmd::MsgHistory => show_message_history(state, gui),
 			Cmd::DropItem => drop_item(state, items, gui),

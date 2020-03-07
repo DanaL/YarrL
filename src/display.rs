@@ -203,6 +203,16 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.wait_for_key_input()
 	}
 
+	pub fn query_yes_no(&mut self, question: &str, sbi:&SidebarInfo) -> char {
+		loop {
+			match self.query_single_response(question, sbi) {
+				Some('y') => { return 'y'; },
+				Some('n') | None => { return 'n'; },
+				Some(_) => { continue; },
+			}
+		}
+	}
+
 	pub fn pick_direction(&mut self, sbi: &SidebarInfo) -> Option<(i32, i32)> {
 		let mut m = VecDeque::new();
 		m.push_front(String::from("In which direction?"));
@@ -286,14 +296,14 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		loop {
 			for event in self.event_pump.poll_iter() {
 				match event {
-					Event::Quit {..} => { return Cmd::Exit },
+					Event::Quit {..} => { return Cmd::Quit },
 					Event::KeyDown {keycode: Some(Keycode::H), keymod: Mod::LCTRLMOD, .. } |
 					Event::KeyDown {keycode: Some(Keycode::H), keymod: Mod::RCTRLMOD, .. } => { 
 						return Cmd::MsgHistory; 
 					},
 					Event::TextInput { text:val, .. } => {
 						if val == "Q" {
-							return Cmd::Exit;	
+							return Cmd::Quit;	
 						} else if val == "i" {
 							return Cmd::ShowInventory
 						} else if val == "@" {
@@ -405,7 +415,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		let texture_creator = self.canvas.texture_creator();
 		let texture = texture_creator.create_texture_from_surface(&surface)
 			.expect("Error create texture for messsage line!");
-		let rect = Rect::new(0, row * fh as i32, line.len() as u32 * fw, fh);
+		let rect = Rect::new(10, row * fh as i32, line.len() as u32 * fw, fh);
 		self.canvas.copy(&texture, None, Some(rect))
 			.expect("Error copying message line texture to canvas!");
 	}
