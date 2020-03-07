@@ -101,12 +101,12 @@ impl Ship {
 	}
 }
 
-pub fn random_name() -> String {
+pub fn random_name(allow_ys: bool) -> String {
 	let mut name = String::from("");
 	let ns = util::read_names_file();
 	
 	// not every ship gets to be part of the Royal Yendorian Navy!
-	if dice::roll(7, 1, 0) == 1 {
+	if allow_ys && dice::roll(7, 1, 0) == 1 {
 		name.push_str("Y.S. "); 
 	}
 

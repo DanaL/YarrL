@@ -112,7 +112,8 @@ pub fn generate_world(state: &mut GameState,
 	let islands = vec![q1_info, q2_info, q3_info, q4_info];
 
 	state.pirate_lord = get_pirate_lord();
-	state.player_ship = ship::random_name();
+	// the player isn't allowed to have a royal Yendorian naval ship
+	state.player_ship = ship::random_name(false);
 	state.starter_clue = clue_1;
 
 	// the final mcguffin is always found by a treasure map, to keep the
@@ -653,7 +654,7 @@ fn add_shipwreck(world_map: &mut Vec<Vec<Tile>>,
 	let loc = rand::thread_rng().gen_range(0, island_info.coastline.len());
 	let centre = island_info.coastline[loc];	
 
-	let wreck_name = ship::random_name();
+	let wreck_name = ship::random_name(true);
 	let deck = Tile::Shipwreck(ship::DECK_ANGLE, wreck_name.clone()); 
 	world_map[centre.0][centre.1] = deck;
 
