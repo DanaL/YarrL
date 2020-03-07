@@ -939,7 +939,7 @@ fn leave_helm(state: &mut GameState) {
 	state.turn += 1;
 }
 
-fn show_title_screen(gui: &mut GameUI) {
+fn title_screen(gui: &mut GameUI) {
 	let mut lines = vec!["Welcome to YarrL, a roguelike adventure on the high seas!".to_string(), "".to_string()];
 	lines.push("".to_string());
 	lines.push("".to_string());
@@ -1069,6 +1069,44 @@ fn attack_player(state: &mut GameState, npc: &Monster) -> bool {
 	do_ability_check(npc.hit_bonus, state.player.ac, 0)
 }
 
+fn prologue(state: &GameState, gui: &mut GameUI) {
+	let mut lines = Vec::new();
+	lines.push("Five days nigh you were looking for work in a seedy tavern near King's".to_string()); 
+	lines.push("Quay when you overheard two old sailors talking about having got their".to_string()); 
+	let s = format!("paws on a clue to the treasure of {}!", state.pirate_lord);
+	lines.push(s);
+	lines.push("".to_string());
+	lines.push("The tales -- if ye can believe 'em -- have the pirate captain lost at".to_string());
+	lines.push("sea in a storm, off the Yendorian Main. Many a sea dog has gone a'".to_string());
+	lines.push("treasure hunting there and those who've retuned have come back with".to_string());
+	lines.push("naught but talk of sharks, merfolk, the undead and still more dangers.".to_string());
+	let s = format!("The stories say only one who has Captain {}'s eye", state.pirate_lord);
+	lines.push(s);
+	lines.push("patch, enchanted by a sea witch, will be able to find his hoard.".to_string());
+	lines.push("".to_string());
+
+	if state.starter_clue == 0 {
+		lines.push("The sailors talked about searching the Obstrperous Strait and a map".to_string());
+		lines.push("to one of the old pirates' caches. When they got too far into their".to_string());
+		lines.push("cups, you saw your chance and pilfered the map.".to_string()); 
+	} else {
+		lines.push("The sailors had heard from a lobster fisherman who heard it from".to_string());
+		lines.push("a priest that the pirate had been sailing the Obstreperous Strait".to_string());
+		let s = format!("in the {} when a sudden, fierce squall sunk them. A clue", state.pirate_lord_ship);
+		lines.push(s);
+		lines.push("may found, if the wreck can be located.".to_string());
+	}
+
+	lines.push("".to_string());
+	let s = format!("You spent the last of your coin on a keelboat, the {}", state.player_ship);
+	lines.push(s);
+	lines.push("and set out to the Obstreperous Straight. Having arrived, it's".to_string());
+	lines.push("time to find a lost treasure and earn a place in tavern tales".to_string());
+	lines.push("and sea shanties!".to_string());
+
+	gui.write_long_msg(&lines, true);
+}
+
 fn start_game() {
     let ttf_context = sdl2::ttf::init()
 		.expect("Error creating ttf context on start-up!");
@@ -1080,15 +1118,15 @@ fn start_game() {
 	let mut gui = GameUI::init(&font, &sm_font)
 		.expect("Error initializing GameUI object.");
 
-	show_title_screen(&mut gui);
+	title_screen(&mut gui);
 
 	let mut ships: HashMap<(usize, usize), Ship> = HashMap::new();
 	let mut state = preamble(&mut gui, &mut ships);
+	show_character_sheet(&state, &mut gui);
 	let mut items = ItemsTable::new();
 
 	generate_world(&mut state, &mut items, &mut ships);
-
-	show_character_sheet(&state, &mut gui);
+	prologue(&state, &mut gui);
 
 	match run(&mut gui, &mut state, &mut items, &mut ships) {
 		Ok(_) => println!("Game over I guess? Probably the player won?!"),
