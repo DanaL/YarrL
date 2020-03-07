@@ -13,6 +13,8 @@
 // You should have received a copy of the GNU General Public License
 // along with YarrL.  If not, see <https://www.gnu.org/licenses/>.
 
+use rand::Rng;
+
 use std::collections::{HashMap, HashSet, VecDeque};
 use sdl2::pixels::Color;
 
@@ -425,6 +427,8 @@ pub enum ItemType {
 	Coin,
 	TreasureMap,
 	Food,
+	EyePatch,
+	Note,
 }
 
 // Cleaning up this struct and making it less of a dog's 
@@ -479,6 +483,34 @@ impl Item {
 		map
 	}
 
+	pub fn get_note(note_num: u8) -> Item {
+		let mut note = Item::new("scrap of paper", ItemType::Note, 0, false, '?', display::WHITE);
+		note.bonus = note_num;
+
+		note
+	}
+
+	pub fn get_note_text(ship_name: &str) -> String {
+		let mut s = String::from("");
+		let r = rand::thread_rng().gen_range(0, 4);
+		if r == 0 {
+			s.push_str("A ship's manifest from the ");
+		} else if r == 1 {
+			s.push_str("A love letter addressed to the bosun of the ");
+		} else if r == 2 {
+			s.push_str("'Wanted for piracy, the crew of the ");
+		} else {
+			s.push_str("An invoice for 10 barrels of beer for the ");
+		}
+		s.push_str(ship_name);
+		s.push('.');
+		if r == 2 {
+			s.push_str("'");
+		}
+
+		s
+	}
+
 	pub fn get_item(name: &str) -> Option<Item> {
 		match name {
 			"draught of rum" => { 
@@ -504,6 +536,11 @@ impl Item {
 			"overcoat" => {
 				let mut i = Item::new(name, ItemType::Coat, 3, false, '[', display::BLUE);
 				i.armour_value = 2;
+				Some(i)
+			},
+			"magic eyepatch" => {
+				let mut i = Item::new(name, ItemType::EyePatch, 0, false, '[', display::BRIGHT_RED);
+				i.armour_value = 0;
 				Some(i)
 			},
 			"flintlock pistol" => {

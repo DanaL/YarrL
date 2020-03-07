@@ -12,7 +12,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with YarrL.  If not, see <https://www.gnu.org/licenses/>.
-extern crate rand;
+
 use rand::Rng;
 
 use crate::dice;

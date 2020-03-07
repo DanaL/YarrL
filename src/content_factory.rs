@@ -26,6 +26,8 @@ use crate::map;
 use crate::map::Tile;
 use crate::ship;
 use crate::ship::Ship;
+use crate::util;
+use crate::util::NameSeeds;
 use crate::util::rnd_adj;
 
 pub const WORLD_WIDTH: usize = 250;
@@ -84,10 +86,69 @@ pub fn generate_world(state: &mut GameState,
 		1
 	};
 
-	create_island(&mut state.map, items, 5, 5);
-	create_island(&mut state.map, items, 10, 100);
-	create_island(&mut state.map, items, 100, 10);
-	create_island(&mut state.map, items, 100, 100);
+	let q1_seacoast = create_island(&mut state.map, items, 5, 5);
+	let q2_seacoast = create_island(&mut state.map, items, 10, 100);
+	let q3_seacoast = create_island(&mut state.map, items, 100, 10);
+	let q4_seacoast = create_island(&mut state.map, items, 100, 100);
+	let coasts = vec![q1_seacoast, q2_seacoast, q3_seacoast, q4_seacoast];
+	let offsets = vec![(5, 5), (10, 100), (100, 10), (100,100)];
+
+	state.pirate_lord = get_pirate_lord();
+	state.player_ship = ship::random_name();
+	state.starter_clue = clue_1;
+
+	let eye_patch = Item::get_item("magic eyepatch").unwrap();
+	let mut c = Vec::new();
+	c.push(eye_patch);
+	let hint_to_final_clue;
+
+	// We also need to include the location of the treasure along with the 
+	// eye patch
+	if final_clue == 0 {
+		let roll = rand::thread_rng().gen_range(0, 4);
+		hint_to_final_clue = set_treasure_map(&state.map, &coasts[roll],
+			items, offsets[roll].0, offsets[roll].1, c).unwrap();
+	} else {
+		let roll = rand::thread_rng().gen_range(0, 4);
+		let ship_name = add_shipwreck(&mut state.map, &coasts[roll],
+			items, offsets[roll].0, offsets[roll].1, c);
+		hint_to_final_clue = Item::get_note(state.note_count);
+		state.notes.insert(state.note_count, Item::get_note_text(&ship_name));
+		state.note_count += 1;
+	}
+
+	// Now the second clue
+	let mut c = Vec::new();
+	c.push(hint_to_final_clue);
+	let hint_to_2nd_clue;
+
+	if clue_2 == 0 {
+		let roll = rand::thread_rng().gen_range(0, 4);
+		hint_to_2nd_clue = set_treasure_map(&state.map, &coasts[roll],
+			items, offsets[roll].0, offsets[roll].1, c).unwrap();
+	} else {
+		let roll = rand::thread_rng().gen_range(0, 4);
+		let ship_name = add_shipwreck(&mut state.map, &coasts[roll],
+			items, offsets[roll].0, offsets[roll].1, c);
+		hint_to_2nd_clue = Item::get_note(state.note_count);
+		state.notes.insert(state.note_count, Item::get_note_text(&ship_name));
+		state.note_count += 1;
+	}
+
+	// Now the first clue
+	let mut c = Vec::new();
+	c.push(hint_to_2nd_clue);
+	if clue_1 == 0 {
+		let roll = rand::thread_rng().gen_range(0, 4);
+		let map = set_treasure_map(&state.map, &coasts[roll],
+			items, offsets[roll].0, offsets[roll].1, c).unwrap();
+		state.player.inventory.add(map);
+	} else {
+		let roll = rand::thread_rng().gen_range(0, 4);
+		let ship_name = add_shipwreck(&mut state.map, &coasts[roll],
+			items, offsets[roll].0, offsets[roll].1, c);
+		state.pirate_lord_ship = ship_name.clone();
+	}
 
 	// place the player
 	state.player.on_ship = true;
@@ -96,7 +157,7 @@ pub fn generate_world(state: &mut GameState,
 	state.player.row = 5;
 	state.player.col = 5;
 
-	let mut ship = Ship::new(ship::random_name());
+	let mut ship = Ship::new(state.player_ship.clone());
 	ship.row = state.player.row;
 	ship.col = state.player.col;
 	ship.bearing = 6;
@@ -108,7 +169,7 @@ pub fn generate_world(state: &mut GameState,
 fn create_island(map: &mut Vec<Vec<Tile>>, 
 					items: &mut ItemsTable,
 					offset_r: usize,
-					offset_c: usize) {
+					offset_c: usize) -> VecDeque<(usize, usize)> {
 	let mut island;
 	let island_type = rand::thread_rng().gen_range(0.0, 1.0);
 	let mut max_shipwrecks = 0;
@@ -138,7 +199,8 @@ fn create_island(map: &mut Vec<Vec<Tile>>,
 	// find_hidden_valleys(&island);
 	let seacoast = find_all_seacoast(&island);
 	for _ in 0..rand::thread_rng().gen_range(0, max_shipwrecks) {
-		add_shipwreck(&mut island, &seacoast, items, offset_r, offset_c);
+		let cache = get_cache_items();
+		add_shipwreck(&mut island, &seacoast, items, offset_r, offset_c, cache);
 	}
 	for _ in 0..rand::thread_rng().gen_range(0, max_campsites) {
 		set_campsite(&mut island, items, offset_r, offset_c);
@@ -153,6 +215,16 @@ fn create_island(map: &mut Vec<Vec<Tile>>,
 			map[r + offset_r][c + offset_c] = island[r][c].clone();
 		}
 	}
+
+	seacoast
+}
+
+fn get_pirate_lord() -> String {
+	let ns = util::read_names_file();
+	
+	let j = rand::thread_rng().gen_range(0, ns.proper_nouns.len());
+
+	ns.proper_nouns[j].clone()
 }
 
 fn pts_on_line(r: f32, c: f32, d: f32, angle: f32) -> (usize, usize) {
@@ -310,7 +382,8 @@ fn set_campsite(map: &mut Vec<Vec<Tile>>, items: &mut ItemsTable,
 fn set_treasure_map(map: &Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>, 
 				items: &mut ItemsTable,
 				world_offset_r: usize,
-				world_offset_c: usize) -> Option<Item> {
+				world_offset_c: usize,
+				cache: Vec<Item>) -> Option<Item> {
 	// Okay, I want to pick a random seacoast location and stick the treasure near
 	// it. 
 	//
@@ -337,7 +410,9 @@ fn set_treasure_map(map: &Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>,
 			let actual_x_r = loc.0 + r_delta + world_offset_r;
 			let actual_x_c = loc.1 + c_delta + world_offset_c;
 			let map = Item::get_map((actual_nw_r, actual_nw_c), (actual_x_r, actual_x_c));
-			add_cache(items, actual_x_r, actual_x_c);
+			for i in cache {
+				items.add(actual_x_r, actual_x_c, i);
+			}
 
 			return Some(map);
 		}
@@ -346,12 +421,14 @@ fn set_treasure_map(map: &Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>,
 	None
 }
 
-fn add_cache(items: &mut ItemsTable, row: usize, col: usize) {
+fn get_cache_items() -> Vec<Item> {
+	let mut cache = Vec::new();
+
 	if rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
 		for _ in 0..rand::thread_rng().gen_range(0, 3) {
 			let mut i = Item::get_item("draught of rum").unwrap();
 			i.hidden = true;
-			items.add(row, col, i);
+			cache.push(i);
 		}
 	}
 
@@ -359,7 +436,7 @@ fn add_cache(items: &mut ItemsTable, row: usize, col: usize) {
 		for _ in 0..rand::thread_rng().gen_range(0, 6) {
 			let mut i = Item::get_item("lead ball").unwrap();
 			i.hidden = true;
-			items.add(row, col, i);
+			cache.push(i);
 		}
 	} 
 
@@ -367,25 +444,29 @@ fn add_cache(items: &mut ItemsTable, row: usize, col: usize) {
 		for _ in 0..rand::thread_rng().gen_range(0, 12) {
 			let mut i = Item::get_item("doubloon").unwrap();
 			i.hidden = true;
-			items.add(row, col, i);
+			cache.push(i);
 		}
 	} 
 
 	if rand::thread_rng().gen_range(0.0, 1.0) < 0.10 {
 		let mut i = Item::get_item("rusty cutlass").unwrap();
 		i.hidden = true;
-		items.add(row, col, i);
+		cache.push(i);
 	} 
+
+	cache
 }
 
 fn add_shipwreck(map: &mut Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>,
 			items: &mut ItemsTable,
 			world_offset_r: usize,
-			world_offset_c: usize,) {
+			world_offset_c: usize,
+			cache: Vec<Item>) -> String {
 	let loc = rand::thread_rng().gen_range(0, seacoast.len());
 	let centre = seacoast[loc];	
 
-	let deck = Tile::Shipwreck(ship::DECK_ANGLE, ship::random_name()); 
+	let wreck_name = ship::random_name();
+	let deck = Tile::Shipwreck(ship::DECK_ANGLE, wreck_name.clone()); 
 	map[centre.0][centre.1] = deck;
 
 	let r = dice::roll(3, 1, 0);
@@ -415,7 +496,9 @@ fn add_shipwreck(map: &mut Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>,
 			if rand::thread_rng().gen_range(0.0, 1.0) < 0.50 {
 				let loc_r = (centre.0 as i32 + part_loc.0) as usize + world_offset_r;
 				let loc_c = (centre.1 as i32 + part_loc.1) as usize + world_offset_c;
-				add_cache(items, loc_r, loc_c);
+				for i in cache {
+					items.add(loc_r, loc_c, i);
+				}
 			}
 
 			break;
@@ -441,6 +524,8 @@ fn add_shipwreck(map: &mut Vec<Vec<Tile>>, seacoast: &VecDeque<(usize, usize)>,
 		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
 		map[part_r][part_c] = Tile::Mast(ship::BOW_SW);
 	}
+
+	wreck_name
 }
 					
 // Some map analytics functions

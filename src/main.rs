@@ -78,6 +78,12 @@ pub struct GameState {
 	npcs: NPCTable,
 	turn: u32,
 	world_seen: HashSet<(usize, usize)>,
+	pirate_lord: String,
+	pirate_lord_ship: String,
+	player_ship: String,
+	starter_clue: u8,
+	notes: HashMap<u8, String>,
+	note_count: u8,
 }
 
 impl GameState {
@@ -89,7 +95,10 @@ impl GameState {
 
 		GameState {player, msg_buff: VecDeque::new(), 
 			msg_history: VecDeque::new(), turn: 0, map: Vec::new(), npcs,
-			world_seen: HashSet::new() }
+			world_seen: HashSet::new(), pirate_lord: String::from(""),
+			player_ship: String::from(""), pirate_lord_ship: String::from(""),
+			starter_clue: 0, notes: HashMap::new(), note_count: 0 
+		}
 	}
 
 	pub fn curr_sidebar_info(&self) -> SidebarInfo {

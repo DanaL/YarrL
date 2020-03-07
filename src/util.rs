@@ -29,7 +29,7 @@ pub struct NameSeeds {
 }
 
 impl NameSeeds {
-	pub fn new() -> NameSeeds {
+	fn new() -> NameSeeds {
 		NameSeeds { adjectives: Vec::new(), nouns: Vec::new(), 
 			proper_nouns: Vec::new() }
 	}

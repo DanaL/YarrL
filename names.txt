@@ -91,11 +91,13 @@ rose
 monarch
 carnation
 mermaid
+merman
 manatee
 narwhal
 cabbage
 apple
 strike
+dandy
 
 # Proper Nouns
 Blackbeard
