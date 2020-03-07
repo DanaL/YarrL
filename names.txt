@@ -15,6 +15,7 @@ insolvent
 damnable
 twice-damned
 thrice-damned
+wandering
 terrible
 stormy
 deceitful
@@ -55,6 +56,8 @@ sunset
 summer
 autumn
 winter
+sword
+bow
 spring
 dove
 surprise
@@ -92,26 +95,26 @@ manatee
 narwhal
 cabbage
 apple
+strike
 
 # Proper Nouns
-dana
-jessica
-steven
-mark
-sally
-edmund
-rodney
-bill
-bob
-jack
-tom
-jean
-jean-luc
-rose
-scarlet
-sarah
-jennifer
-
+Blackbeard
+William Kyd
+Didrik Pining
+Annika Barton
+Isabelle Rothe
+Miranda de Roberval
+Charlotte de Berry
+Jean Bart
+Edmund Cooke
+Long John Silver
+Hector Barbossa
+Barncale Betty Moreau
+Winnifred Snowdon
+Claribelle Hooke
+Guybrush Theepwood
+Anne Bonney
+Tobias Scoby
 
 
 

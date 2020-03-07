@@ -29,7 +29,7 @@ use crate::ship::Ship;
 use crate::util::rnd_adj;
 
 pub const WORLD_WIDTH: usize = 250;
-pub const WORLD_HEIGHT: usize = 150;
+pub const WORLD_HEIGHT: usize = 250;
 
 fn initialize_map(map: &mut Map) {
 	let mut top = Vec::new();
@@ -60,49 +60,34 @@ pub fn generate_world(state: &mut GameState,
 		ships: &mut HashMap<(usize, usize), Ship>) {
 
 	initialize_map(&mut state.map);
-	
-	// make an island, copy it to the top left quadrant
-	//let island = map::generate_atoll();
-	//for r in nw.0..island.len() {
-	//	for c in nw.1..island.len() {
-	//		state.map[r + 5][c + 5] = island[r][c];
-	//	}
-	//}
 
-	let mut island = generate_volcanic_island();
-	let nw = find_nearest_clear_nw(&island);
-	find_hidden_valleys(&island);
-	let seacoast = find_all_seacoast(&island);
-	add_shipwreck(&mut island, &seacoast, items, 5, 5);
-	for _ in 0..5 {
-		set_campsite(&mut island, items, 5, 5);
-	}
-	add_random_fruit(&island, items, 5, 5);
+	// at the moment I have two clue types: maps and 
+	// shipwrecks.
+	//
+	// One I have implenented caves and hidden valleys
+	// then clues can be hidden in them as well
+	let clue_1 = if rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
+		0
+	} else {
+		1
+	};
+ 
+	let clue_2 = if rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
+		0
+	} else {
+		1
+	};
 
-	for r in nw.0..island.len() {
-		for c in nw.1..island.len() {
-			state.map[r + 5][c + 5] = island[r][c].clone();
-		}
-	}
+	let final_clue = if rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
+		0
+	} else {
+		1
+	};
 
-	let mut island = map::generate_atoll();
-	let seacoast = find_all_seacoast(&island);
-	for _ in 0..3 {
-		add_shipwreck(&mut island, &seacoast, items, 2, 100);
-	}
-	let map = set_treasure_map(&island, &seacoast, items, 2, 100).unwrap();
-	state.player.inventory.add(map);
-	add_random_fruit(&island, items, 2, 100);
-
-	for _ in 0..5 {
-		set_campsite(&mut island, items, 2, 100);
-	}
-
-	for r in 0..island.len() {
-		for c in 0..island.len() {
-			state.map[r+2][c + 100] = island[r][c].clone();
-		}
-	}
+	create_island(&mut state.map, items, 5, 5);
+	create_island(&mut state.map, items, 10, 100);
+	create_island(&mut state.map, items, 100, 10);
+	create_island(&mut state.map, items, 100, 100);
 
 	// place the player
 	state.player.on_ship = true;
@@ -118,6 +103,56 @@ pub fn generate_world(state: &mut GameState,
 	ship.wheel = 0;
 	ship.update_loc_info();
 	ships.insert((state.player.row, state.player.col), ship);
+}
+
+fn create_island(map: &mut Vec<Vec<Tile>>, 
+					items: &mut ItemsTable,
+					offset_r: usize,
+					offset_c: usize) {
+	let mut island;
+	let island_type = rand::thread_rng().gen_range(0.0, 1.0);
+	let mut max_shipwrecks = 0;
+	let mut max_campsites = 0;
+	let mut max_fruit = 0;
+
+	if island_type < 0.0 {
+		// regular island
+		island = map::generate_std_island();
+		max_shipwrecks = 2;
+		max_campsites = 4;
+		max_fruit = 8;		
+	} else if island_type < 0.85 {
+		// atoll
+		island = map::generate_atoll();
+		max_shipwrecks = 6;
+		max_campsites = 2;
+		max_fruit = 3;
+	} else {
+		// volcano
+		island = generate_volcanic_island();
+		max_shipwrecks = 3;
+		max_campsites = 2;
+		max_fruit = 6;
+	}
+
+	// find_hidden_valleys(&island);
+	let seacoast = find_all_seacoast(&island);
+	for _ in 0..rand::thread_rng().gen_range(0, max_shipwrecks) {
+		add_shipwreck(&mut island, &seacoast, items, offset_r, offset_c);
+	}
+	for _ in 0..rand::thread_rng().gen_range(0, max_campsites) {
+		set_campsite(&mut island, items, offset_r, offset_c);
+	}
+	for _ in 0..rand::thread_rng().gen_range(0, max_fruit) {
+		add_fruit(&island, items, offset_r, offset_c);
+	}
+
+	let nw = find_nearest_clear_nw(&island);
+	for r in nw.0..island.len() {
+		for c in nw.1..island.len() {
+			map[r + offset_r][c + offset_c] = island[r][c].clone();
+		}
+	}
 }
 
 fn pts_on_line(r: f32, c: f32, d: f32, angle: f32) -> (usize, usize) {
@@ -200,7 +235,7 @@ fn generate_volcanic_island() -> Vec<Vec<Tile>> {
 	island
 }
 
-fn add_random_fruit(map: &Vec<Vec<Tile>>, items: &mut ItemsTable,
+fn add_fruit(map: &Vec<Vec<Tile>>, items: &mut ItemsTable,
 				world_offset_r: usize,
 				world_offset_c: usize) {
 
@@ -218,23 +253,20 @@ fn add_random_fruit(map: &Vec<Vec<Tile>>, items: &mut ItemsTable,
 		return;
 	}
 
-	let count = rand::thread_rng().gen_range(5, 10);
-	for _ in 0..count {
-		loop {
-			let r = rand::thread_rng().gen_range(0, map.len());
-			let c = rand::thread_rng().gen_range(0, map.len());
+	loop {
+		let r = rand::thread_rng().gen_range(0, map.len());
+		let c = rand::thread_rng().gen_range(0, map.len());
 
-			let tile = &map[r][c];
-			if *tile == Tile::Tree {
-				let fruit = if rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
-					Item::get_item("coconut")	
-				} else {
-					Item::get_item("banana")	
-				};
-				
-				items.add(r + world_offset_r, c + world_offset_c, fruit.unwrap());	
-				break;
-			}
+		let tile = &map[r][c];
+		if *tile == Tile::Tree {
+			let fruit = if rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
+				Item::get_item("coconut")	
+			} else {
+				Item::get_item("banana")	
+			};
+			
+			items.add(r + world_offset_r, c + world_offset_c, fruit.unwrap());	
+			break;
 		}
 	}
 }
