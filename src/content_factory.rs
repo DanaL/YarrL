@@ -20,6 +20,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use rand::Rng;
 
 use super::{GameState, ItemsTable, Map};
+use crate::actor::Monster;
 use crate::dice;
 use crate::items::Item;
 use crate::map;
@@ -100,13 +101,13 @@ pub fn generate_world(state: &mut GameState,
 	};
 
 	let mut q1_info = IslandInfo::new(5, 5);
-	create_island(&mut state.map, items, &mut q1_info);
+	create_island(state, items, &mut q1_info);
 	let mut q2_info = IslandInfo::new(10, 100);
-	create_island(&mut state.map, items, &mut q2_info);
+	create_island(state, items, &mut q2_info);
 	let mut q3_info = IslandInfo::new(100, 10);
-	create_island(&mut state.map, items, &mut q3_info);
+	create_island(state, items, &mut q3_info);
 	let mut q4_info = IslandInfo::new(100, 100);
-	create_island(&mut state.map, items, &mut q4_info);
+	create_island(state, items, &mut q4_info);
 
 	let islands = vec![q1_info, q2_info, q3_info, q4_info];
 
@@ -120,7 +121,7 @@ pub fn generate_world(state: &mut GameState,
 	let chest = Item::get_macguffin(&state.pirate_lord);
 	c.push(chest);
 	let roll = rand::thread_rng().gen_range(0, 4);
-	let mut map_to_chest = set_treasure_map(&state.map, &islands[0], items, c).unwrap();
+	let mut map_to_chest = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
 	map_to_chest.hidden = true;
 
 	let mut eye_patch = Item::get_item("magic eye patch").unwrap();
@@ -134,10 +135,10 @@ pub fn generate_world(state: &mut GameState,
 	// eye patch
 	if final_clue == 0 {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		hint_to_final_clue = set_treasure_map(&state.map, &islands[0], items, c).unwrap();
+		hint_to_final_clue = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
 	} else {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let ship_name = add_shipwreck(&mut state.map, &islands[0], items, c, true);
+		let ship_name = add_shipwreck(&mut state.map, &islands[roll], items, c, true);
 		hint_to_final_clue = Item::get_note(state.note_count);
 		state.notes.insert(state.note_count, Item::get_note_text(&ship_name));
 		state.note_count += 1;
@@ -151,10 +152,10 @@ pub fn generate_world(state: &mut GameState,
 
 	if clue_2 == 0 {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		hint_to_2nd_clue = set_treasure_map(&state.map, &islands[0], items, c).unwrap();
+		hint_to_2nd_clue = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
 	} else {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let ship_name = add_shipwreck(&mut state.map, &islands[0], items, c, true);
+		let ship_name = add_shipwreck(&mut state.map, &islands[roll], items, c, true);
 		hint_to_2nd_clue = Item::get_note(state.note_count);
 		state.notes.insert(state.note_count, Item::get_note_text(&ship_name));
 		state.note_count += 1;
@@ -166,11 +167,11 @@ pub fn generate_world(state: &mut GameState,
 	c.push(hint_to_2nd_clue);
 	if clue_1 == 0 {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let map = set_treasure_map(&state.map, &islands[0], items, c).unwrap();
+		let map = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
 		state.player.inventory.add(map);
 	} else {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let ship_name = add_shipwreck(&mut state.map, &islands[0], items, c, true);
+		let ship_name = add_shipwreck(&mut state.map, &islands[roll], items, c, true);
 		state.pirate_lord_ship = ship_name.clone();
 	}
 
@@ -190,7 +191,21 @@ pub fn generate_world(state: &mut GameState,
 	ships.insert((state.player.row, state.player.col), ship);
 }
 
-fn create_island(world_map: &mut Vec<Vec<Tile>>, 
+fn find_location_for_land_monster(world_map: &Vec<Vec<Tile>>, 
+					info: &IslandInfo) -> (usize, usize) {
+	loop {
+		let r = rand::thread_rng().gen_range(info.offset_r, info.offset_r + info.length); 
+		let c = rand::thread_rng().gen_range(info.offset_c, info.offset_c + info.length); 
+		
+		if world_map[r][c] == Tile::Grass || world_map[r][c] == Tile::Dirt ||
+			world_map[r][c] == Tile::Tree || world_map[r][c] == Tile::Sand ||
+			world_map[r][c] == Tile::Floor {
+			return (r, c)
+		}
+	}
+}
+
+fn create_island(state: &mut GameState, 
 					items: &mut ItemsTable,
 					island_info: &mut IslandInfo) {
 	let mut island;
@@ -231,25 +246,37 @@ fn create_island(world_map: &mut Vec<Vec<Tile>>,
 	let nw = find_nearest_clear_nw(&island);
 	for r in nw.0..island.len() {
 		for c in nw.1..island.len() {
-			world_map[r + island_info.offset_r][c + island_info.offset_c] = island[r][c].clone();
+			state.map[r + island_info.offset_r][c + island_info.offset_c] = island[r][c].clone();
 		}
 	}
 
 	// find_hidden_valleys(&island);
 	
-	find_coastline(world_map, island_info);
+	find_coastline(&state.map, island_info);
 	for _ in 0..rand::thread_rng().gen_range(0, max_shipwrecks) {
 		let cache = get_cache_items();
-		add_shipwreck(world_map, island_info, items, cache, false);
+		add_shipwreck(&mut state.map, island_info, items, cache, false);
 	}
 	for _ in 0..rand::thread_rng().gen_range(0, max_campsites) {
-		set_campsite(world_map, island_info, items);
+		set_campsite(&mut state.map, island_info, items);
 	}
 	for _ in 0..rand::thread_rng().gen_range(0, max_fruit) {
-		add_fruit(world_map, island_info, items);
+		add_fruit(&state.map, island_info, items);
 	}
 	if rand::thread_rng().gen_range(0.0, 1.0) < 0.2 {
-		place_fort(world_map, island_info, items);
+		place_fort(&mut state.map, island_info, items);
+	}
+
+	// let's add some monsters in 
+	for _ in 2..rand::thread_rng().gen_range(3, 5) {
+		let loc = find_location_for_land_monster(&state.map, island_info);
+		let s = Monster::new_snake(loc.0, loc.1);
+		state.npcs.insert(loc, s);
+	}
+	for _ in 1..rand::thread_rng().gen_range(2, 4) {
+		let loc = find_location_for_land_monster(&state.map, island_info);
+		let b = Monster::new_boar(loc.0, loc.1);
+		state.npcs.insert(loc, b);
 	}
 }
 

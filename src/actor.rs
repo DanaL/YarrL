@@ -15,18 +15,20 @@
 
 extern crate rand;
 
+use rand::Rng;
+
 use std::collections::HashSet;
 
 use sdl2::pixels::Color;
 
 use crate::dice;
-use crate::display::{DARK_BROWN, GREY};
+use crate::display::{DARK_BROWN, GREY, GREEN, BRIGHT_RED, GOLD};
 use crate::items::{Item, Inventory};
 use crate::map;
 use crate::pathfinding::find_path;
 use crate::util::{manhattan_d, sqs_adj};
 
-use super::{GameState, Map, NPCTable};
+use super::{do_ability_check, GameState, Map, NPCTable};
 
 #[derive(Debug)]
 pub enum PirateType {
@@ -53,6 +55,8 @@ pub struct Player {
 	pub bearing: u8,
 	pub wheel: i8,
 	pub score: u8,
+	pub poisoned: bool,
+	pub charmed: bool,
 }
 
 impl Player {
@@ -81,6 +85,8 @@ impl Player {
 			bearing: 0,
 			wheel: 0,
 			score: 0,
+			poisoned: false,
+			charmed: false,
 		};
 
 		p.inventory.add(Item::get_item("rusty cutlass").unwrap());
@@ -118,6 +124,8 @@ impl Player {
 			bearing: 0,
 			wheel: 0,
 			score: 0,
+			poisoned: false,
+			charmed: false,
 		};
 
 		p.inventory.add(Item::get_item("rusty cutlass").unwrap());
@@ -185,6 +193,7 @@ pub struct Monster {
 	pub dmg: u8,
 	pub dmg_dice: u8,
 	pub dmg_bonus: u8,
+	pub special_dmg: String,
 	pub score: u8,
 }
 
@@ -192,9 +201,28 @@ impl Monster {
 	pub fn new(name: String, ac:u8, hp: u8, symbol: char, row: usize, col: usize, color: Color,
 			hit_bonus: i8, dmg: u8, dmg_dice: u8, dmg_bonus: u8, score: u8) -> Monster {
 		Monster { name, ac, hp, symbol, row, col, color, hit_bonus, 
-			dmg, dmg_dice, dmg_bonus, score }
+			dmg, dmg_dice, dmg_bonus, special_dmg: String::from(""), score }
 	}
+	
+	pub fn new_snake(row: usize, col: usize) -> Monster {
+		let hp = dice::roll(8, 2, 0);
+		let roll = rand::thread_rng().gen_range(0.0, 1.0);
+		
+		let colour = if roll < 0.33 {
+			BRIGHT_RED
+		} else if roll < 0.66 {
+			GOLD
+		} else {
+			GREEN 
+		};
+		
+		let mut s = Monster::new(String::from("snake"), 14, hp, 'S', row, col, colour,
+			4, 4, 1, 0, 10);
+		s.special_dmg = String::from("poison");
 
+		s
+	}
+	
 	pub fn new_shark(row: usize, col: usize) -> Monster {
 		let hp = dice::roll(8, 3, 0);
 		Monster::new(String::from("shark"), 12, hp, '^', row, col, GREY,
@@ -207,11 +235,15 @@ impl Monster {
 			4, 6, 1, 2, 5)
 	}
 
+	// I'm sure life doesn't need to be this way, but got to figure out the
+	// Rust polymorphism model
 	pub fn act(&mut self, state: &mut GameState) -> Result<(), String> {
 		if self.name == "shark" {
 			shark_action(self, state)?;
 		} else if self.name == "wild boar" {
 			boar_action(self, state)?;
+		} else if self.name == "snake" {
+			snake_action(self, state)?;
 		}
 
 		Ok(())
@@ -243,24 +275,41 @@ fn find_adj_empty_sq(row: i32, col: i32, map: &Map, npcs: &NPCTable, passable: &
 	}
 }
 
-fn boar_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
+fn do_special_dmg(state: &mut GameState, special_dmg: &str) {
+	if special_dmg == "poison" {
+		let con_mod = Player::mod_for_stat(state.player.constitution);
+		if !state.player.poisoned && !do_ability_check(con_mod, 13, 0) {
+			state.write_msg_buff("You are poisoned!");
+			state.player.poisoned = true;
+		}
+	}
+}
+
+fn basic_monster_action(m: &mut Monster, state: &mut GameState,
+							verb: &str) -> Result<(), String> {
 	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
 		if super::attack_player(state, m) {
-			state.write_msg_buff("The wild boar bites you!");
+			let s = format!("The {} {} you!", m.name, verb);
+			state.write_msg_buff(&s);
 			let dmg_roll = dice::roll(m.dmg, m.dmg_dice, m.dmg_bonus as i8);
-			super::player_takes_dmg(&mut state.player, dmg_roll, "wild boar")?;
+			super::player_takes_dmg(&mut state.player, dmg_roll, &m.name)?;
+
+			if m.special_dmg != "" {
+				do_special_dmg(state, &m.special_dmg);
+			}
 		} else {
-			state.write_msg_buff("The wild boar misses!");
+			let s = format!("The {} missed!", m.name);
+			state.write_msg_buff(&s);
 		}	
-	} else if manhattan_d(m.row, m.col, state.player.row, state.player.col) < 50 {
+	} else if manhattan_d(m.row, m.col, state.player.row, state.player.col) < 25 {
 		// Too far away and they just ignore the player
-		//println!("Boar on turn {}", state.turn);
 		let mut water = HashSet::new();
 		water.insert(map::Tile::Dirt);
 		water.insert(map::Tile::Grass);
 		water.insert(map::Tile::Water);
 		water.insert(map::Tile::Sand);
 		water.insert(map::Tile::Tree);
+		water.insert(map::Tile::Floor);
 
 		let path = find_path(&state.map, m.row, m.col, 
 			state.player.row, state.player.col, &water);
@@ -281,6 +330,18 @@ fn boar_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 			m.col = loc.1;
 		}
 	}
+
+	Ok(())
+}
+
+fn snake_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
+	basic_monster_action(m, state, "bites")?;
+
+	Ok(())
+}
+
+fn boar_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
+	basic_monster_action(m, state, "bites")?;
 
 	Ok(())
 }

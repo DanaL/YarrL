@@ -135,8 +135,8 @@ impl GameState {
 	}
 }
 
-fn get_move_tuple(mv: &str) -> (i16, i16) {
-	let res: (i16, i16);
+fn get_move_tuple(mv: &str) -> (i32, i32) {
+	let res: (i32, i32);
 
   	if mv == "N" {
 		res = (-1, 0)
@@ -319,11 +319,19 @@ fn fire_gun(state: &mut GameState, gui: &mut GameUI, items: &ItemsTable,
 
 fn do_move(state: &mut GameState, items: &ItemsTable, 
 			ships: &HashMap<(usize, usize), Ship>, dir: &str) -> Result<(), String> {
-	let mv = get_move_tuple(dir);
+	let mut mv = get_move_tuple(dir);
+
+	// if the player is poisoned they'll sometimes stagger
+	if state.player.poisoned {
+		if rand::thread_rng().gen_range(0.0, 1.0) < 0.25 {
+			state.write_msg_buff("You stagger!");
+			mv = util::rnd_adj();
+		}
+	}
 
 	let start_tile = &state.map[state.player.row][state.player.col];
-	let next_row = state.player.row as i16 + mv.0;
-	let next_col = state.player.col as i16 + mv.1;
+	let next_row = state.player.row as i32 + mv.0;
+	let next_col = state.player.col as i32 + mv.1;
 	let next_loc = (next_row as usize, next_col as usize);
 	let tile = &state.map[next_row as usize][next_col as usize];
 	
@@ -347,7 +355,7 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 					state.write_msg_buff("You begin to swin.");				
 				}
 
-				//player_takes_dmg(&mut state.player, 2, "swimming")?;
+				player_takes_dmg(&mut state.player, 2, "swimming")?;
 
 				if state.player.curr_stamina < 10 {
 					state.write_msg_buff("You're getting tired...");
@@ -992,31 +1000,6 @@ fn title_screen(gui: &mut GameUI) {
 	gui.write_long_msg(&lines, true);
 }
 
-fn add_monster(state: &mut GameState) {
-	let mut row;
-	let mut col;
-	loop {
-		row = rand::thread_rng().gen_range(0, state.map.len());
-		col = rand::thread_rng().gen_range(0, state.map[0].len());
-
-		if state.map[row][col] == map::Tile::DeepWater { break; }
-	}	
-	
-	let s = actor::Monster::new_shark(row, col);
-	state.npcs.insert((row, col), s);
-
-	loop {
-		row = rand::thread_rng().gen_range(0, state.map.len());
-		col = rand::thread_rng().gen_range(0, state.map[0].len());
-
-		if state.map[row][col] == map::Tile::Sand { break; }
-	}	
-	
-	let b = actor::Monster::new_boar(row, col);
-	state.npcs.insert((row, col), b);
-
-}
-
 fn confirm_quit(state: &GameState, gui: &mut GameUI) -> Result<(), String> {
 	let sbi = state.curr_sidebar_info();
 	match gui.query_yes_no("Do you really want to Quit? (y/n)", &sbi) {
@@ -1096,16 +1079,16 @@ fn death(state: &mut GameState, src: String, gui: &mut GameUI) {
 	} else if src != "quit" {
 		let s = format!("Well shiver me timbers, {}, ye've died!", state.player.name);
 		lines.push(s);
+		lines.push(String::from(""));
 
 		if src == "swimming" {
-			lines.push(String::from(""));
 			lines.push(String::from("Ye died from drowning! Davy Jones'll have you for sure!"));
+		} else if src == "venom" {
+			lines.push(String::from("Ye died from venom!"));
 		} else if src == "falling" {
-			lines.push(String::from(""));
 			lines.push(String::from("Ye took a nasty fall! But it's like they say: it don't be the fall"));
 			lines.push(String::from("what gets you, it be the landing..."));
 		} else  {
-			lines.push(String::from(""));
 			let s = format!("Killed by a {}!", src);
 			lines.push(s);
 		}
@@ -1199,10 +1182,6 @@ fn start_game() {
 fn run(gui: &mut GameUI, state: &mut GameState, 
 		items: &mut ItemsTable, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
 
-	for _ in 0..3 {
-	//add_monster(state);
-	}
-
 	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
 	gui.v_matrix = fov::calc_v_matrix(state, items, ships, FOV_HEIGHT, FOV_WIDTH);
 	let sbi = state.curr_sidebar_info();
@@ -1269,6 +1248,16 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 				let npc_r = npc.row;
 				let npc_c = npc.col;
 				state.npcs.insert((npc.row, npc.col), npc);
+			}
+
+			if state.player.poisoned {
+				let con_mod = Player::mod_for_stat(state.player.constitution);
+				if do_ability_check(con_mod, 13, 0) {
+					state.write_msg_buff("You feel better.");
+					state.player.poisoned = false;
+				} else {
+					player_takes_dmg(&mut state.player, 1, "venom")?;
+				}
 			}
 
 			if state.turn % 50 == 0 {
