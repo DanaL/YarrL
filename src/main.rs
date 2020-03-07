@@ -369,7 +369,7 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 		let items_count = items.count_at(state.player.row, state.player.col);
 		if items_count == 1 {
 			let i = items.peek_top(state.player.row, state.player.col);
-			let s = format!("You see a {} here.", i.name);
+			let s = format!("You see {} here.", util::get_articled_name(false, &i));
 			state.write_msg_buff(&s);
 		} else if items_count > 1 {
 			state.write_msg_buff("You see a few items here.");
@@ -523,8 +523,19 @@ fn read(state: &mut GameState, gui: &mut GameUI) {
 
 fn search(state: &mut GameState, items: &mut ItemsTable) {
 	let loc = (state.player.row, state.player.col);
-	
-	if items.any_hidden(&loc) && do_ability_check(0, 15, state.player.prof_bonus as i8) {
+
+	// For the final treasure type, a MacGuffin can only be found if the player
+	// is wearing the magic eye patch	
+	let mut search_dc = 15;
+	if items.macguffin_here(&loc) {
+		 if state.player.inventory.equiped_magic_eye_patch() {
+			search_dc = 0;
+		} else {
+			search_dc = 99;
+		}
+	}
+
+	if items.any_hidden(&loc) && do_ability_check(0, search_dc, state.player.prof_bonus as i8) {
 		// hmm I wonder if I should give the player a perception skill?
 		// also should have a way to have harder to find things
 		state.write_msg_buff("You find a hidden cache!");
@@ -592,7 +603,7 @@ fn drop_item(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 			} else {
 				let mut item = state.player.inventory.remove(ch);
 				item.equiped = false;
-				let s = format!("You drop the {}.", item.name);
+				let s = format!("You drop the {}.", util::get_articled_name(true, &item));
 				items.add(state.player.row, state.player.col, item);	
 				state.write_msg_buff(&s);
 				state.turn += 1;
@@ -604,16 +615,21 @@ fn drop_item(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 	state.player.calc_ac();
 }
 
-fn pick_up(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
+fn pick_up(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) -> Result<(), String> {
 	let item_count = items.count_at(state.player.row, state.player.col);
 	if item_count == 0 {
 		state.write_msg_buff("There is nothing here to pick up.");
 	} else if item_count == 1 {
 		let item = items.get_at(state.player.row, state.player.col);
-		let s = format!("You pick up the {}.", item.name);
-		state.player.inventory.add(item);
+		let is_macguffin = item.item_type == ItemType::MacGuffin;
+		let s = format!("You pick up {}.", util::get_articled_name(true, &item));
 		state.write_msg_buff(&s);
+		state.player.inventory.add(item);
 		state.turn += 1;
+
+		if is_macguffin {
+			return Err(String::from("victory!"));
+		}
 	} else {
 		let mut menu = items.get_menu(state.player.row, state.player.col);
 		menu.insert(0, "Pick up what: (* to get everything)".to_string());
@@ -624,13 +640,21 @@ fn pick_up(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 				state.turn += 1;
 				let picked_up = items.get_many_at(state.player.row, state.player.col, &v);
 				for item in picked_up {
-					let s = format!("You pick up the {}.", item.name);
-					state.player.inventory.add(item);
+					let is_macguffin = item.item_type == ItemType::MacGuffin;
+					let article = item.get_definite_article();
+					let s = format!("You pick up {}.", util::get_articled_name(true, &item));
 					state.write_msg_buff(&s);
+					state.player.inventory.add(item);
+				
+					if is_macguffin {
+						return Err(String::from("victory!"));
+					}
 				}
 			},
 		}
 	}
+
+	Ok(())
 }
 
 fn toggle_equipment(state: &mut GameState, gui: &mut GameUI) {
@@ -1054,9 +1078,22 @@ fn preamble(gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Ship>) -> Game
 	state
 }
 
-fn death(state: &GameState, src: String, gui: &mut GameUI) {
+fn death(state: &mut GameState, src: String, gui: &mut GameUI) {
+	let sbi = state.curr_sidebar_info();
+	state.write_msg_buff("Game over!");
+	gui.write_screen(&mut state.msg_buff, &sbi);
+	gui.pause_for_more();
+	
 	let mut lines = vec![String::from("")];
-	if src != "quit" {
+	if src == "victory!" {
+		lines.push(String::from("Well blow me down! Ye've found the lost treasure of"));
+		let s = format!("{}! Yer fame, and fortune, are assured and pirates will be", state.pirate_lord);
+		lines.push(s);
+		lines.push(String::from("talling tales of your exploits for years to come!"));
+		lines.push(String::from(""));
+		let s = format!("Congratulations, Captain {}!", state.player.name);
+		lines.push(s);
+	} else if src != "quit" {
 		let s = format!("Well shiver me timbers, {}, ye've died!", state.player.name);
 		lines.push(s);
 
@@ -1077,10 +1114,12 @@ fn death(state: &GameState, src: String, gui: &mut GameUI) {
 		lines.push(String::from("pirate will have more pluck."));
 	}
 
-	lines.push(String::from(""));
-	let s = format!("{}'s treasure remains for some other swab...", state.pirate_lord);
-	lines.push(s);
-	lines.push(String::from(""));
+	if src != "victory!" {
+		lines.push(String::from(""));
+		let s = format!("{}'s treasure remains for some other swab...", state.pirate_lord);
+		lines.push(s);
+		lines.push(String::from(""));
+	}
 	
 	let s = format!("So long, mate!");
 	lines.push(s);
@@ -1153,7 +1192,7 @@ fn start_game() {
 
 	match run(&mut gui, &mut state, &mut items, &mut ships) {
 		Ok(_) => println!("Game over I guess? Probably the player won?!"),
-		Err(src) => death(&state, src, &mut gui),
+		Err(src) => death(&mut state, src, &mut gui),
 	}
 }
 
@@ -1178,7 +1217,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 			Cmd::Move(dir) => do_move(state, items, ships, &dir)?,
 			Cmd::MsgHistory => show_message_history(state, gui),
 			Cmd::DropItem => drop_item(state, items, gui),
-			Cmd::PickUp => pick_up(state, items, gui),
+			Cmd::PickUp => pick_up(state, items, gui)?,
 			Cmd::ShowInventory => show_inventory(state, gui),
 			Cmd::ShowCharacterSheet => show_character_sheet(state, gui),
 			Cmd::ToggleEquipment => toggle_equipment(state, gui),

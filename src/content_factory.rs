@@ -114,20 +114,30 @@ pub fn generate_world(state: &mut GameState,
 	state.player_ship = ship::random_name();
 	state.starter_clue = clue_1;
 
-	let mut eye_patch = Item::get_item("magic eyepatch").unwrap();
+	// the final mcguffin is always found by a treasure map, to keep the
+	// player from just searching every shipwreck...
+	let mut c = Vec::new();
+	let chest = Item::get_macguffin(&state.pirate_lord);
+	c.push(chest);
+	let roll = rand::thread_rng().gen_range(0, 4);
+	let mut map_to_chest = set_treasure_map(&state.map, &islands[0], items, c).unwrap();
+	map_to_chest.hidden = true;
+
+	let mut eye_patch = Item::get_item("magic eye patch").unwrap();
 	eye_patch.hidden = true;
 	let mut c = Vec::new();
 	c.push(eye_patch);
+	c.push(map_to_chest);
 	let mut hint_to_final_clue;
 
 	// We also need to include the location of the treasure along with the 
 	// eye patch
 	if final_clue == 0 {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		hint_to_final_clue = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
+		hint_to_final_clue = set_treasure_map(&state.map, &islands[0], items, c).unwrap();
 	} else {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let ship_name = add_shipwreck(&mut state.map, &islands[roll], items, c, true);
+		let ship_name = add_shipwreck(&mut state.map, &islands[0], items, c, true);
 		hint_to_final_clue = Item::get_note(state.note_count);
 		state.notes.insert(state.note_count, Item::get_note_text(&ship_name));
 		state.note_count += 1;
@@ -141,10 +151,10 @@ pub fn generate_world(state: &mut GameState,
 
 	if clue_2 == 0 {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		hint_to_2nd_clue = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
+		hint_to_2nd_clue = set_treasure_map(&state.map, &islands[0], items, c).unwrap();
 	} else {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let ship_name = add_shipwreck(&mut state.map, &islands[roll], items, c, true);
+		let ship_name = add_shipwreck(&mut state.map, &islands[0], items, c, true);
 		hint_to_2nd_clue = Item::get_note(state.note_count);
 		state.notes.insert(state.note_count, Item::get_note_text(&ship_name));
 		state.note_count += 1;
@@ -156,18 +166,13 @@ pub fn generate_world(state: &mut GameState,
 	c.push(hint_to_2nd_clue);
 	if clue_1 == 0 {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let map = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
+		let map = set_treasure_map(&state.map, &islands[0], items, c).unwrap();
 		state.player.inventory.add(map);
 	} else {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let ship_name = add_shipwreck(&mut state.map, &islands[roll], items, c, true);
+		let ship_name = add_shipwreck(&mut state.map, &islands[0], items, c, true);
 		state.pirate_lord_ship = ship_name.clone();
 	}
-
-		let n = Item::get_note(state.note_count);
-		state.notes.insert(state.note_count, Item::get_note_text("Boaty McBoatFace"));
-		state.note_count += 1;
-		state.player.inventory.add(n);
 
 	// place the player
 	state.player.on_ship = true;

@@ -83,6 +83,17 @@ impl Inventory {
 		self.toggle_loaded_status();
 	}
 
+	pub fn equiped_magic_eye_patch(&self) -> bool {
+		for slot in self.inv.keys() {
+			let w = self.inv.get(&slot).unwrap();
+			if w.0.equiped && w.0.name == "magic eye patch" {
+				return true;
+			}
+		}
+
+		false
+	}
+
 	pub fn get_equiped_firearm(&self) -> Option<Item> {
 		for slot in self.inv.keys() {
 			let w = self.inv.get(&slot).unwrap();
@@ -93,7 +104,7 @@ impl Inventory {
 
 		None
 	}
-
+	
 	pub fn get_equiped_weapon(&self) -> Option<Item> {
 		for slot in self.inv.keys() {
 			let w = self.inv.get(&slot).unwrap();
@@ -146,6 +157,7 @@ impl Inventory {
 				ItemType::Firearm => String::from("You are already holding a gun."),
 				ItemType::Hat => String::from("You are already wearing a hat."),
 				ItemType::Coat => String::from("You are already wearing a coat."),
+				ItemType::EyePatch => String::from("You are already wearing an eye patch."),
 				_ => panic!("We shouldn't hit this option"),
 			};
 		}
@@ -334,6 +346,21 @@ impl ItemsTable {
 		}
 	}
 
+	pub fn macguffin_here(&self, loc: &(usize, usize)) -> bool {
+		if !self.table.contains_key(loc) {
+			return false;
+		}
+
+		let pile = &self.table[&(loc.0, loc.1)];
+		for item in pile {
+			if item.item_type == ItemType::MacGuffin { 
+				return true
+			}
+		}
+		
+		false
+	}
+
 	pub fn any_hidden(&self, loc: &(usize, usize)) -> bool {
 		if !self.table.contains_key(loc) {
 			return false;
@@ -429,6 +456,7 @@ pub enum ItemType {
 	Food,
 	EyePatch,
 	Note,
+	MacGuffin,
 }
 
 // Cleaning up this struct and making it less of a dog's 
@@ -468,9 +496,32 @@ impl Item {
 				x_coord: (0, 0) }
 	}
 
+	pub fn get_indefinite_article(&self) -> String {
+		if self.item_type == ItemType::MacGuffin {
+			return String::from("");
+		} else {
+			let first = self.name.chars().next().unwrap();
+			if first == 'a' || first == 'e' || first == 'i' ||
+				first == 'o' || first == 'u' || first == 'y' {
+				return String::from("an");
+			} else {
+				return String::from("a");
+			}
+		}
+	}
+
+	pub fn get_definite_article(&self) -> String {
+		if self.item_type == ItemType::MacGuffin {
+			return String::from("");
+		} else {
+			return String::from("the");
+		}
+	}
+
 	pub fn equipable(&self) -> bool {
 		match self.item_type {
-			ItemType::Weapon | ItemType::Coat | ItemType::Hat | ItemType::Firearm => true,
+			ItemType::Weapon | ItemType::Coat | ItemType::Hat 
+				| ItemType::Firearm | ItemType::EyePatch => true,
 			_ => false, 
 		}
 	}
@@ -483,6 +534,15 @@ impl Item {
 		map
 	}
 
+	pub fn get_macguffin(pirate_lord: &str) -> Item {
+		let s = format!("{}'s chest", pirate_lord);
+		let mut mg = Item::new(&s, ItemType::MacGuffin, 0, false, '=', 
+					display::GOLD);
+		mg.hidden = true;
+
+		mg
+	}
+	
 	pub fn get_note(note_num: u8) -> Item {
 		let mut note = Item::new("scrap of paper", ItemType::Note, 0, false, '?', display::WHITE);
 		note.bonus = note_num;
@@ -538,7 +598,7 @@ impl Item {
 				i.armour_value = 2;
 				Some(i)
 			},
-			"magic eyepatch" => {
+			"magic eye patch" => {
 				let mut i = Item::new(name, ItemType::EyePatch, 0, false, '[', display::BRIGHT_RED);
 				i.armour_value = 0;
 				Some(i)
@@ -579,7 +639,7 @@ impl Item {
 		if self.equiped {
 			match self.item_type {
 				ItemType::Weapon | ItemType::Firearm => s.push_str(" (in hand)"),
-				ItemType::Coat | ItemType::Hat => s.push_str(" (being worn)"),
+				ItemType::Coat | ItemType::Hat | ItemType::EyePatch => s.push_str(" (being worn)"),
 				_ => panic!("Should never hit this option..."),
 			}
 		}

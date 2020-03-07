@@ -20,6 +20,7 @@ use std::f32;
 use std::fs;
 
 use crate::dice::roll;
+use crate::items::Item;
 
 #[derive(Debug)]
 pub struct NameSeeds {
@@ -32,6 +33,23 @@ impl NameSeeds {
 	fn new() -> NameSeeds {
 		NameSeeds { adjectives: Vec::new(), nouns: Vec::new(), 
 			proper_nouns: Vec::new() }
+	}
+}
+
+pub fn get_articled_name(definite: bool, item: &Item) -> String {
+	let article;
+
+	if definite {
+		article = item.get_definite_article();
+	} else {
+		article = item.get_indefinite_article();
+	}
+
+	if article.len() == 0 {
+		String::from(item.name.clone())
+	} else {
+		let s = format!("{} {}", article, item.name.clone());
+		s
 	}
 }
 
