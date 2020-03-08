@@ -207,6 +207,7 @@ pub struct Monster {
 	pub anchor: (usize, usize),
 	pub aware_of_player: bool,
 	pub hostile: bool,
+	pub voice_line: String,
 }
 
 impl Monster {
@@ -214,7 +215,8 @@ impl Monster {
 			hit_bonus: i8, dmg: u8, dmg_dice: u8, dmg_bonus: u8, score: u8) -> Monster {
 		Monster { name, ac, hp, symbol, row, col, color, hit_bonus, 
 			dmg, dmg_dice, dmg_bonus, special_dmg: String::from(""),
-			gender: 0, anchor: (0, 0), score, aware_of_player: false, hostile: true, }
+			gender: 0, anchor: (0, 0), score, aware_of_player: false, hostile: true,
+			voice_line: String::from("") }
 	}
 
 	pub fn new_merperson(row: usize, col: usize) -> Monster {
@@ -456,7 +458,9 @@ fn castaway_action(m: &mut Monster, state: &mut GameState,
 		let d = util::cartesian_d(m.row, m.col, state.player.row, state.player.col);
 	
 		if d < 4 {
-			state.write_msg_buff("Wilsonnn!!");
+			if rand::thread_rng().gen_range(0.0, 1.0) < 0.25 {
+				state.write_msg_buff(&m.voice_line);
+			}
 
 			// Too far away and they just ignore the player
 			let mut passable = HashSet::new();

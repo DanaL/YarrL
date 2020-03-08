@@ -465,6 +465,22 @@ fn set_campsite(state: &mut GameState,
 	}
 }
 
+fn get_castaway_line() -> String {
+	let roll = rand::thread_rng().gen_range(0.0, 1.0);
+
+	if roll < 0.2 {
+		String::from("Wiiiiilsoooonnn!")
+	} else if roll < 0.4 {
+		String::from("Teetotaler are more apt to heed the mermaid's call.")
+	} else if roll < 0.6 {
+		String::from("Fresh springs in the mountains do a world of good.")
+	} else if roll < 0.8 {
+		String::from("The Yendorian Navy has a handsome bounty on pirates.")
+	} else {
+		String::from("A ghost ship haunts these waters at night.")
+	}
+}
+
 // largely duplicated from the campsite code...
 fn set_castaway(state: &mut GameState,
 				island_info: &IslandInfo,	
@@ -486,7 +502,8 @@ fn set_castaway(state: &mut GameState,
 			let castaway_c = (c as i32 + delta.1) as usize;
 
 			if !state.npcs.contains_key(&(castaway_r, castaway_c)) {
-				let p = Monster::new_castaway(castaway_r, castaway_c, (r, c));
+				let mut p = Monster::new_castaway(castaway_r, castaway_c, (r, c));
+				p.voice_line = get_castaway_line();
 				state.npcs.insert((castaway_r, castaway_c), p);
 				break;	
 			}
