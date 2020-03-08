@@ -183,9 +183,6 @@ pub fn generate_world(state: &mut GameState,
 	state.player.row = 5;
 	state.player.col = 5;
 
-	let m = Monster::new_merperson(10, 10);
-	state.npcs.insert((10, 10), m);
-
 	let mut ship = Ship::new(state.player_ship.clone());
 	ship.row = state.player.row;
 	ship.col = state.player.col;
@@ -794,7 +791,6 @@ fn place_mermaid(state: &mut GameState, loc: (usize, usize)) {
 			!state.npcs.contains_key(&(mer_r, mer_c)) {
 			let m = Monster::new_merperson(mer_r, mer_c);
 			state.npcs.insert((mer_r, mer_c), m);
-			println!("flag {} {}", mer_r, mer_c);
 			return;
 		}
 	}

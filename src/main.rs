@@ -370,6 +370,22 @@ fn action_while_charmed(state: &mut GameState, items: &ItemsTable,
 	Ok(())
 }
 
+fn check_environment_hazards(state: &mut GameState) -> Result<(), String> {
+	let pr = state.player.row;
+	let pc = state.player.col;
+
+	if state.map[pr][pc] == Tile::DeepWater && !state.player.on_ship {
+		player_takes_dmg(&mut state.player, 2, "swimming")?;
+	} else if state.map[pr][pc] == Tile::FirePit {
+		let dmg = dice::roll(6, 1, 0);
+		player_takes_dmg(&mut state.player, dmg, "burn")?;
+	} else if state.map[pr][pc] == Tile::Lava {
+		player_takes_dmg(&mut state.player, 25, "burn")?;
+	}
+
+	Ok(())
+}
+
 fn do_move(state: &mut GameState, items: &ItemsTable, 
 			ships: &HashMap<(usize, usize), Ship>, dir: &str) -> Result<(), String> {
 	let mut mv = get_move_tuple(dir);
@@ -408,17 +424,13 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 					state.write_msg_buff("You begin to swim.");				
 				}
 
-				player_takes_dmg(&mut state.player, 2, "swimming")?;
-
 				if state.player.curr_stamina < 10 {
 					state.write_msg_buff("You're getting tired...");
 				}
 			},
-			map::Tile::Lava => state.write_msg_buff("Ouch! Ouch! It's hot!"),
+			map::Tile::Lava => state.write_msg_buff("MOLTEN LAVA!"),
 			map::Tile::FirePit => {
 				state.write_msg_buff("You step in the fire!");
-				let dmg = dice::roll(6, 1, 0);
-				player_takes_dmg(&mut state.player, dmg, "burn")?;
 			},
 			map::Tile::Shipwreck(_, name) => {
 				let s = format!("The wreck of the {}", name);
@@ -1302,6 +1314,8 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 		// Some of the commands don't count as a turn for the player, so
 		// don't give the monsters a free move in those cases
 		if state.turn > start_turn {
+			check_environment_hazards(state)?;
+
 			let locs = state.npcs.keys()
 						.map(|v| v.clone())
 						.collect::<Vec<(usize, usize)>>();
