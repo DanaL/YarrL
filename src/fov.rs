@@ -223,16 +223,44 @@ pub fn calc_v_matrix(
 	let fov_center_r = height / 2;
 	let fov_center_c = width / 2;
 
-	for row in 0..height {
-		for col in 0..width {
-			let offset_r = row as i32 - fov_center_r as i32;
-			let offset_c = col as i32 - fov_center_c as i32;
-			let actual_r: i32 = state.player.row as i32 + offset_r;
-			let actual_c: i32 = state.player.col as i32 + offset_c;
+	// Beamcast to all the points around the perimiter of the viewing
+	// area. For YarrL's fixed size FOV this seems to work just fine
+	// and cuts about a whole bunch of redundant looping and beam
+	// casting.
+	for col in 0..width {
+		let offset_r = 0 as i32 - fov_center_r as i32;
+		let offset_c = col as i32 - fov_center_c as i32;
+		let actual_r: i32 = state.player.row as i32 + offset_r;
+		let actual_c: i32 = state.player.col as i32 + offset_c;
 
-			mark_visible(state.player.row as i32, state.player.col as i32,
-				actual_r as i32, actual_c as i32, state, items, &mut v_matrix);
-		}
+		mark_visible(state.player.row as i32, state.player.col as i32,
+			actual_r as i32, actual_c as i32, state, items, &mut v_matrix);
+
+		let offset_r = (height - 1) as i32 - fov_center_r as i32;
+		let offset_c = col as i32 - fov_center_c as i32;
+		let actual_r: i32 = state.player.row as i32 + offset_r;
+		let actual_c: i32 = state.player.col as i32 + offset_c;
+
+		mark_visible(state.player.row as i32, state.player.col as i32,
+			actual_r as i32, actual_c as i32, state, items, &mut v_matrix);
+	}
+
+	for row in 0..height {
+		let offset_r = row as i32 - fov_center_r as i32;
+		let offset_c = 0 as i32 - fov_center_c as i32;
+		let actual_r: i32 = state.player.row as i32 + offset_r;
+		let actual_c: i32 = state.player.col as i32 + offset_c;
+
+		mark_visible(state.player.row as i32, state.player.col as i32,
+			actual_r as i32, actual_c as i32, state, items, &mut v_matrix);
+
+		let offset_r = row as i32 - fov_center_r as i32;
+		let offset_c = (width - 1) as i32 - fov_center_c as i32;
+		let actual_r: i32 = state.player.row as i32 + offset_r;
+		let actual_c: i32 = state.player.col as i32 + offset_c;
+
+		mark_visible(state.player.row as i32, state.player.col as i32,
+			actual_r as i32, actual_c as i32, state, items, &mut v_matrix);
 	}
 
 	add_ships_to_v_matrix(&state.map, &mut v_matrix, ships, 
