@@ -62,14 +62,15 @@ pub struct SidebarInfo {
 	turn: u32,
 	charmed: bool,
 	poisoned: bool,
+	drunkeness: u8,
 }
 
 impl SidebarInfo {
 	pub fn new(name: String, ac: u8, curr_hp: u8, max_hp: u8, 
 			wheel: i8, bearing: i8, turn: u32, charmed: bool,
-			poisoned: bool) -> SidebarInfo {
+			poisoned: bool, drunkeness: u8) -> SidebarInfo {
 		SidebarInfo { name, ac, curr_hp, max_hp, wheel, bearing, turn,
-			charmed, poisoned }
+			charmed, poisoned, drunkeness }
 	}
 }
 
@@ -566,6 +567,11 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 		if sbi.charmed {
 			self.write_sidebar_line("CHARMED", fov_w, l, GOLD);
+			l -= 1;
+		}
+		if sbi.drunkeness > 20 {
+			self.write_sidebar_line("TIPSY", fov_w, l, BROWN);
+			l -= 1;
 		}
 
 		if sbi.bearing > -1 {

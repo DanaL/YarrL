@@ -62,6 +62,7 @@ pub struct Player {
 	pub score: u8,
 	pub poisoned: bool,
 	pub charmed: bool,
+	pub drunkeness: u8,
 }
 
 impl Player {
@@ -92,6 +93,7 @@ impl Player {
 			score: 0,
 			poisoned: false,
 			charmed: false,
+			drunkeness: 0,
 		};
 
 		p.inventory.add(Item::get_item("rusty cutlass").unwrap());
@@ -131,6 +133,7 @@ impl Player {
 			score: 0,
 			poisoned: false,
 			charmed: false,
+			drunkeness: 0,
 		};
 
 		p.inventory.add(Item::get_item("rusty cutlass").unwrap());
@@ -213,7 +216,7 @@ impl Monster {
 	}
 
 	pub fn new_merperson(row: usize, col: usize) -> Monster {
-		let hp = dice::roll(8, 3, 0);
+		let hp = dice::roll(8, 2, 0);
 
 		let mut m = Monster::new(String::from("merperson"), 13, hp, 'y', row, col, YELLOW_ORANGE,
 			5, 1, 1, 0, 10);
@@ -231,7 +234,7 @@ impl Monster {
 	}
 
 	pub fn new_pirate(row: usize, col: usize, anchor: (usize, usize)) -> Monster {
-		let hp = dice::roll(8, 3, 0);
+		let hp = dice::roll(8, 2, 2);
 
 		let mut p = Monster::new(String::from("marooned pirate"), 14, hp, '@', row, col, GREY,
 			5, 6, 1, 0, 10);
@@ -267,7 +270,7 @@ impl Monster {
 	}
 	
 	pub fn new_shark(row: usize, col: usize) -> Monster {
-		let hp = dice::roll(8, 3, 0);
+		let hp = dice::roll(6, 3, 0);
 		Monster::new(String::from("shark"), 12, hp, '^', row, col, GREY,
 			4, 8, 1, 2, 10)
 	}
@@ -279,7 +282,7 @@ impl Monster {
 	}
 
 	pub fn new_boar(row: usize, col: usize) -> Monster {
-		let hp = dice::roll(6, 2, 0);
+		let hp = dice::roll(5, 2, 0);
 		Monster::new(String::from("wild boar"), 12, hp, 'b', row, col, DARK_BROWN,
 			4, 6, 1, 2, 5)
 	}
@@ -510,9 +513,9 @@ fn merfolk_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> 
 		if !state.player.charmed {
 			state.write_msg_buff("You hear beautiful singing.");
 			let verve_mod = Player::mod_for_stat(state.player.verve);
-			// todo: the character will get a bonus on this check if they are 
-			// less sober
-			if !do_ability_check(verve_mod, 16, 0) {
+
+			let bonus = f32::round(state.player.drunkeness as f32 / 5.0) as i8;
+			if !do_ability_check(verve_mod, 14, bonus) {
 				let s = format!("You are charmed by the {}'s song!", m.name);
 				state.write_msg_buff(&s);
 				state.player.charmed = true;

@@ -117,7 +117,7 @@ impl GameState {
 
 		SidebarInfo::new(self.player.name.clone(), self.player.ac,
 			self.player.curr_stamina, self.player.max_stamina, wheel, bearing, self.turn,
-			self.player.charmed, self.player.poisoned)
+			self.player.charmed, self.player.poisoned, self.player.drunkeness)
 	}
 
 	pub fn write_msg_buff(&mut self, msg: &str) {
@@ -427,7 +427,7 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 	let mut mv = get_move_tuple(dir);
 
 	// if the player is poisoned they'll sometimes stagger
-	if state.player.poisoned {
+	if state.player.poisoned || state.player.drunkeness > 20 {
 		if rand::thread_rng().gen_range(0.0, 1.0) < 0.25 {
 			state.write_msg_buff("You stagger!");
 			mv = util::rnd_adj();
@@ -551,6 +551,7 @@ fn consume_nourishment(state: &mut GameState, item: &Item) {
 
 	if item.name == "draught of rum" {
 		state.write_msg_buff("You drink some rum.");
+		state.player.drunkeness += 10;
 	} else if item.name == "coconut" {
 		state.write_msg_buff("Munch munch.");
 	} else if item.name == "banana" {
@@ -1123,7 +1124,7 @@ fn is_putting_on_airs(name: &str) -> bool {
 fn preamble(gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Ship>) -> GameState {
 	let mut player_name: String;
 
-	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0, -1, -1, 0, false, false);
+	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0, -1, -1, 0, false, false, 0);
 	loop {
 		if let Some(name) = gui.query_user("Ahoy lubber, who be ye?", 15, &sbi) {
 			if name.len() > 0 {
@@ -1376,10 +1377,15 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 
 			if state.player.charmed {
 				let verve_mod = Player::mod_for_stat(state.player.verve);
-				if do_ability_check(verve_mod, 18, 0) {
+				let bonus = f32::round(state.player.drunkeness as f32 / 5.0) as i8;
+				if do_ability_check(verve_mod, 14, bonus) {
 					state.write_msg_buff("You snap out of it!");
 					state.player.charmed = false;
 				}
+			}
+
+			if state.player.drunkeness > 0 {
+				state.player.drunkeness -= 1;
 			}
 
 			if state.turn % 50 == 0 {
