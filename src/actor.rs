@@ -502,18 +502,19 @@ fn pick_fleeing_move(state: &mut GameState, m: &Monster, passable: HashSet<Tile>
 fn merfolk_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 	let dis = util::cartesian_d(m.row as i32, m.col as i32, 
 		state.player.row as i32, state.player.col as i32);
-	if dis < 10 {
+	if dis < 13 {
 		if !state.player.charmed {
 			state.write_msg_buff("You hear beautiful singing.");
 			let verve_mod = Player::mod_for_stat(state.player.verve);
 			// todo: the character will get a bonus on this check if they are 
 			// less sober
-			if !do_ability_check(verve_mod, 14, 0) {
+			if !do_ability_check(verve_mod, 16, 0) {
 				let s = format!("You are charmed by the {}'s song!", m.name);
 				state.write_msg_buff(&s);
 				state.player.charmed = true;
 			}
-		} else {
+		} else if dis < 3{
+			// the merperson waits for the player to approach and then swims away
 			let mut water = HashSet::new();
 			water.insert(map::Tile::DeepWater);
 			water.insert(map::Tile::Water);
@@ -527,20 +528,20 @@ fn merfolk_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> 
 			}
 		}
 	} else if dis < 25 {
-			println!("rando move");
-		/*
-		// just move a random sq
-		for _ in 0..6 {
-			let mv = util::rnd_adj();
-			let next_r = (m.row as i32 + mv.0) as usize;
-			let next_c = (m.col as i32 + mv.1) as usize;
-			if state.map[next_r][next_c] == Tile::Water 
-							|| state.map[next_r][next_c] == Tile::DeepWater {
-				m.row = next_r;
-				m.col = next_r;
-				break;
+		// just move a random sq somteimes
+		if rand::thread_rng().gen_range(0.0, 1.0) < 0.25 {
+			for _ in 0..6 {
+				let mv = util::rnd_adj();
+				let next_r = (m.row as i32 + mv.0) as usize;
+				let next_c = (m.col as i32 + mv.1) as usize;
+				if state.map[next_r][next_c] == Tile::Water 
+								|| state.map[next_r][next_c] == Tile::DeepWater {
+					m.row = next_r;
+					m.col = next_r;
+					break;
+				}
 			}
-		}*/
+		}
 	}
 
 	Ok(())

@@ -332,14 +332,14 @@ fn action_while_charmed(state: &mut GameState, items: &ItemsTable,
 
 	let mut nearest = 999;
 	let mut best = (0, 0);
-	for r in -10..10 {
-		for c in -10..10 {
+	for r in -12..12 {
+		for c in -12..12 {
 			let sq_r = (state.player.row as i32 + r) as usize;
 			let sq_c = (state.player.col as i32 + c) as usize;
 			if state.npcs.contains_key(&(sq_r, sq_c)) { 
 				let m = &state.npcs[&(sq_r, sq_c)];
 				if m.name == "mermaid" || m.name == "merman" || m.name == "merperson" {
-					let d = util::cartesian_d(state.player.row as i32, state.player.col as i32, r, c);
+					let d = util::cartesian_d(state.player.row as i32, state.player.col as i32, sq_r as i32, sq_c as i32);
 					if d < nearest {
 						nearest = d;
 						best = ((r + state.player.row as i32) as usize, 
@@ -356,12 +356,10 @@ fn action_while_charmed(state: &mut GameState, items: &ItemsTable,
 			best.0, best.1, &passable);
 
 		if path.len() > 1 {
-			println!("{} {}", state.player.row, state.player.col);
-			println!("{:?}", path);
 			let mv = &path[1];
 			state.write_msg_buff("You are drawn to the merfolk!");
 			let dir = util::dir_between_sqs(state.player.row, state.player.col, mv.0, mv.1);
-			do_move(state, items, ships, &dir);
+			do_move(state, items, ships, &dir)?;
 		}
 	}
 	else {
@@ -1350,16 +1348,6 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 }
 
 fn main() {
-
-	//let map = map::generate_cave(20, 10);
-
-	/*
-	let map = map::generate_test_map();
-	let mut hs = HashSet::new();
-	hs.insert(map::Tile::DeepWater);
-	let path = pathfinding::find_path(&map, 4, 1, 1, 3, &hs);
-	println!("{:?}", path);
-	*/
 	start_game();
 }
 

@@ -122,21 +122,21 @@ pub fn sqs_adj(r0: usize, c0: usize, r1: usize, c1: usize) -> bool {
 pub fn dir_between_sqs(r0: usize, c0: usize, r1: usize, c1: usize) -> String {
 	let dir;
 	if r0 < r1 && c0 == c1 {
-		dir = "s";
+		dir = "S";
 	} else if r0 < r1 && c0 < c1 {
-		dir = "se";
+		dir = "SE";
 	} else if r0 < r1 && c0 > c1 {
-		dir = "sw";
+		dir = "SW";
 	} else if r0 == r1 && c0 < c1 {
-		dir = "e";
+		dir = "E";
 	} else if r0 == r1 && c0 > c1 {
-		dir = "w";
+		dir = "W";
 	} else if r0 > r1 && c0 < c1 {
-		dir = "ne";
+		dir = "NE";
 	} else if r0 > r1 && c0 == c1 {
-		dir = "n";
+		dir = "N";
 	} else {
-		dir = "nw";
+		dir = "NW";
 	}
 
 	String::from(dir)
