@@ -119,8 +119,27 @@ pub fn sqs_adj(r0: usize, c0: usize, r1: usize, c1: usize) -> bool {
 	false
 }
 
-pub fn manhattan_d(r0: usize, c0: usize, r1: usize, c1: usize) -> usize {
-	((r0 as i32 - r1 as i32).abs() + (c0 as i32 - c1 as i32).abs()) as usize	
+pub fn dir_between_sqs(r0: usize, c0: usize, r1: usize, c1: usize) -> String {
+	let dir;
+	if r0 < r1 && c0 == c1 {
+		dir = "s";
+	} else if r0 < r1 && c0 < c1 {
+		dir = "se";
+	} else if r0 < r1 && c0 > c1 {
+		dir = "sw";
+	} else if r0 == r1 && c0 < c1 {
+		dir = "e";
+	} else if r0 == r1 && c0 > c1 {
+		dir = "w";
+	} else if r0 > r1 && c0 < c1 {
+		dir = "ne";
+	} else if r0 > r1 && c0 == c1 {
+		dir = "n";
+	} else {
+		dir = "nw";
+	}
+
+	String::from(dir)
 }
 
 pub fn cartesian_d(r0: i32, c0: i32, r1: i32, c1: i32) -> usize {

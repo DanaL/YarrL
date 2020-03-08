@@ -139,7 +139,7 @@ pub fn generate_world(state: &mut GameState,
 		hint_to_final_clue = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
 	} else {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let ship_name = add_shipwreck(&mut state.map, &islands[roll], items, c, true);
+		let ship_name = add_shipwreck(state, &islands[roll], items, c, true);
 		hint_to_final_clue = Item::get_note(state.note_count);
 		state.notes.insert(state.note_count, Item::get_note_text(&ship_name));
 		state.note_count += 1;
@@ -156,7 +156,7 @@ pub fn generate_world(state: &mut GameState,
 		hint_to_2nd_clue = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
 	} else {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let ship_name = add_shipwreck(&mut state.map, &islands[roll], items, c, true);
+		let ship_name = add_shipwreck(state, &islands[roll], items, c, true);
 		hint_to_2nd_clue = Item::get_note(state.note_count);
 		state.notes.insert(state.note_count, Item::get_note_text(&ship_name));
 		state.note_count += 1;
@@ -172,7 +172,7 @@ pub fn generate_world(state: &mut GameState,
 		state.player.inventory.add(map);
 	} else {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let ship_name = add_shipwreck(&mut state.map, &islands[roll], items, c, true);
+		let ship_name = add_shipwreck(state, &islands[roll], items, c, true);
 		state.pirate_lord_ship = ship_name.clone();
 	}
 
@@ -260,7 +260,7 @@ fn create_island(state: &mut GameState,
 	find_coastline(&state.map, island_info);
 	for _ in 0..rand::thread_rng().gen_range(0, max_shipwrecks) {
 		let cache = get_cache_items();
-		add_shipwreck(&mut state.map, island_info, items, cache, false);
+		add_shipwreck(state, island_info, items, cache, false);
 	}
 	for _ in 0..rand::thread_rng().gen_range(0, max_old_campsites) {
 		set_old_campsite(&mut state.map, island_info, items);
@@ -700,7 +700,7 @@ fn place_fort(world_map: &mut Vec<Vec<Tile>>,
 	}	
 }
 
-fn add_shipwreck(world_map: &mut Vec<Vec<Tile>>, 
+fn add_shipwreck(state: &mut GameState,
 			island_info: &IslandInfo,
 			items: &mut ItemsTable,
 			cache: Vec<Item>,
@@ -710,7 +710,7 @@ fn add_shipwreck(world_map: &mut Vec<Vec<Tile>>,
 
 	let wreck_name = ship::random_name(true);
 	let deck = Tile::Shipwreck(ship::DECK_ANGLE, wreck_name.clone()); 
-	world_map[centre.0][centre.1] = deck;
+	state.map[centre.0][centre.1] = deck;
 
 	let r = dice::roll(3, 1, 0);
 	let mast_ch = if r == 1 { '|' }
@@ -719,7 +719,7 @@ fn add_shipwreck(world_map: &mut Vec<Vec<Tile>>,
 	let mast_loc = rnd_adj();
 	let mast_r = (centre.0 as i32 + mast_loc.0) as usize;
 	let mast_c = (centre.1 as i32 + mast_loc.1) as usize;
-	world_map[mast_r][mast_c] = Tile::Mast(mast_ch);
+	state.map[mast_r][mast_c] = Tile::Mast(mast_ch);
 
 	loop {
 		let part_loc = rnd_adj();
@@ -728,11 +728,11 @@ fn add_shipwreck(world_map: &mut Vec<Vec<Tile>>,
 			if r == 1 {
 				let part_r = (centre.0 as i32 + part_loc.0) as usize;
 				let part_c = (centre.1 as i32 + part_loc.1) as usize;
-				world_map[part_r][part_c] = Tile::Mast(ship::DECK_ANGLE);
+				state.map[part_r][part_c] = Tile::Mast(ship::DECK_ANGLE);
 			} else {
 				let part_r = (centre.0 as i32 + part_loc.0) as usize;
 				let part_c = (centre.1 as i32 + part_loc.1) as usize;
-				world_map[part_r][part_c] = Tile::Mast(ship::DECK_STRAIGHT);
+				state.map[part_r][part_c] = Tile::Mast(ship::DECK_STRAIGHT);
 			}
 
 			// chance of there being a hidden cache
@@ -753,24 +753,50 @@ fn add_shipwreck(world_map: &mut Vec<Vec<Tile>>,
 	if r == 1 {
 		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
 		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
-		world_map[part_r][part_c] = Tile::ShipPart(ship::BOW_NE);
+		state.map[part_r][part_c] = Tile::ShipPart(ship::BOW_NE);
 	} else if r == 2 {
 		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
 		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
-		world_map[part_r][part_c] = Tile::Mast(ship::BOW_NW);
+		state.map[part_r][part_c] = Tile::Mast(ship::BOW_NW);
 	} else if r == 3 {
 		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
 		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
-		world_map[part_r][part_c] = Tile::Mast(ship::BOW_SE);
+		state.map[part_r][part_c] = Tile::Mast(ship::BOW_SE);
 	} else if r == 3 {
 		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
 		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
-		world_map[part_r][part_c] = Tile::Mast(ship::BOW_SW);
+		state.map[part_r][part_c] = Tile::Mast(ship::BOW_SW);
+	}
+
+	// merfolk like to hang out near shipwrecks
+ 	if rand::thread_rng().gen_range(0.0, 1.0) < 1.0 {
+		let count = rand::thread_rng().gen_range(1, 3);
+		for _ in 0..count {
+			place_mermaid(state, centre);
+		}
 	}
 
 	wreck_name
 }
-					
+
+fn place_mermaid(state: &mut GameState, loc: (usize, usize)) {
+	loop {
+		let delta_r = rand::thread_rng().gen_range(-5, 6);
+		let delta_c = rand::thread_rng().gen_range(-5, 6);
+		let mer_r = (loc.0 as i32 + delta_r) as usize;
+		let mer_c = (loc.1 as i32 + delta_c) as usize;
+		if map::in_bounds(&state.map, mer_r as i32, mer_c as i32) &&
+			(state.map[mer_r][mer_c] == Tile::Water ||
+				state.map[mer_r][mer_c] == Tile::DeepWater)	&&
+			!state.npcs.contains_key(&(mer_r, mer_c)) {
+			let m = Monster::new_merperson(mer_r, mer_c);
+			state.npcs.insert((mer_r, mer_c), m);
+			println!("flag {} {}", mer_r, mer_c);
+			return;
+		}
+	}
+}
+	
 // Some map analytics functions
 fn is_hidden_valley(map: &Vec<Vec<Tile>>, r: usize, c: usize) -> HashSet<(usize, usize)> {
 	let mut valley = HashSet::new();

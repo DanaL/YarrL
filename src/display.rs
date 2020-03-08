@@ -45,6 +45,7 @@ pub static BEIGE: Color = Color::RGBA(255, 178, 127, 255);
 pub static BRIGHT_RED: Color = Color::RGBA(208, 28, 31, 255);
 pub static GOLD: Color = Color::RGBA(255, 215, 0, 255);
 pub static YELLOW: Color = Color::RGBA(255, 225, 53, 255);
+pub static YELLOW_ORANGE: Color = Color::RGBA(255, 159, 0, 255);
 
 const SCREEN_WIDTH: u32 = 58;
 const SCREEN_HEIGHT: u32 = 22;
@@ -59,12 +60,16 @@ pub struct SidebarInfo {
 	wheel: i8,
 	bearing: i8,
 	turn: u32,
+	charmed: bool,
+	poisoned: bool,
 }
 
 impl SidebarInfo {
 	pub fn new(name: String, ac: u8, curr_hp: u8, max_hp: u8, 
-			wheel: i8, bearing: i8, turn: u32) -> SidebarInfo {
-		SidebarInfo { name, ac, curr_hp, max_hp, wheel, bearing, turn }
+			wheel: i8, bearing: i8, turn: u32, charmed: bool,
+			poisoned: bool) -> SidebarInfo {
+		SidebarInfo { name, ac, curr_hp, max_hp, wheel, bearing, turn,
+			charmed, poisoned }
 	}
 }
 
@@ -553,6 +558,15 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 		let s = format!("Turn: {}", sbi.turn);
 		self.write_sidebar_line(&s, fov_w, 21, WHITE);
+
+		let mut l = 20;
+		if sbi.poisoned {
+			self.write_sidebar_line("POISONED", fov_w, l, GREEN);
+			l -= 1;
+		}
+		if sbi.charmed {
+			self.write_sidebar_line("CHARMED", fov_w, l, GOLD);
+		}
 
 		if sbi.bearing > -1 {
 			let mut s = String::from("Bearing: ");

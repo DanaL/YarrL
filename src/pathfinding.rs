@@ -20,7 +20,7 @@ use std::collections::VecDeque;
 use std::cmp::Ordering;
 
 use crate::map;
-use crate::util::{manhattan_d, cartesian_d};
+use crate::util::cartesian_d;
 
 #[derive(Eq, Debug)]
 struct ASQueueItem {
@@ -99,7 +99,8 @@ fn find_nearest_reachable(map: &Vec<Vec<map::Tile>>,
 				if !map::in_bounds(map, nr, nc) { continue; }
 				if !passable_by_me(&map[nr as usize][nc as usize], passable_tiles) { continue; }
 
-				let dis_from_start = manhattan_d(start_r, start_c, nr as usize, nc as usize) as i32;
+				let dis_from_start = cartesian_d(start_r as i32, start_c as i32, 
+					nr as i32, nc as i32) as i32;
 				if dis_from_start > 30 { continue; }
 			
 				let next_loc = (nr as usize, nc as usize);

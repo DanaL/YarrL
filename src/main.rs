@@ -33,6 +33,8 @@ use crate::actor::{Monster, Player, PirateType};
 use crate::content_factory::generate_world;
 use crate::display::{GameUI, SidebarInfo};
 use crate::items::{Item, ItemType, ItemsTable};
+use crate::map::Tile;
+use crate::pathfinding::find_path;
 use crate::ship::Ship;
 
 use rand::Rng;
@@ -114,7 +116,8 @@ impl GameState {
 		};
 
 		SidebarInfo::new(self.player.name.clone(), self.player.ac,
-				self.player.curr_stamina, self.player.max_stamina, wheel, bearing, self.turn)
+			self.player.curr_stamina, self.player.max_stamina, wheel, bearing, self.turn,
+			self.player.charmed, self.player.poisoned)
 	}
 
 	pub fn write_msg_buff(&mut self, msg: &str) {
@@ -317,6 +320,58 @@ fn fire_gun(state: &mut GameState, gui: &mut GameUI, items: &ItemsTable,
 	}
 }
 
+fn action_while_charmed(state: &mut GameState, items: &ItemsTable, 
+			ships: &HashMap<(usize, usize), Ship>) -> Result<(), String> {
+	// the charmed player attempts to swim to the mermaid
+	if state.player.on_ship {
+		state.player.on_ship = false;
+		state.write_msg_buff("You walked away from the helm.");
+		state.turn += 1;
+		return Ok(());
+	} 
+
+	let mut nearest = 999;
+	let mut best = (0, 0);
+	for r in -10..10 {
+		for c in -10..10 {
+			let sq_r = (state.player.row as i32 + r) as usize;
+			let sq_c = (state.player.col as i32 + c) as usize;
+			if state.npcs.contains_key(&(sq_r, sq_c)) { 
+				let m = &state.npcs[&(sq_r, sq_c)];
+				if m.name == "mermaid" || m.name == "merman" || m.name == "merperson" {
+					let d = util::cartesian_d(state.player.row as i32, state.player.col as i32, r, c);
+					if d < nearest {
+						nearest = d;
+						best = ((r + state.player.row as i32) as usize, 
+								(c + state.player.col as i32) as usize);
+					}
+				}			
+			} 
+		}
+	}
+
+	if nearest > 1 && best != (0, 0) {
+		let passable = map::all_passable();
+		let path = find_path(&state.map, state.player.row, state.player.col,
+			best.0, best.1, &passable);
+
+		if path.len() > 1 {
+			println!("{} {}", state.player.row, state.player.col);
+			println!("{:?}", path);
+			let mv = &path[1];
+			state.write_msg_buff("You are drawn to the merfolk!");
+			let dir = util::dir_between_sqs(state.player.row, state.player.col, mv.0, mv.1);
+			do_move(state, items, ships, &dir);
+		}
+	}
+	else {
+		state.write_msg_buff("You are entranced by the merfolk!");
+		state.turn += 1;
+	}
+
+	Ok(())
+}
+
 fn do_move(state: &mut GameState, items: &ItemsTable, 
 			ships: &HashMap<(usize, usize), Ship>, dir: &str) -> Result<(), String> {
 	let mut mv = get_move_tuple(dir);
@@ -352,7 +407,7 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 			map::Tile::Water => state.write_msg_buff("You splash in the shallow water."),
 			map::Tile::DeepWater => {
 				if *start_tile != map::Tile::DeepWater {
-					state.write_msg_buff("You begin to swin.");				
+					state.write_msg_buff("You begin to swim.");				
 				}
 
 				player_takes_dmg(&mut state.player, 2, "swimming")?;
@@ -1022,7 +1077,7 @@ fn is_putting_on_airs(name: &str) -> bool {
 fn preamble(gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Ship>) -> GameState {
 	let mut player_name: String;
 
-	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0, -1, -1, 0);
+	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0, -1, -1, 0, false, false);
 	loop {
 		if let Some(name) = gui.query_user("Ahoy lubber, who be ye?", 15, &sbi) {
 			if name.len() > 0 {
@@ -1197,50 +1252,54 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 
     loop {
 		let start_turn = state.turn;
-		let cmd = gui.get_command(&state);
-		match cmd {
-			Cmd::Quit => confirm_quit(state, gui)?,
-			Cmd::Move(dir) => do_move(state, items, ships, &dir)?,
-			Cmd::MsgHistory => show_message_history(state, gui),
-			Cmd::DropItem => drop_item(state, items, gui),
-			Cmd::PickUp => pick_up(state, items, gui)?,
-			Cmd::ShowInventory => show_inventory(state, gui),
-			Cmd::ShowCharacterSheet => show_character_sheet(state, gui),
-			Cmd::ToggleEquipment => toggle_equipment(state, gui),
-			Cmd::ToggleAnchor => {
-				if toggle_anchor(state, ships) {
-					sail(state, ships)?;
+		if state.player.charmed {
+			action_while_charmed(state, items, ships)?;
+		} else {
+			let cmd = gui.get_command(&state);
+			match cmd {
+				Cmd::Quit => confirm_quit(state, gui)?,
+				Cmd::Move(dir) => do_move(state, items, ships, &dir)?,
+				Cmd::MsgHistory => show_message_history(state, gui),
+				Cmd::DropItem => drop_item(state, items, gui),
+				Cmd::PickUp => pick_up(state, items, gui)?,
+				Cmd::ShowInventory => show_inventory(state, gui),
+				Cmd::ShowCharacterSheet => show_character_sheet(state, gui),
+				Cmd::ToggleEquipment => toggle_equipment(state, gui),
+				Cmd::ToggleAnchor => {
+					if toggle_anchor(state, ships) {
+						sail(state, ships)?;
+					}
 				}
+				Cmd::Pass => {
+					if state.player.on_ship {
+						sail(state, ships)?;
+					}
+					state.turn += 1;
+				},
+				Cmd::TurnWheelClockwise => {
+					turn_wheel(state, ships, 1);
+					sail(state, ships)?;
+				},
+				 Cmd::TurnWheelAnticlockwise => {
+					turn_wheel(state, ships, -1);
+					sail(state, ships)?;
+				},
+				Cmd::ToggleHelm => {
+					if !state.player.on_ship {
+						take_helm(state, ships);
+					} else {
+						leave_helm(state);
+					}
+				},
+				Cmd::Quaff => quaff(state, gui),
+				Cmd::Eat => eat(state, gui),
+				Cmd::FireGun => fire_gun(state, gui, items, ships),
+				Cmd::Reload => reload(state, gui),
+				Cmd::WorldMap => gui.show_world_map(state),
+				Cmd::Search => search(state, items),
+				Cmd::Read => read(state, gui),
 			}
-			Cmd::Pass => {
-				if state.player.on_ship {
-					sail(state, ships)?;
-				}
-				state.turn += 1;
-			},
-			Cmd::TurnWheelClockwise => {
-				turn_wheel(state, ships, 1);
-				sail(state, ships)?;
-			},
-			 Cmd::TurnWheelAnticlockwise => {
-				turn_wheel(state, ships, -1);
-				sail(state, ships)?;
-			},
-			Cmd::ToggleHelm => {
-				if !state.player.on_ship {
-					take_helm(state, ships);
-				} else {
-					leave_helm(state);
-				}
-			},
-			Cmd::Quaff => quaff(state, gui),
-			Cmd::Eat => eat(state, gui),
-			Cmd::FireGun => fire_gun(state, gui, items, ships),
-			Cmd::Reload => reload(state, gui),
-			Cmd::WorldMap => gui.show_world_map(state),
-			Cmd::Search => search(state, items),
-			Cmd::Read => read(state, gui),
-        }
+		}
 
 		// Some of the commands don't count as a turn for the player, so
 		// don't give the monsters a free move in those cases
@@ -1264,6 +1323,14 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 					state.player.poisoned = false;
 				} else {
 					player_takes_dmg(&mut state.player, 1, "venom")?;
+				}
+			}
+
+			if state.player.charmed {
+				let verve_mod = Player::mod_for_stat(state.player.verve);
+				if do_ability_check(verve_mod, 18, 0) {
+					state.write_msg_buff("You snap out of it!");
+					state.player.charmed = false;
 				}
 			}
 

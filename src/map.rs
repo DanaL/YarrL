@@ -23,6 +23,8 @@ use std::f32;
 use rand::Rng;
 use sdl2::pixels::Color;
 
+use crate::ship;
+
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum Tile {
 	Blank,
@@ -51,6 +53,24 @@ pub enum Tile {
 	OldFirePit,
 	Floor,
 	Window(char),
+}
+
+pub fn all_passable() -> HashSet<Tile> {
+	let mut passable = HashSet::new();
+	passable.insert(Tile::Water);
+	passable.insert(Tile::DeepWater);
+	passable.insert(Tile::Grass);
+	passable.insert(Tile::Tree);
+	passable.insert(Tile::Dirt);
+	passable.insert(Tile::Sand);
+	passable.insert(Tile::Lava);
+	passable.insert(Tile::Floor);
+	passable.insert(Tile::Sand);
+	passable.insert(Tile::FirePit);
+	passable.insert(Tile::OldFirePit);
+	passable.insert(Tile::ShipPart(ship::DECK_STRAIGHT));
+	passable.insert(Tile::ShipPart(ship::DECK_ANGLE));
+	passable 
 }
 
 // Probably at some point in the dev process, I'll need to begin 

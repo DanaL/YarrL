@@ -15,18 +15,22 @@
 
 extern crate rand;
 
+use rand::thread_rng;
 use rand::Rng;
+use rand::seq::SliceRandom;
 
 use std::collections::HashSet;
 
 use sdl2::pixels::Color;
 
 use crate::dice;
-use crate::display::{DARK_BROWN, GREY, GREEN, BRIGHT_RED, BLUE, GOLD};
+use crate::display::{DARK_BROWN, GREY, GREEN, BRIGHT_RED, BLUE, GOLD, YELLOW_ORANGE};
 use crate::items::{Item, Inventory};
 use crate::map;
+use crate::map::Tile;
 use crate::pathfinding::find_path;
-use crate::util::{manhattan_d, sqs_adj};
+use crate::util;
+use crate::util::sqs_adj;
 
 use super::{do_ability_check, GameState, Map, NPCTable};
 
@@ -207,6 +211,24 @@ impl Monster {
 			gender: 0, anchor: (0, 0), score }
 	}
 
+	pub fn new_merperson(row: usize, col: usize) -> Monster {
+		let hp = dice::roll(8, 3, 0);
+
+		let mut m = Monster::new(String::from("merperson"), 13, hp, 'y', row, col, YELLOW_ORANGE,
+			5, 1, 1, 0, 10);
+
+		let roll = rand::thread_rng().gen_range(0.0, 1.0);
+		if roll < 0.33 {
+			m.name = String::from("mermaid");
+			m.gender = 1;
+		} else if roll < 0.66 {
+			m.name = String::from("merman");
+			m.gender = 2;
+		};
+
+		m
+	}
+
 	pub fn new_pirate(row: usize, col: usize, anchor: (usize, usize)) -> Monster {
 		let hp = dice::roll(8, 3, 0);
 
@@ -268,6 +290,8 @@ impl Monster {
 			shark_action(self, state)?;
 		} else if self.name == "marooned pirate" {
 			pirate_action(self, state)?;
+		} else if self.name == "mermaid" || self.name == "merperson" || self.name == "merman" {
+			merfolk_action(self, state)?;	
 		} else if self.name == "wild boar" {
 			basic_monster_action(self, state, "gores")?;
 		} else {
@@ -329,7 +353,8 @@ fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 			let s = format!("The {} missed!", m.name);
 			state.write_msg_buff(&s);
 		}	
-	} else if manhattan_d(m.row, m.col, state.player.row, state.player.col) < 25 {
+	} else if util::cartesian_d(m.row as i32, m.col as i32, 
+				state.player.row as i32, state.player.col as i32) < 25 {
 		// Too far away and they just ignore the player
 		let mut water = HashSet::new();
 		water.insert(map::Tile::Dirt);
@@ -400,7 +425,8 @@ fn pirate_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 		if rand::thread_rng().gen_range(0.0, 1.0) < 0.2 {
 			state.write_msg_buff(&get_pirate_line());
 		}
-	} else if manhattan_d(m.row, m.col, state.player.row, state.player.col) < 20 {
+	} else if util::cartesian_d(m.row as i32, m.col as i32, 
+			state.player.row as i32, state.player.col as i32) < 20 {
 		// Too far away and they just ignore the player
 		let mut water = HashSet::new();
 		water.insert(map::Tile::Dirt);
@@ -432,10 +458,89 @@ fn pirate_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 		}
 
 		// The pirate won't wander too far from their campsite
-		if manhattan_d(m.row, next_r, m.col, next_c) < 9 {
+		if util::cartesian_d(m.row as i32, next_r as i32, m.col as i32, next_c as i32) < 9 {
 			m.row = next_r;
 			m.col = next_c;
 		}
+	}
+
+	Ok(())
+}
+
+fn pick_fleeing_move(state: &mut GameState, m: &Monster, passable: HashSet<Tile>) -> Option<(usize, usize)> {
+	// Okay, hopefully this is a decent way to do this:
+	// if the monster's row < player's row, they want to keep making it smaller,
+	// same with column. This will likely sometimes lead to the monster getting 
+	// trapped by that's okay.
+	let mut options;
+	if m.row <= state.player.row && m.col <=  state.player.col {
+		options = vec![(-1, -1), (-1, 0), (0, -1)];
+	} else if m.row <= state.player.row && m.col > state.player.col {
+		options = vec![(-1, -1), (-1, 0), (0, 1)];
+	} else if m.row > state.player.row && m.col <= state.player.col {
+		options = vec![(1, -1), (1, 0), (0, -1)];
+	} else {
+		options = vec![(1, 1), (1, 0), (0, 1)];
+	} 
+
+	let mut rng = thread_rng();
+	options.shuffle(&mut rng);
+
+	for mv in options {
+		let mv_r = (m.row as i32 + mv.0) as usize;
+		let mv_c = (m.col as i32 + mv.1) as usize;
+		if passable.contains(&state.map[mv_r][mv_c]) 
+				&& !state.npcs.contains_key(&(mv_r, mv_c)) { 
+			return Some((mv_r, mv_c));
+		}
+	}
+
+	None
+}
+
+// merfolk just want to lure the player to their death
+fn merfolk_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
+	let dis = util::cartesian_d(m.row as i32, m.col as i32, 
+		state.player.row as i32, state.player.col as i32);
+	if dis < 10 {
+		if !state.player.charmed {
+			state.write_msg_buff("You hear beautiful singing.");
+			let verve_mod = Player::mod_for_stat(state.player.verve);
+			// todo: the character will get a bonus on this check if they are 
+			// less sober
+			if !do_ability_check(verve_mod, 14, 0) {
+				let s = format!("You are charmed by the {}'s song!", m.name);
+				state.write_msg_buff(&s);
+				state.player.charmed = true;
+			}
+		} else {
+			let mut water = HashSet::new();
+			water.insert(map::Tile::DeepWater);
+			water.insert(map::Tile::Water);
+
+			match pick_fleeing_move(state, m, water) {
+				Some(mv) => {
+					m.row = mv.0;
+					m.col = mv.1;
+				},
+				None => { return Ok(()); }
+			}
+		}
+	} else if dis < 25 {
+			println!("rando move");
+		/*
+		// just move a random sq
+		for _ in 0..6 {
+			let mv = util::rnd_adj();
+			let next_r = (m.row as i32 + mv.0) as usize;
+			let next_c = (m.col as i32 + mv.1) as usize;
+			if state.map[next_r][next_c] == Tile::Water 
+							|| state.map[next_r][next_c] == Tile::DeepWater {
+				m.row = next_r;
+				m.col = next_r;
+				break;
+			}
+		}*/
 	}
 
 	Ok(())
@@ -450,7 +555,8 @@ fn shark_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 		} else {
 			state.write_msg_buff("The shark misses!");
 		}	
-	} else if manhattan_d(m.row, m.col, state.player.row, state.player.col) < 50 {
+	} else if util::cartesian_d(m.row as i32, m.col as i32, 
+				state.player.row as i32, state.player.col as i32) < 30 {
 		// Too far away and the sharks just ignore the player
 		let mut water = HashSet::new();
 		water.insert(map::Tile::DeepWater);
