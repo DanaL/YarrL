@@ -271,6 +271,9 @@ fn create_island(state: &mut GameState,
 	for _ in 0..rand::thread_rng().gen_range(0, max_campsites) {
 		set_campsite(state, island_info, items);
 	}
+
+	set_castaway(state, island_info, items);
+
 	if rand::thread_rng().gen_range(0.0, 1.0) < 0.2 {
 		place_fort(&mut state.map, island_info, items);
 	}
@@ -447,7 +450,7 @@ fn set_campsite(state: &mut GameState,
 				loop {
 					let delta = util::rnd_adj();
 					let pirate_r = (r as i32 + delta.0) as usize;	
-					let pirate_c = (c as i32 + delta.0) as usize;
+					let pirate_c = (c as i32 + delta.1) as usize;
 	
 					if !state.npcs.contains_key(&(pirate_r, pirate_c)) {
 						let p = Monster::new_pirate(pirate_r, pirate_c, (r, c));
@@ -457,6 +460,37 @@ fn set_campsite(state: &mut GameState,
 				}
 			}
 	
+			break;
+		}	
+	}
+}
+
+// largely duplicated from the campsite code...
+fn set_castaway(state: &mut GameState,
+				island_info: &IslandInfo,	
+				items: &mut ItemsTable) {
+
+	loop {
+		let r = rand::thread_rng().gen_range(island_info.offset_r,
+												island_info.offset_r + island_info.length);
+		let c = rand::thread_rng().gen_range(island_info.offset_c, 
+												island_info.offset_c + island_info.length);
+		
+		let tile = &state.map[r][c];
+		if map::is_passable(tile) && *tile != Tile::Water && *tile != Tile::DeepWater
+				&& *tile != Tile::Lava {
+			state.map[r][c] = Tile::FirePit;
+		
+			let delta = util::rnd_adj();
+			let castaway_r = (r as i32 + delta.0) as usize;	
+			let castaway_c = (c as i32 + delta.1) as usize;
+
+			if !state.npcs.contains_key(&(castaway_r, castaway_c)) {
+				let p = Monster::new_castaway(castaway_r, castaway_c, (r, c));
+				state.npcs.insert((castaway_r, castaway_c), p);
+				break;	
+			}
+
 			break;
 		}	
 	}

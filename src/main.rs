@@ -307,6 +307,9 @@ fn shoot(state: &mut GameState, dir: (i32, i32), gun: &Item, dex_mod: i8, gui: &
 
 				let mut dmg = dice::roll(gun.dmg, gun.dmg_dice, gun.bonus as i8) as i8 + dex_mod;
 
+				npc.hostile = true;
+				npc.aware_of_player = true;
+
 				// The damanging npc code is duplicated from the attack_npc() method
 				// so maybe extract into a separate function?
 				if dmg < 0 {

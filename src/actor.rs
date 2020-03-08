@@ -206,6 +206,7 @@ pub struct Monster {
 	pub gender: u8,
 	pub anchor: (usize, usize),
 	pub aware_of_player: bool,
+	pub hostile: bool,
 }
 
 impl Monster {
@@ -213,7 +214,7 @@ impl Monster {
 			hit_bonus: i8, dmg: u8, dmg_dice: u8, dmg_bonus: u8, score: u8) -> Monster {
 		Monster { name, ac, hp, symbol, row, col, color, hit_bonus, 
 			dmg, dmg_dice, dmg_bonus, special_dmg: String::from(""),
-			gender: 0, anchor: (0, 0), score, aware_of_player: false }
+			gender: 0, anchor: (0, 0), score, aware_of_player: false, hostile: true, }
 	}
 
 	pub fn new_merperson(row: usize, col: usize) -> Monster {
@@ -251,6 +252,24 @@ impl Monster {
 		};
 		
 		p
+	}
+
+	pub fn new_castaway(row: usize, col: usize, anchor: (usize, usize)) -> Monster {
+		let hp = dice::roll(8, 1, 0);
+
+		let mut c = Monster::new(String::from("castaway"), 10, hp, '@', row, col, GREY,
+			3, 6, 1, 0, 0);
+		c.anchor = anchor;
+
+		let roll = rand::thread_rng().gen_range(0.0, 1.0);
+		if roll < 0.33 {
+			c.gender = 1;
+		} else if roll < 0.66 {
+			c.gender = 2;
+		};
+		c.hostile = false;
+	
+		c
 	}
 	
 	pub fn new_snake(row: usize, col: usize) -> Monster {
@@ -303,7 +322,9 @@ impl Monster {
 		} else if self.name == "marooned pirate" {
 			pirate_action(self, state, ships)?;
 		} else if self.name == "mermaid" || self.name == "merperson" || self.name == "merman" {
-			merfolk_action(self, state)?;	
+			merfolk_action(self, state)?;
+		} else if self.name == "castaway" {
+			castaway_action(self, state, ships)?;
 		} else if self.name == "wild boar" {
 			basic_monster_action(self, state, ships, "gores")?;
 		} else {
@@ -413,6 +434,47 @@ fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 
 			m.row = new_loc.0;
 			m.col = new_loc.1;
+		}
+	}
+
+	Ok(())
+}
+
+fn castaway_action(m: &mut Monster, state: &mut GameState,
+					ships: &HashMap<(usize, usize), Ship>) -> Result<(), String> {
+	let pronoun = if m.gender == 0 {
+		"their"
+	} else if m.gender == 1 {
+		"her"
+	} else {
+		"his"
+	};
+
+	if m.hostile {
+		basic_monster_action(m, state, ships, "attacks")?;
+	} else {
+		let d = util::cartesian_d(m.row, m.col, state.player.row, state.player.col);
+	
+		if d < 4 {
+			state.write_msg_buff("Wilsonnn!!");
+
+			// Too far away and they just ignore the player
+			let mut passable = HashSet::new();
+			passable.insert(map::Tile::Dirt);
+			passable.insert(map::Tile::Grass);
+			passable.insert(map::Tile::Water);
+			passable.insert(map::Tile::Sand);
+			passable.insert(map::Tile::Tree);
+
+			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, state, ships, &passable);
+			let next_r = loc.0;
+			let next_c = loc.1;
+
+			// The castaway won't wander too far from their campsite
+			if util::cartesian_d(m.row, next_r, m.col, next_c) < 4 {
+				m.row = next_r;
+				m.col = next_c;
+			}
 		}
 	}
 
