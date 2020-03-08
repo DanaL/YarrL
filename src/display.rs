@@ -486,6 +486,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::FirePit => ('"', BRIGHT_RED),
 			map::Tile::Floor => ('.', BEIGE),
 			map::Tile::Window(ch) => (*ch, BROWN),
+			map::Tile::Spring => ('~', LIGHT_BLUE),
 		};
 
 		ti

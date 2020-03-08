@@ -53,6 +53,7 @@ pub enum Tile {
 	OldFirePit,
 	Floor,
 	Window(char),
+	Spring,
 }
 
 pub fn all_passable() -> HashSet<Tile> {
@@ -65,6 +66,7 @@ pub fn all_passable() -> HashSet<Tile> {
 	passable.insert(Tile::Sand);
 	passable.insert(Tile::Lava);
 	passable.insert(Tile::Floor);
+	passable.insert(Tile::Spring);
 	passable.insert(Tile::Sand);
 	passable.insert(Tile::FirePit);
 	passable.insert(Tile::OldFirePit);

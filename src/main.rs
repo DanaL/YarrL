@@ -86,6 +86,7 @@ pub struct GameState {
 	starter_clue: u8,
 	notes: HashMap<u8, String>,
 	note_count: u8,
+	springs_drunk: HashSet<(usize, usize)>,
 }
 
 impl GameState {
@@ -99,7 +100,8 @@ impl GameState {
 			msg_history: VecDeque::new(), turn: 0, map: Vec::new(), npcs,
 			world_seen: HashSet::new(), pirate_lord: String::from(""),
 			player_ship: String::from(""), pirate_lord_ship: String::from(""),
-			starter_clue: 0, notes: HashMap::new(), note_count: 0 
+			starter_clue: 0, notes: HashMap::new(), note_count: 0,
+			springs_drunk: HashSet::new()
 		}
 	}
 
@@ -568,7 +570,48 @@ fn consume_nourishment(state: &mut GameState, item: &Item) {
 	}
 }
 
+fn quaff_spring(state: &mut GameState) {
+	let loc = (state.player.row, state.player.col);
+	if state.springs_drunk.contains(&loc) {
+		state.write_msg_buff("You feel refreshed.");
+	} else {
+		let roll = rand::thread_rng().gen_range(0.0, 1.0);
+
+		if roll < 0.25 {
+			state.player.strength += 4;
+			state.write_msg_buff("You feel mighty!");
+		} else if roll < 0.50 {
+			state.player.dexterity += 4;
+			state.write_msg_buff("You feel adroit!");
+			state.player.calc_ac();
+		} else if roll < 0.75 {
+			state.player.constitution += 4;
+			state.write_msg_buff("You feel tough!");
+			state.player.max_stamina += 10;
+			state.player.add_stamina(10);
+		} else {
+			state.player.verve += 4;
+			state.write_msg_buff("You feel like you have more moxie!");
+		}
+
+		state.springs_drunk.insert(loc);
+	}
+	
+	state.turn += 1;
+}
+
 fn quaff(state: &mut GameState, gui: &mut GameUI) {
+	if state.map[state.player.row][state.player.col] == Tile::Spring {
+		let sbi = state.curr_sidebar_info();
+		match gui.query_yes_no("Spring from the spring? (y/n)", &sbi) {
+			'y' => {
+				quaff_spring(state);
+				return;
+			},
+			_ => { },
+		}
+	}
+
 	if state.player.inventory.get_menu().len() == 0 {
 		state.write_msg_buff("You are empty handed.");
 		return

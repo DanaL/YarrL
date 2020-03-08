@@ -215,6 +215,7 @@ fn create_island(state: &mut GameState,
 	let mut max_old_campsites = 0;
 	let mut max_campsites = 0;
 	let mut max_fruit = 0;
+	let mut spring = false;
 
 	if island_type < 0.5 {
 		// regular island
@@ -224,6 +225,7 @@ fn create_island(state: &mut GameState,
 		max_fruit = 8;		
 		max_campsites = 3;
 		island_info.length = 65;
+		spring = true;
 	} else if island_type < 0.85 {
 		// atoll
 		island = map::generate_atoll();
@@ -240,6 +242,7 @@ fn create_island(state: &mut GameState,
 		max_fruit = 6; 
 		max_campsites = 3;
 		island_info.length = 65;
+		spring = true;
 	}
 
 	// this doesn't do what I wanted it to, I don't think
@@ -256,6 +259,10 @@ fn create_island(state: &mut GameState,
 	}
 
 	// find_hidden_valleys(&island);
+
+	if spring && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
+		place_spring(state, island_info);
+	}
 	
 	find_coastline(&state.map, island_info);
 	for _ in 0..rand::thread_rng().gen_range(0, max_shipwrecks) {
@@ -350,7 +357,7 @@ fn generate_volcanic_island() -> Vec<Vec<Tile>> {
 	let mut snowpeaks;
 
 	loop {
-		snowpeaks = largest_contiguous_block(&island, &Tile::SnowPeak);
+		snowpeaks = largest_contiguous_block(&island, &Tile::SnowPeak, 0, 0, 65);
 		if snowpeaks.len() > 20 {
 			break;
 		}
@@ -846,7 +853,32 @@ fn place_mermaid(state: &mut GameState, loc: (usize, usize)) {
 		}
 	}
 }
+
+
+fn place_spring(state: &mut GameState, island_info: &IslandInfo) {
+	let trees = largest_contiguous_block(&state.map, &Tile::Tree, island_info.offset_r,
+							island_info.offset_c, island_info.length); 
 	
+	if trees.len() > 0 {
+		let mut candidates = Vec::new();
+		for tree in trees {
+			let mut count = 0;
+			if state.map[tree.0 - 1][tree.1] == Tile::Mountain { count += 1; }
+			if state.map[tree.0 + 1][tree.1] == Tile::Mountain { count += 1; }
+			if state.map[tree.0][tree.1 - 1] == Tile::Mountain { count += 1; }
+			if state.map[tree.0][tree.1 + 1] == Tile::Mountain { count += 1; }
+			if count > 1 {
+				candidates.push(tree);
+			}
+		}
+
+		if candidates.len() > 0 {
+			let roll = rand::thread_rng().gen_range(0, candidates.len());
+			state.map[candidates[roll].0][candidates[roll].1] = Tile::Spring;
+		}
+	}	
+}
+
 // Some map analytics functions
 fn is_hidden_valley(map: &Vec<Vec<Tile>>, r: usize, c: usize) -> HashSet<(usize, usize)> {
 	let mut valley = HashSet::new();
@@ -962,14 +994,15 @@ fn flood_fill_search(map: &Vec<Vec<Tile>>, target: &Tile, r: usize, c: usize)
 
 	block	
 }
-	
+
 // Floodfill to find the largest block of a given tile type
-fn largest_contiguous_block(map: &Vec<Vec<Tile>>, target: &Tile) -> HashSet<(usize, usize)> {
+fn largest_contiguous_block(map: &Vec<Vec<Tile>>, target: &Tile,
+		offset_r: usize, offset_c: usize, length: usize) -> HashSet<(usize, usize)> {
 	let mut targets_found: HashSet<(usize, usize)> = HashSet::new();
 	let mut best = HashSet::new();
 
-	'fuck: for r in 0..map.len() {
-		for c in 0..map.len() {
+	'fuck: for r in offset_r..offset_r+length {
+		for c in offset_c..offset_c+length {
 			if map[r][c] == *target {
 				if !targets_found.contains(&(r, c)) {
 					let block = flood_fill_search(map, target, r, c);
