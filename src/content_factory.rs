@@ -286,6 +286,11 @@ fn create_island(state: &mut GameState,
 		let b = Monster::new_boar(loc.0, loc.1);
 		state.npcs.insert(loc, b);
 	}
+	if rand::thread_rng().gen_range(0.0, 1.0) < 0.25 {
+		let loc = find_location_for_land_monster(&state.map, island_info);
+		let p = Monster::new_panther(loc.0, loc.1);
+		state.npcs.insert(loc, p);
+	}
 }
 
 fn get_pirate_lord() -> String {

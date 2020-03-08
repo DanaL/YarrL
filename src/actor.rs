@@ -22,7 +22,7 @@ use std::collections::HashSet;
 use sdl2::pixels::Color;
 
 use crate::dice;
-use crate::display::{DARK_BROWN, GREY, GREEN, BRIGHT_RED, GOLD};
+use crate::display::{DARK_BROWN, GREY, GREEN, BRIGHT_RED, BLUE, GOLD};
 use crate::items::{Item, Inventory};
 use crate::map;
 use crate::pathfinding::find_path;
@@ -249,6 +249,12 @@ impl Monster {
 			4, 8, 1, 2, 10)
 	}
 
+	pub fn new_panther(row: usize, col: usize) -> Monster {
+		let hp = dice::roll(8, 4, 0);
+		Monster::new(String::from("panther"), 12, hp, 'f', row, col, BLUE,
+			5, 12, 1, 2, 10)
+	}
+
 	pub fn new_boar(row: usize, col: usize) -> Monster {
 		let hp = dice::roll(6, 2, 0);
 		Monster::new(String::from("wild boar"), 12, hp, 'b', row, col, DARK_BROWN,
@@ -260,12 +266,12 @@ impl Monster {
 	pub fn act(&mut self, state: &mut GameState) -> Result<(), String> {
 		if self.name == "shark" {
 			shark_action(self, state)?;
-		} else if self.name == "wild boar" {
-			boar_action(self, state)?;
-		} else if self.name == "snake" {
-			snake_action(self, state)?;
 		} else if self.name == "marooned pirate" {
 			pirate_action(self, state)?;
+		} else if self.name == "wild boar" {
+			basic_monster_action(self, state, "gores")?;
+		} else {
+			basic_monster_action(self, state, "bites")?;
 		}
 
 		Ok(())
@@ -431,18 +437,6 @@ fn pirate_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 			m.col = next_c;
 		}
 	}
-
-	Ok(())
-}
-
-fn snake_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
-	basic_monster_action(m, state, "bites")?;
-
-	Ok(())
-}
-
-fn boar_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
-	basic_monster_action(m, state, "bites")?;
 
 	Ok(())
 }
