@@ -246,6 +246,9 @@ fn attack_npc(state: &mut GameState, npc_row: usize, npc_col: usize) {
 			let s = format!("You kill the {}!", npc.name);
 			state.write_msg_buff(&s);
 			state.player.score += npc.score;
+			if npc.score > 0 {
+				state.player.max_stamina += 1;
+			}
 		} else {
 			npc.hp -= dmg as u8;
 			state.npcs.insert((npc_row, npc_col), npc);
