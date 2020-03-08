@@ -1395,7 +1395,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 				state.player.drunkeness -= 1;
 			}
 
-			if state.turn % 50 == 0 {
+			if state.turn % 25 == 0 {
 				state.player.add_stamina(1);
 			}
 		}
