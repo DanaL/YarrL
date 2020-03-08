@@ -157,7 +157,7 @@ fn sq_is_open(state: &GameState, ships: &HashMap<(usize, usize), Ship>,
 					.collect::<Vec<(usize, usize)>>();
 
 	for sl in ship_locs {
-		if util::cartesian_d(row as i32, col as i32, sl.0 as i32, sl.1 as i32) < 2 {
+		if util::cartesian_d(row, col, sl.0, sl.1) < 2 {
 			if row == sl.0 && col == sl.1 {
 				return false;
 			}
@@ -219,6 +219,7 @@ fn player_takes_dmg(player: &mut Player, dmg: u8, source: &str) -> Result<(), St
 
 fn attack_npc(state: &mut GameState, npc_row: usize, npc_col: usize) {
 	let mut npc = state.npcs.remove(&(npc_row, npc_col)).unwrap();
+	npc.aware_of_player = true;
 	let str_mod = Player::mod_for_stat(state.player.strength);
 
 	if do_ability_check(str_mod, npc.ac, state.player.prof_bonus as i8) {
@@ -375,7 +376,7 @@ fn action_while_charmed(state: &mut GameState, items: &ItemsTable,
 			if state.npcs.contains_key(&(sq_r, sq_c)) { 
 				let m = &state.npcs[&(sq_r, sq_c)];
 				if m.name == "mermaid" || m.name == "merman" || m.name == "merperson" {
-					let d = util::cartesian_d(state.player.row as i32, state.player.col as i32, sq_r as i32, sq_c as i32);
+					let d = util::cartesian_d(state.player.row, state.player.col, sq_r, sq_c);
 					if d < nearest {
 						nearest = d;
 						best = ((r + state.player.row as i32) as usize, 
@@ -1358,11 +1359,14 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 						.collect::<Vec<(usize, usize)>>();
 
 			for loc in locs {
-				let mut npc = state.npcs.remove(&loc).unwrap();
-				npc.act(state, ships)?;
-				let npc_r = npc.row;
-				let npc_c = npc.col;
-				state.npcs.insert((npc.row, npc.col), npc);
+				let d = util::cartesian_d(loc.0, state.player.row, loc.1, state.player.col);
+				if d < 75 { 
+					let mut npc = state.npcs.remove(&loc).unwrap();
+					npc.act(state, ships)?;
+					let npc_r = npc.row;
+					let npc_c = npc.col;
+					state.npcs.insert((npc.row, npc.col), npc);
+				}
 			}
 
 			if state.player.poisoned {

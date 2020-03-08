@@ -91,7 +91,7 @@ fn find_nearest_reachable(map: &Vec<Vec<map::Tile>>,
 		if visited.contains(&curr) { continue; }
 		visited.insert(curr);
 		
-		let dis_to_goal = cartesian_d(end_r as i32, end_c as i32, curr.0 as i32, curr.1 as i32) as i32;
+		let dis_to_goal = cartesian_d(end_r, end_c, curr.0, curr.1) as i32;
 		sqs.push(ASQueueItem::new((curr.0, curr.1), -dis_to_goal));
 
 		for r in -1..2 {
@@ -103,8 +103,7 @@ fn find_nearest_reachable(map: &Vec<Vec<map::Tile>>,
 				if !map::in_bounds(map, nr, nc) { continue; }
 				if !passable_by_me(&map[nr as usize][nc as usize], passable_tiles) { continue; }
 
-				let dis_from_start = cartesian_d(start_r as i32, start_c as i32, 
-					nr as i32, nc as i32) as i32;
+				let dis_from_start = cartesian_d(start_r, start_c, nr as usize, nc as usize) as i32;
 				if dis_from_start > 30 { continue; }
 			
 				let next_loc = (nr as usize, nc as usize);

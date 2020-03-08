@@ -205,6 +205,7 @@ pub struct Monster {
 	pub score: u8,
 	pub gender: u8,
 	pub anchor: (usize, usize),
+	pub aware_of_player: bool,
 }
 
 impl Monster {
@@ -212,7 +213,7 @@ impl Monster {
 			hit_bonus: i8, dmg: u8, dmg_dice: u8, dmg_bonus: u8, score: u8) -> Monster {
 		Monster { name, ac, hp, symbol, row, col, color, hit_bonus, 
 			dmg, dmg_dice, dmg_bonus, special_dmg: String::from(""),
-			gender: 0, anchor: (0, 0), score }
+			gender: 0, anchor: (0, 0), score, aware_of_player: false }
 	}
 
 	pub fn new_merperson(row: usize, col: usize) -> Monster {
@@ -220,6 +221,8 @@ impl Monster {
 
 		let mut m = Monster::new(String::from("merperson"), 13, hp, 'y', row, col, YELLOW_ORANGE,
 			5, 1, 1, 0, 10);
+
+		m.aware_of_player = true; // they keep their eyes out for sailors
 
 		let roll = rand::thread_rng().gen_range(0.0, 1.0);
 		if roll < 0.33 {
@@ -277,8 +280,12 @@ impl Monster {
 
 	pub fn new_panther(row: usize, col: usize) -> Monster {
 		let hp = dice::roll(8, 4, 0);
-		Monster::new(String::from("panther"), 12, hp, 'f', row, col, BLUE,
-			5, 12, 1, 2, 10)
+		let mut p = Monster::new(String::from("panther"), 12, hp, 'f', row, col, BLUE,
+			5, 12, 1, 2, 10);
+
+		p.aware_of_player = true; // always on the hunt
+
+		p
 	}
 
 	pub fn new_boar(row: usize, col: usize) -> Monster {
@@ -307,7 +314,8 @@ impl Monster {
 	}
 }
 
-fn find_adj_empty_sq(row: i32, col: i32, map: &Map, npcs: &NPCTable, passable: &HashSet<map::Tile>) -> (usize, usize) {
+fn find_adj_empty_sq(row: i32, col: i32, state: &GameState, 
+				ships: &HashMap<(usize, usize), Ship>, passable: &HashSet<map::Tile>) -> (usize, usize) {
 	let mut adj = Vec::new();
 
 	for r in -1..=1 {
@@ -316,8 +324,9 @@ fn find_adj_empty_sq(row: i32, col: i32, map: &Map, npcs: &NPCTable, passable: &
 			let adj_r = row + r;
 			let adj_c = col + c;
 	
-			if !map::in_bounds(map, adj_r, adj_c) { continue; }
-			if !passable.contains(&map[adj_r as usize][adj_c as usize]) { continue; }
+			if !map::in_bounds(&state.map, adj_r, adj_c) { continue; }
+			if !passable.contains(&state.map[adj_r as usize][adj_c as usize]) { continue; }
+			if !super::sq_open(state, ships, adj_r as usize, adj_c as usize) { continue; }
 
 			adj.push((adj_r as usize, adj_c as usize));
 		}
@@ -342,10 +351,18 @@ fn do_special_dmg(state: &mut GameState, special_dmg: &str) {
 	}
 }
 
+fn stealth_check(state: &mut GameState, m: &mut Monster) {
+	let dex_mod = Player::mod_for_stat(state.player.dexterity);
+	if super::do_ability_check(dex_mod, 13, state.player.prof_bonus as i8) {
+		m.aware_of_player = true;
+		state.write_msg_buff("Something snarls.");
+	}
+}
+
 fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 							ships: &HashMap<(usize, usize), Ship>,
 							verb: &str) -> Result<(), String> {
-	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
+	if m.aware_of_player && sqs_adj(m.row, m.col, state.player.row, state.player.col) {
 		if super::attack_player(state, m) {
 			let s = format!("The {} {} you!", m.name, verb);
 			state.write_msg_buff(&s);
@@ -358,17 +375,31 @@ fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 		} else {
 			let s = format!("The {} missed!", m.name);
 			state.write_msg_buff(&s);
-		}	
-	} else if util::cartesian_d(m.row as i32, m.col as i32, 
-				state.player.row as i32, state.player.col as i32) < 25 {
-		// Too far away and they just ignore the player
-		let mut passable = HashSet::new();
-		passable.insert(map::Tile::Dirt);
-		passable.insert(map::Tile::Grass);
-		passable.insert(map::Tile::Sand);
-		passable.insert(map::Tile::Tree);
-		passable.insert(map::Tile::Floor);
+		}
 
+		return Ok(());	
+	} 
+
+	let mut passable = HashSet::new();
+	passable.insert(map::Tile::Dirt);
+	passable.insert(map::Tile::Grass);
+	passable.insert(map::Tile::Sand);
+	passable.insert(map::Tile::Tree);
+	passable.insert(map::Tile::Floor);
+
+	let dis = util::cartesian_d(m.row, m.col, state.player.row, state.player.col);
+	
+	if dis > 20 {
+		let loc = find_adj_empty_sq(m.row as i32, m.col as i32, state, ships, &passable);
+		m.row = loc.0;
+		m.col = loc.1;
+	} else if !m.aware_of_player && dis < 10 {
+		let loc = find_adj_empty_sq(m.row as i32, m.col as i32, state, ships, &passable);
+		m.row = loc.0;
+		m.col = loc.1;
+
+		stealth_check(state, m);
+	} else {
 		let path = find_path(state, m.row, m.col, 
 			state.player.row, state.player.col, &passable, ships);
 	
@@ -382,10 +413,6 @@ fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 
 			m.row = new_loc.0;
 			m.col = new_loc.1;
-		} else {
-			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, &state.map, &state.npcs, &passable);
-			m.row = loc.0;
-			m.col = loc.1;
 		}
 	}
 
@@ -432,8 +459,17 @@ fn pirate_action(m: &mut Monster, state: &mut GameState,
 		if rand::thread_rng().gen_range(0.0, 1.0) < 0.2 {
 			state.write_msg_buff(&get_pirate_line());
 		}
-	} else if util::cartesian_d(m.row as i32, m.col as i32, 
-			state.player.row as i32, state.player.col as i32) < 20 {
+		
+		return Ok(());
+	} 
+
+	let d = util::cartesian_d(m.row, m.col, state.player.row, state.player.col);
+
+	if d > 20 {
+		return Ok(())
+	}
+
+	if m.aware_of_player {
 		// Too far away and they just ignore the player
 		let mut passable = HashSet::new();
 		passable.insert(map::Tile::Dirt);
@@ -459,16 +495,18 @@ fn pirate_action(m: &mut Monster, state: &mut GameState,
 			next_r = new_loc.0;
 			next_c = new_loc.1;
 		} else {
-			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, &state.map, &state.npcs, &passable);
+			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, state, ships, &passable);
 			next_r = loc.0;
 			next_c = loc.1;
 		}
 
 		// The pirate won't wander too far from their campsite
-		if util::cartesian_d(m.row as i32, next_r as i32, m.col as i32, next_c as i32) < 9 {
+		if util::cartesian_d(m.row, next_r, m.col, next_c) < 9 {
 			m.row = next_r;
 			m.col = next_c;
 		}
+	} else if d < 10 {
+		stealth_check(state, m);
 	}
 
 	Ok(())
@@ -507,8 +545,7 @@ fn pick_fleeing_move(state: &mut GameState, m: &Monster, passable: HashSet<Tile>
 
 // merfolk just want to lure the player to their death
 fn merfolk_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
-	let dis = util::cartesian_d(m.row as i32, m.col as i32, 
-		state.player.row as i32, state.player.col as i32);
+	let dis = util::cartesian_d(m.row, m.col, state.player.row , state.player.col);
 	if dis < 13 {
 		if !state.player.charmed {
 			state.write_msg_buff("You hear beautiful singing.");
@@ -564,8 +601,7 @@ fn shark_action(m: &mut Monster, state: &mut GameState, ships: &HashMap<(usize, 
 		} else {
 			state.write_msg_buff("The shark misses!");
 		}	
-	} else if util::cartesian_d(m.row as i32, m.col as i32, 
-				state.player.row as i32, state.player.col as i32) < 30 {
+	} else if util::cartesian_d(m.row, m.col, state.player.row, state.player.col) < 30 {
 		// Too far away and the sharks just ignore the player
 		let mut water = HashSet::new();
 		water.insert(map::Tile::DeepWater);
@@ -585,7 +621,7 @@ fn shark_action(m: &mut Monster, state: &mut GameState, ships: &HashMap<(usize, 
 			m.row = new_loc.0;
 			m.col = new_loc.1;
 		} else {
-			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, &state.map, &state.npcs, &water);
+			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, state, ships, &water);
 			m.row = loc.0;
 			m.col = loc.1;
 		}

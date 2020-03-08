@@ -142,8 +142,9 @@ pub fn dir_between_sqs(r0: usize, c0: usize, r1: usize, c1: usize) -> String {
 	String::from(dir)
 }
 
-pub fn cartesian_d(r0: i32, c0: i32, r1: i32, c1: i32) -> usize {
-	let v = (r0 - r1) * (r0 - r1) + (c0 - c1) * (c0 - c1);
+pub fn cartesian_d(r0: usize, c0: usize, r1: usize, c1: usize) -> usize {
+	let v = (r0 as i32 - r1 as i32) * (r0 as i32 - r1 as i32) 
+				+ (c0 as i32 - c1 as i32) * (c0 as i32 - c1 as i32);
 	let x = f32::sqrt(v as f32);	
 	
 	x as usize

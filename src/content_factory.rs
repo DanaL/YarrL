@@ -286,7 +286,7 @@ fn create_island(state: &mut GameState,
 		let b = Monster::new_boar(loc.0, loc.1);
 		state.npcs.insert(loc, b);
 	}
-	if rand::thread_rng().gen_range(0.0, 1.0) < 0.25 {
+	if rand::thread_rng().gen_range(0.0, 1.0) < 0.1 {
 		let loc = find_location_for_land_monster(&state.map, island_info);
 		let p = Monster::new_panther(loc.0, loc.1);
 		state.npcs.insert(loc, p);
@@ -769,7 +769,7 @@ fn add_shipwreck(state: &mut GameState,
 	}
 
 	// merfolk like to hang out near shipwrecks
- 	if rand::thread_rng().gen_range(0.0, 1.0) < 1.0 {
+ 	if rand::thread_rng().gen_range(0.0, 1.0) < 0.20 {
 		let count = rand::thread_rng().gen_range(1, 3);
 		for _ in 0..count {
 			place_mermaid(state, centre);
