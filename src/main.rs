@@ -138,6 +138,42 @@ impl GameState {
 	}
 }
 
+fn sq_is_open(state: &GameState, ships: &HashMap<(usize, usize), Ship>,
+											  row: usize, col: usize) -> bool {
+	if state.player.row == row && state.player.col == col {
+		return false;
+	} 
+
+	if state.npcs.contains_key(&(row, col)) {
+		return false;
+	}
+
+	// Ships complicate EVERYTHING T_T. I almost need a master hash table of like
+	// Pieces that contains both monsters and ship parts that I can update when
+	// things move, but Rust's borrow rules and lack of polymorphism would turn it
+	// into a horrific mess to code
+	let ship_locs = ships.keys()
+					.map(|s| s.clone())
+					.collect::<Vec<(usize, usize)>>();
+
+	for sl in ship_locs {
+		if util::cartesian_d(row as i32, col as i32, sl.0 as i32, sl.1 as i32) < 2 {
+			if row == sl.0 && col == sl.1 {
+				return false;
+			}
+			let ship = ships.get(&(sl.0, sl.1)).unwrap();
+			if row == ship.bow_row && col == ship.bow_col {
+				return false;
+			}
+			if row == ship.aft_row && col == ship.aft_col {
+				return false;
+			}
+		}
+	}
+
+	true
+}
+ 
 fn get_move_tuple(mv: &str) -> (i32, i32) {
 	let res: (i32, i32);
 
@@ -352,8 +388,8 @@ fn action_while_charmed(state: &mut GameState, items: &ItemsTable,
 
 	if nearest > 1 && best != (0, 0) {
 		let passable = map::all_passable();
-		let path = find_path(&state.map, state.player.row, state.player.col,
-			best.0, best.1, &passable);
+		let path = find_path(state, state.player.row, state.player.col,
+			best.0, best.1, &passable, ships);
 
 		if path.len() > 1 {
 			let mv = &path[1];
@@ -1322,7 +1358,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 
 			for loc in locs {
 				let mut npc = state.npcs.remove(&loc).unwrap();
-				npc.act(state)?;
+				npc.act(state, ships)?;
 				let npc_r = npc.row;
 				let npc_c = npc.col;
 				state.npcs.insert((npc.row, npc.col), npc);

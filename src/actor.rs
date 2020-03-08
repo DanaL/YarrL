@@ -19,7 +19,7 @@ use rand::thread_rng;
 use rand::Rng;
 use rand::seq::SliceRandom;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use sdl2::pixels::Color;
 
@@ -29,6 +29,7 @@ use crate::items::{Item, Inventory};
 use crate::map;
 use crate::map::Tile;
 use crate::pathfinding::find_path;
+use crate::ship::Ship;
 use crate::util;
 use crate::util::sqs_adj;
 
@@ -285,17 +286,18 @@ impl Monster {
 
 	// I'm sure life doesn't need to be this way, but got to figure out the
 	// Rust polymorphism model
-	pub fn act(&mut self, state: &mut GameState) -> Result<(), String> {
+	pub fn act(&mut self, state: &mut GameState, ships: &HashMap<(usize, usize), Ship>) 
+											-> Result<(), String> {
 		if self.name == "shark" {
-			shark_action(self, state)?;
+			shark_action(self, state, ships)?;
 		} else if self.name == "marooned pirate" {
-			pirate_action(self, state)?;
+			pirate_action(self, state, ships)?;
 		} else if self.name == "mermaid" || self.name == "merperson" || self.name == "merman" {
 			merfolk_action(self, state)?;	
 		} else if self.name == "wild boar" {
-			basic_monster_action(self, state, "gores")?;
+			basic_monster_action(self, state, ships, "gores")?;
 		} else {
-			basic_monster_action(self, state, "bites")?;
+			basic_monster_action(self, state, ships, "bites")?;
 		}
 
 		Ok(())
@@ -338,6 +340,7 @@ fn do_special_dmg(state: &mut GameState, special_dmg: &str) {
 }
 
 fn basic_monster_action(m: &mut Monster, state: &mut GameState,
+							ships: &HashMap<(usize, usize), Ship>,
 							verb: &str) -> Result<(), String> {
 	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
 		if super::attack_player(state, m) {
@@ -356,15 +359,15 @@ fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 	} else if util::cartesian_d(m.row as i32, m.col as i32, 
 				state.player.row as i32, state.player.col as i32) < 25 {
 		// Too far away and they just ignore the player
-		let mut water = HashSet::new();
-		water.insert(map::Tile::Dirt);
-		water.insert(map::Tile::Grass);
-		water.insert(map::Tile::Sand);
-		water.insert(map::Tile::Tree);
-		water.insert(map::Tile::Floor);
+		let mut passable = HashSet::new();
+		passable.insert(map::Tile::Dirt);
+		passable.insert(map::Tile::Grass);
+		passable.insert(map::Tile::Sand);
+		passable.insert(map::Tile::Tree);
+		passable.insert(map::Tile::Floor);
 
-		let path = find_path(&state.map, m.row, m.col, 
-			state.player.row, state.player.col, &water);
+		let path = find_path(state, m.row, m.col, 
+			state.player.row, state.player.col, &passable, ships);
 	
 		if path.len() > 1 {
 			let new_loc = path[1];
@@ -377,7 +380,7 @@ fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 			m.row = new_loc.0;
 			m.col = new_loc.1;
 		} else {
-			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, &state.map, &state.npcs, &water);
+			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, &state.map, &state.npcs, &passable);
 			m.row = loc.0;
 			m.col = loc.1;
 		}
@@ -402,7 +405,8 @@ fn get_pirate_line() -> String {
 	}
 }
 
-fn pirate_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
+fn pirate_action(m: &mut Monster, state: &mut GameState,
+					ships: &HashMap<(usize, usize), Ship>) -> Result<(), String> {
 	let pronoun = if m.gender == 0 {
 		"their"
 	} else if m.gender == 1 {
@@ -428,16 +432,16 @@ fn pirate_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 	} else if util::cartesian_d(m.row as i32, m.col as i32, 
 			state.player.row as i32, state.player.col as i32) < 20 {
 		// Too far away and they just ignore the player
-		let mut water = HashSet::new();
-		water.insert(map::Tile::Dirt);
-		water.insert(map::Tile::Grass);
-		water.insert(map::Tile::Water);
-		water.insert(map::Tile::Sand);
-		water.insert(map::Tile::Tree);
-		water.insert(map::Tile::Floor);
+		let mut passable = HashSet::new();
+		passable.insert(map::Tile::Dirt);
+		passable.insert(map::Tile::Grass);
+		passable.insert(map::Tile::Water);
+		passable.insert(map::Tile::Sand);
+		passable.insert(map::Tile::Tree);
+		passable.insert(map::Tile::Floor);
 
-		let path = find_path(&state.map, m.row, m.col, 
-			state.player.row, state.player.col, &water);
+		let path = find_path(state, m.row, m.col, 
+			state.player.row, state.player.col, &passable, &ships);
 
 		let mut next_r = m.row;
 		let mut next_c = m.col;
@@ -452,7 +456,7 @@ fn pirate_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 			next_r = new_loc.0;
 			next_c = new_loc.1;
 		} else {
-			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, &state.map, &state.npcs, &water);
+			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, &state.map, &state.npcs, &passable);
 			next_r = loc.0;
 			next_c = loc.1;
 		}
@@ -547,7 +551,8 @@ fn merfolk_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> 
 	Ok(())
 }
 
-fn shark_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
+fn shark_action(m: &mut Monster, state: &mut GameState, ships: &HashMap<(usize, usize), Ship>) 
+													-> Result<(), String> {
 	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
 		if super::attack_player(state, m) {
 			state.write_msg_buff("The shark bites you!");
@@ -563,8 +568,8 @@ fn shark_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
 		water.insert(map::Tile::DeepWater);
 
 		//println!("Shark on turn {}", state.turn);
-		let path = find_path(&state.map, m.row, m.col, 
-			state.player.row, state.player.col, &water);
+		let path = find_path(state, m.row, m.col, 
+			state.player.row, state.player.col, &water, ships);
 		
 		if path.len() > 1 {
 			let new_loc = path[1];
