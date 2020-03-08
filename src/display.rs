@@ -163,7 +163,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 					self.write_map_sq(1 + r, actual_c, ('X', BLACK));
 				} else {
 					let tile = &state.map[loc_r][loc_c];
-					let (mut ch, _) = self.sq_info_for_tile(tile);
+					let (mut ch, _) = GameUI::sq_info_for_tile(tile);
 					if ch == '}' {
 						ch = ' ';	
 					}
@@ -189,7 +189,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.write_line(0, &line, false);
 
 		for sq in state.world_seen.iter() {
-			let (_, color) = self.sq_info_for_tile(&state.map[sq.0][sq.1]);
+			let (_, color) = GameUI::sq_info_for_tile(&state.map[sq.0][sq.1]);
 			
 			self.canvas.set_draw_color(color);
 			self.canvas.fill_rect(Rect::new(sq.1 as i32 * 3, 
@@ -457,7 +457,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.pause_for_more();
 	}
 
-	pub fn sq_info_for_tile(&self, tile: &map::Tile) -> (char, sdl2::pixels::Color) {
+	pub fn sq_info_for_tile(tile: &map::Tile) -> (char, sdl2::pixels::Color) {
 		let ti = match tile {
 			map::Tile::Blank => (' ', BLACK),
 			map::Tile::Wall => ('#', GREY),
@@ -622,10 +622,10 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.write_line(0, msg, false);
 		for row in 0..FOV_HEIGHT {
 			for col in 0..FOV_WIDTH {
-				let ti = self.sq_info_for_tile(&self.v_matrix[row][col]);
+				let ti = GameUI::sq_info_for_tile(&self.v_matrix[row][col]);
 				self.write_sq(row, col, ti);
 			}
-			self.write_sq(row, FOV_WIDTH, self.sq_info_for_tile(&map::Tile::Separator));
+			self.write_sq(row, FOV_WIDTH, GameUI::sq_info_for_tile(&map::Tile::Separator));
 		}
 
 		if sbi.name != "" {

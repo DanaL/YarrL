@@ -19,7 +19,9 @@ use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::cmp::Ordering;
 
+use crate::display::GameUI;
 use crate::map;
+use crate::map::Tile;
 use crate::util::cartesian_d;
 
 #[derive(Eq, Debug)]
@@ -162,7 +164,7 @@ fn astar(
 							.and_modify(|v| { *v = tentative_score } )
 							.or_insert(tentative_score);
 
-					let mut d_to_goal = nr - end_r as i32 + nc - end_c as i32;
+					let mut d_to_goal = (nr - end_r as i32).abs() + (nc - end_c as i32).abs();
 					if d_to_goal < 0 { d_to_goal *= -1 }
 					d_to_goal += tentative_score as i32;
 
@@ -211,4 +213,35 @@ pub fn find_path(
 	}
 
 	astar(map, start_r, start_c, goal_r, goal_c, passable_tiles)
+}
+
+fn dump_map(map: Vec<Vec<Tile>>) {
+	for r in 0..map.len() {
+		let mut s = String::from("");
+		for c in 0..map[r].len() {
+			let (ch, _) = GameUI::sq_info_for_tile(&map[r][c]);
+			s.push(ch);
+		}
+		println!("{}", s);
+	}
+}
+
+pub fn test_fp() {
+	let mut grid = map::generate_test_map();
+
+	let mut passable = HashSet::new();
+	passable.insert(Tile::Floor);
+	let path = find_path(&grid, 1, 1, 3, 12, &passable);
+	
+	grid[1][1] = Tile::Bullet('A');
+	for p in 1..path.len() - 1 {
+		let n = path[p];
+		grid[n.0][n.1] = Tile::Bullet('*');
+	}	
+	let goal = path[path.len() - 1];
+	grid[goal.0][goal.1] = Tile::Bullet('B');
+
+	println!("{:?}", path);
+	
+	dump_map(grid);
 }

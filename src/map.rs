@@ -436,25 +436,20 @@ fn count_neighbouring_walls(grid: &Vec<Vec<bool>>, row: i32, col: i32, width: i3
 }
 
 pub fn generate_test_map() -> Vec<Vec<Tile>> {
-	let mut grid = vec![vec![Tile::Wall; 5]; 5];
+	let mut grid = vec![vec![Tile::Wall; 20]; 20];
 
-	grid[1][1] = Tile::DeepWater;
-	grid[1][2] = Tile::DeepWater;
-	grid[1][3] = Tile::DeepWater;
-	grid[1][4] = Tile::DeepWater;
+	for r in 1..19 {
+		for c in 1..19 {
+			grid[r][c] = Tile::Floor;
+		}
+	}
 
-	grid[2][1] = Tile::DeepWater;
-	grid[2][3] = Tile::DeepWater;
-	grid[2][4] = Tile::DeepWater;
-
-	grid[3][1] = Tile::DeepWater;
-	grid[3][3] = Tile::DeepWater;
-	grid[3][4] = Tile::DeepWater;
-
-	grid[4][1] = Tile::DeepWater;
-	grid[4][2] = Tile::DeepWater;
-	grid[4][3] = Tile::DeepWater;
-	grid[4][4] = Tile::DeepWater;
+	grid[1][6] = Tile::Wall;
+	grid[2][6] = Tile::Wall;
+	grid[3][6] = Tile::Wall;
+	grid[4][6] = Tile::Wall;
+	grid[5][6] = Tile::Wall;
+	grid[6][6] = Tile::Wall;
 
 	grid
 }
