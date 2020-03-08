@@ -477,6 +477,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::Mast(ch) => (*ch, BROWN),
 			map::Tile::Bullet(ch) => (*ch, WHITE),
 			map::Tile::OldFirePit => ('"', GREY),
+			map::Tile::FirePit => ('"', BRIGHT_RED),
 			map::Tile::Floor => ('.', BEIGE),
 			map::Tile::Window(ch) => (*ch, BROWN),
 		};

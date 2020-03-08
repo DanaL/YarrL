@@ -362,6 +362,11 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 				}
 			},
 			map::Tile::Lava => state.write_msg_buff("Ouch! Ouch! It's hot!"),
+			map::Tile::FirePit => {
+				state.write_msg_buff("You step in the fire!");
+				let dmg = dice::roll(6, 1, 0);
+				player_takes_dmg(&mut state.player, dmg, "burn")?;
+			},
 			map::Tile::Shipwreck(_, name) => {
 				let s = format!("The wreck of the {}", name);
 				state.write_msg_buff(&s);
@@ -1085,6 +1090,8 @@ fn death(state: &mut GameState, src: String, gui: &mut GameUI) {
 			lines.push(String::from("Ye died from drowning! Davy Jones'll have you for sure!"));
 		} else if src == "venom" {
 			lines.push(String::from("Ye died from venom!"));
+		} else if src == "burn" {
+			lines.push(String::from("Ye burned to death!"));
 		} else if src == "falling" {
 			lines.push(String::from("Ye took a nasty fall! But it's like they say: it don't be the fall"));
 			lines.push(String::from("what gets you, it be the landing..."));

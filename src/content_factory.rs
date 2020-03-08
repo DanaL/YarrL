@@ -212,29 +212,33 @@ fn create_island(state: &mut GameState,
 	let mut island;
 	let island_type = rand::thread_rng().gen_range(0.0, 1.0);
 	let mut max_shipwrecks = 0;
+	let mut max_old_campsites = 0;
 	let mut max_campsites = 0;
 	let mut max_fruit = 0;
 
-	if island_type < 0.0 {
+	if island_type < 0.5 {
 		// regular island
 		island = map::generate_std_island();
-		max_shipwrecks = 2;
-		max_campsites = 4;
+		max_shipwrecks = 3;
+		max_old_campsites = 4;
 		max_fruit = 8;		
+		max_campsites = 3;
 		island_info.length = 65;
 	} else if island_type < 0.85 {
 		// atoll
 		island = map::generate_atoll();
 		max_shipwrecks = 5;
-		max_campsites = 2;
-		max_fruit = 3; 
+		max_old_campsites = 3;
+		max_fruit = 4; 
+		max_campsites = 3;
 		island_info.length = 129;
 	} else {
 		// volcano
 		island = generate_volcanic_island();
 		max_shipwrecks = 3;
-		max_campsites = 2;
+		max_old_campsites = 3;
 		max_fruit = 6; 
+		max_campsites = 3;
 		island_info.length = 65;
 	}
 
@@ -258,11 +262,14 @@ fn create_island(state: &mut GameState,
 		let cache = get_cache_items();
 		add_shipwreck(&mut state.map, island_info, items, cache, false);
 	}
-	for _ in 0..rand::thread_rng().gen_range(0, max_campsites) {
-		set_campsite(&mut state.map, island_info, items);
+	for _ in 0..rand::thread_rng().gen_range(0, max_old_campsites) {
+		set_old_campsite(&mut state.map, island_info, items);
 	}
 	for _ in 0..rand::thread_rng().gen_range(0, max_fruit) {
 		add_fruit(&state.map, island_info, items);
+	}
+	for _ in 0..rand::thread_rng().gen_range(0, max_campsites) {
+		set_campsite(state, island_info, items);
 	}
 	if rand::thread_rng().gen_range(0.0, 1.0) < 0.2 {
 		place_fort(&mut state.map, island_info, items);
@@ -408,7 +415,49 @@ fn add_fruit(world_map: &Vec<Vec<Tile>>,
 	}
 }
 
-fn set_campsite(world_map: &mut Vec<Vec<Tile>>, 
+fn set_campsite(state: &mut GameState,
+				island_info: &IslandInfo,	
+				items: &mut ItemsTable) {
+
+	loop {
+		let r = rand::thread_rng().gen_range(island_info.offset_r,
+												island_info.offset_r + island_info.length);
+		let c = rand::thread_rng().gen_range(island_info.offset_c, 
+												island_info.offset_c + island_info.length);
+		
+		let tile = &state.map[r][c];
+		if map::is_passable(tile) && *tile != Tile::Water && *tile != Tile::DeepWater
+				&& *tile != Tile::Lava {
+			state.map[r][c] = Tile::FirePit;
+
+			let rum_count = rand::thread_rng().gen_range(0, 3);
+			for _ in 0..rum_count {
+				let delta = rnd_adj();
+				let rum = Item::get_item("draught of rum").unwrap();
+				items.add((r as i32 + delta.0) as usize, 
+						(c as i32 + delta.1) as usize, rum);
+			}	
+		
+			for _ in 0..rand::thread_rng().gen_range(1, 4) {
+				loop {
+					let delta = util::rnd_adj();
+					let pirate_r = (r as i32 + delta.0) as usize;	
+					let pirate_c = (c as i32 + delta.0) as usize;
+	
+					if !state.npcs.contains_key(&(pirate_r, pirate_c)) {
+						let p = Monster::new_pirate(pirate_r, pirate_c, (r, c));
+						state.npcs.insert((pirate_r, pirate_c), p);
+						break;	
+					}
+				}
+			}
+	
+			break;
+		}	
+	}
+}
+
+fn set_old_campsite(world_map: &mut Vec<Vec<Tile>>, 
 				island_info: &IslandInfo,	
 				items: &mut ItemsTable) {
 	

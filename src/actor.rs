@@ -195,17 +195,37 @@ pub struct Monster {
 	pub dmg_bonus: u8,
 	pub special_dmg: String,
 	pub score: u8,
+	pub gender: u8,
+	pub anchor: (usize, usize),
 }
 
 impl Monster {
 	pub fn new(name: String, ac:u8, hp: u8, symbol: char, row: usize, col: usize, color: Color,
 			hit_bonus: i8, dmg: u8, dmg_dice: u8, dmg_bonus: u8, score: u8) -> Monster {
 		Monster { name, ac, hp, symbol, row, col, color, hit_bonus, 
-			dmg, dmg_dice, dmg_bonus, special_dmg: String::from(""), score }
+			dmg, dmg_dice, dmg_bonus, special_dmg: String::from(""),
+			gender: 0, anchor: (0, 0), score }
+	}
+
+	pub fn new_pirate(row: usize, col: usize, anchor: (usize, usize)) -> Monster {
+		let hp = dice::roll(8, 3, 0);
+
+		let mut p = Monster::new(String::from("marooned pirate"), 14, hp, '@', row, col, GREY,
+			5, 6, 1, 0, 10);
+		p.anchor = anchor;
+
+		let roll = rand::thread_rng().gen_range(0.0, 1.0);
+		if roll < 0.33 {
+			p.gender = 1;
+		} else if roll < 0.66 {
+			p.gender = 2;
+		};
+		
+		p
 	}
 	
 	pub fn new_snake(row: usize, col: usize) -> Monster {
-		let hp = dice::roll(8, 2, 0);
+		let hp = dice::roll(6, 2, 0);
 		let roll = rand::thread_rng().gen_range(0.0, 1.0);
 		
 		let colour = if roll < 0.33 {
@@ -244,6 +264,8 @@ impl Monster {
 			boar_action(self, state)?;
 		} else if self.name == "snake" {
 			snake_action(self, state)?;
+		} else if self.name == "marooned pirate" {
+			pirate_action(self, state)?;
 		}
 
 		Ok(())
@@ -306,7 +328,6 @@ fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 		let mut water = HashSet::new();
 		water.insert(map::Tile::Dirt);
 		water.insert(map::Tile::Grass);
-		water.insert(map::Tile::Water);
 		water.insert(map::Tile::Sand);
 		water.insert(map::Tile::Tree);
 		water.insert(map::Tile::Floor);
@@ -328,6 +349,86 @@ fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, &state.map, &state.npcs, &water);
 			m.row = loc.0;
 			m.col = loc.1;
+		}
+	}
+
+	Ok(())
+}
+
+fn get_pirate_line() -> String {
+	let roll = rand::thread_rng().gen_range(0.0, 1.0);
+
+	if roll < 0.2 {
+		return "Ye scurvy dog!".to_string();
+	} else if roll < 0.4 {
+		return "Arroint thee, barnacle!".to_string();
+	} else if roll < 0.6 {
+		return "I'll scuttle you!".to_string();
+	} else if roll < 0.8 {
+		return "To the locker with ye!".to_string();
+	} else {
+		return "I've smelled better bilges!".to_string();
+	}
+}
+
+fn pirate_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
+	let pronoun = if m.gender == 0 {
+		"their"
+	} else if m.gender == 1 {
+		"her"
+	} else {
+		"his"
+	};
+
+	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
+		if super::attack_player(state, m) {
+			let s = format!("The {} slashes with {} cutlass!", m.name, pronoun);
+			state.write_msg_buff(&s);
+			let dmg_roll = dice::roll(m.dmg, m.dmg_dice, m.dmg_bonus as i8);
+			super::player_takes_dmg(&mut state.player, dmg_roll, &m.name)?;
+		} else {
+			let s = format!("The {} missed!", m.name);
+			state.write_msg_buff(&s);
+		}	
+
+		if rand::thread_rng().gen_range(0.0, 1.0) < 0.2 {
+			state.write_msg_buff(&get_pirate_line());
+		}
+	} else if manhattan_d(m.row, m.col, state.player.row, state.player.col) < 20 {
+		// Too far away and they just ignore the player
+		let mut water = HashSet::new();
+		water.insert(map::Tile::Dirt);
+		water.insert(map::Tile::Grass);
+		water.insert(map::Tile::Water);
+		water.insert(map::Tile::Sand);
+		water.insert(map::Tile::Tree);
+		water.insert(map::Tile::Floor);
+
+		let path = find_path(&state.map, m.row, m.col, 
+			state.player.row, state.player.col, &water);
+
+		let mut next_r = m.row;
+		let mut next_c = m.col;
+		if path.len() > 1 {
+			let new_loc = path[1];
+			if state.npcs.contains_key(&new_loc) {
+				let s = format!("The {} is blocked.", m.name);
+				state.write_msg_buff(&s);
+				return Ok(());
+			} 
+
+			next_r = new_loc.0;
+			next_c = new_loc.1;
+		} else {
+			let loc = find_adj_empty_sq(m.row as i32, m.col as i32, &state.map, &state.npcs, &water);
+			next_r = loc.0;
+			next_c = loc.1;
+		}
+
+		// The pirate won't wander too far from their campsite
+		if manhattan_d(m.row, next_r, m.col, next_c) < 9 {
+			m.row = next_r;
+			m.col = next_c;
 		}
 	}
 

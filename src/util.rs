@@ -119,8 +119,8 @@ pub fn sqs_adj(r0: usize, c0: usize, r1: usize, c1: usize) -> bool {
 	false
 }
 
-pub fn manhattan_d(ax: usize, ay: usize, bx: usize, by: usize) -> usize {
-	((ax as i32 - bx as i32).abs() + (ay as i32 - by as i32).abs()) as usize	
+pub fn manhattan_d(r0: usize, c0: usize, r1: usize, c1: usize) -> usize {
+	((r0 as i32 - r1 as i32).abs() + (c0 as i32 - c1 as i32).abs()) as usize	
 }
 
 pub fn cartesian_d(r0: i32, c0: i32, r1: i32, c1: i32) -> usize {

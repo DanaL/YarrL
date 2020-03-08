@@ -47,6 +47,7 @@ pub enum Tile {
 	Mast(char),
 	Bullet(char),
 	Lava,
+	FirePit,
 	OldFirePit,
 	Floor,
 	Window(char),
