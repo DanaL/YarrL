@@ -59,16 +59,16 @@ pub fn read_names_file() -> NameSeeds {
 	let contents = fs::read_to_string("names.txt")
         .expect("Unable to find names file!"); 	// I should probably shoot a warning and 
 												// a return a small default version of NS
-	
+
 	let mut reading = 0;
 	for line in contents.split('\n') {
-		if line == "" {
+		if line.trim() == "" {
 			continue;
-		} if line == "# Adjectives" {
+		} if line.trim() == "# Adjectives" {
 			reading = 0;
-		} else if line == "# Nouns" {
+		} else if line.trim() == "# Nouns" {
 			reading = 1;
-		} else if line == "# Proper Nouns" {
+		} else if line.trim() == "# Proper Nouns" {
 			reading = 2;	
 		} else {
 			if reading == 0 { ns.adjectives.push(line.trim().to_string()); }

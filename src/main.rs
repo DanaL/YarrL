@@ -1179,7 +1179,7 @@ fn preamble(gui: &mut GameUI, ships: &mut HashMap<(usize, usize), Ship>) -> Game
 	loop {
 		if let Some(name) = gui.query_user("Ahoy lubber, who be ye?", 15, &sbi) {
 			if name.len() > 0 {
-				player_name = name;
+				player_name = name.trim().to_string();
 
 				if is_putting_on_airs(&player_name) {
 					let v = vec![String::from("Don't ye be calling yerself *captain* 'afore"), String::from("ye've earned it!!")];
