@@ -415,11 +415,12 @@ fn action_while_charmed(state: &mut GameState, items: &ItemsTable,
 	Ok(())
 }
 
-fn check_environment_hazards(state: &mut GameState) -> Result<(), String> {
+fn check_environment_hazards(state: &mut GameState, ships: &HashMap<(usize, usize), Ship>) -> Result<(), String> {
 	let pr = state.player.row;
 	let pc = state.player.col;
 
-	if state.map[pr][pc] == Tile::DeepWater && !state.player.on_ship {
+	if state.map[pr][pc] == Tile::DeepWater && !state.player.on_ship
+			&& !ships.contains_key(&(state.player.row, state.player.col)) {
 		player_takes_dmg(&mut state.player, 2, "swimming")?;
 	} else if state.map[pr][pc] == Tile::FirePit {
 		let dmg = dice::roll(6, 1, 0);
@@ -1401,7 +1402,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 		// Some of the commands don't count as a turn for the player, so
 		// don't give the monsters a free move in those cases
 		if state.turn > start_turn {
-			check_environment_hazards(state)?;
+			check_environment_hazards(state, ships)?;
 
 			let locs = state.npcs.keys()
 						.map(|v| v.clone())

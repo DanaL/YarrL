@@ -268,7 +268,8 @@ pub fn calc_v_matrix(
 
 	if state.player.on_ship {
 		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(BROWN);
-	} else if state.map[state.player.row][state.player.col] == map::Tile::DeepWater {
+	} else if state.map[state.player.row][state.player.col] == map::Tile::DeepWater
+			&& !ships.contains_key(&(state.player.row, state.player.col)) {
 		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(LIGHT_BLUE);
 	} else {
 		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(WHITE);
