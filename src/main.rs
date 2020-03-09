@@ -175,6 +175,35 @@ fn sq_is_open(state: &GameState, ships: &HashMap<(usize, usize), Ship>,
 
 	true
 }
+
+// This function is a testament to my terrible design mistakes :( I should have taken into account the
+// need to see if a square was open when choosing to use separate data structures for the map tiles, 
+// the items, the ships, and the NPCs...
+fn sq_open(state: &GameState, ships: &HashMap<(usize, usize), Ship>, row: usize, col: usize) -> bool {
+	if !map::in_bounds(&state.map, row as i32, col as i32) {
+		return false;
+	}
+
+	if !map::is_passable(&state.map[row][col]) {
+		return false;
+	}
+
+	// At least I will probably only ever have a handful of ships on the map...
+	for key in ships.keys() {
+		let ship = ships.get(key).unwrap();
+		if ship.row == row && ship.col == col {
+			return false;
+		}	
+		if ship.bow_row == row && ship.bow_col == col {
+			return false;
+		}	
+		if ship.aft_row == row && ship.aft_col == col {
+			return false;
+		}	
+	}
+
+	true
+}
  
 fn get_move_tuple(mv: &str) -> (i32, i32) {
 	let res: (i32, i32);
@@ -872,35 +901,6 @@ fn show_character_sheet(state: &GameState, gui: &mut GameUI) {
 	gui.write_long_msg(&lines, true);
 }
 
-// This function is a testament to my terrible design mistakes :( I should have taken into account the
-// need to see if a square was open when choosing to use separate data structures for the map tiles, 
-// the items, the ships, and the NPCs...
-fn sq_open(state: &GameState, ships: &HashMap<(usize, usize), Ship>, row: usize, col: usize) -> bool {
-	if !map::in_bounds(&state.map, row as i32, col as i32) {
-		return false;
-	}
-
-	if !map::is_passable(&state.map[row][col]) {
-		return false;
-	}
-
-	// At least I will probably only ever have a handful of ships on the map...
-	for key in ships.keys() {
-		let ship = ships.get(key).unwrap();
-		if ship.row == row && ship.col == col {
-			return false;
-		}	
-		if ship.bow_row == row && ship.bow_col == col {
-			return false;
-		}	
-		if ship.aft_row == row && ship.aft_col == col {
-			return false;
-		}	
-	}
-
-	true
-}
-
 fn get_open_sq_adj_player(state: &GameState, ships: &HashMap<(usize, usize), Ship>) -> Option<(usize, usize)> {
 	let mut sqs: Vec<(usize, usize)> = Vec::new();
 	if sq_open(state, ships, state.player.row - 1, state.player.col - 1) {
@@ -1270,6 +1270,42 @@ fn death(state: &mut GameState, src: String, gui: &mut GameUI) {
 	gui.write_long_msg(&lines, true);
 }
 
+fn check_drifting_ships(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) {
+	let ship_loc = ships.keys()
+			.map(|v| v.clone())
+			.collect::<Vec<(usize, usize)>>();
+	for sl in ship_loc {
+		let mut ship = ships.remove(&sl).unwrap();
+		if ship.row != state.player.row && ship.col != state.player.col && !ship.anchored {
+			let mut adj = Vec::new();
+			for r in -1..=1 {
+				for c in -1..=1 {
+					if r == 0 && c == 0 { continue; }
+					let adj_r = (sl.0 as i32 + r) as usize;
+					let adj_c = (sl.1 as i32 + c) as usize;
+					if state.map[adj_r][adj_c] != Tile::Water && state.map[adj_r][adj_c] != Tile::DeepWater {
+						continue;
+					}
+					if sq_is_open(state, ships, adj_r, adj_c) {
+						adj.push((adj_r, adj_c));
+					}
+				}
+			}
+
+			if adj.len() > 0 {
+				let loc = rand::thread_rng().gen_range(0, adj.len());
+				let adj_loc = adj[loc];
+				ship.row = adj_loc.0;
+				ship.col = adj_loc.1;
+				ship.update_loc_info();
+				ships.insert(adj_loc, ship);
+				return;
+			}
+		}
+		ships.insert((ship.row, ship.col), ship); 
+	}
+}
+
 fn attack_player(state: &mut GameState, npc: &Monster) -> bool {
 	do_ability_check(npc.hit_bonus, state.player.ac, 0)
 }
@@ -1445,6 +1481,9 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 			if state.turn % 25 == 0 {
 				state.player.add_stamina(1);
 			}
+
+			// check for beached ships
+			check_drifting_ships(state, ships);
 		}
 	
 		gui.v_matrix = fov::calc_v_matrix(state, items, ships, FOV_HEIGHT, FOV_WIDTH);
