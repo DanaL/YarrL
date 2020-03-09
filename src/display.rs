@@ -152,8 +152,6 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		line.push_str(title);
 		self.write_line(0, &line, false);
 
-		// Maps are all 15x15 and we want to draw them in the centre of the
-		// screen
 		let screen_col = SCREEN_WIDTH / 2 - 7;
 		for r in 0..25 {
 			for c in 0..30 {
@@ -167,7 +165,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 					let (mut ch, _) = GameUI::sq_info_for_tile(tile);
 					if ch == '}' {
 						ch = ' ';	
-					}
+					} 
 					self.write_map_sq(1 + r, actual_c, (ch, BRIGHT_RED));
 				}
 			}
@@ -496,12 +494,10 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		let rect = Rect::new(c as i32 * self.sm_font_width as i32, 
 			(r as i32 + 1) * self.sm_font_height as i32, self.sm_font_width, self.sm_font_height);
 
-		self.canvas.set_draw_color(BEIGE);
-		self.canvas.fill_rect(rect);
 		let (ch, char_colour) = tile_info;
 			
 		let surface = self.sm_font.render_char(ch)
-				.blended(char_colour)
+				.shaded(char_colour, BEIGE)
 				.expect("Error creating character!");  
 
 		let texture_creator = self.canvas.texture_creator();
