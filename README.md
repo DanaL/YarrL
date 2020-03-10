@@ -9,12 +9,5 @@ In YarrL, you play a scallwag who's got their grubby, greedy hands on a clue to 
 I have arbitrarily declared that YarrL reached version 0.2.0 at the end of 7DRL...
 
 A couple of screenshots featuring exploring an island and sailing past a shipwreck:
-<table border="0">
-  <tr><td>
 ![exploring the coast of an island](screenshot1.png)
-    </td>
-  <td>
 ![sailing past a ship wreck](screenshot1.png)
-    </td>
-  </tr>
-  </table>
