@@ -13,6 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with YarrL.  If not, see <https://www.gnu.org/licenses/>.
 
+extern crate serde;
 extern crate rand;
 
 use rand::thread_rng;
@@ -21,7 +22,7 @@ use rand::seq::SliceRandom;
 
 use std::collections::{HashMap, HashSet};
 
-use sdl2::pixels::Color;
+use serde::{Serialize, Deserialize};
 
 use crate::dice;
 use crate::display::{DARK_BROWN, GREY, GREEN, BRIGHT_RED, BLUE, GOLD, YELLOW_ORANGE};
@@ -35,13 +36,13 @@ use crate::util::sqs_adj;
 
 use super::{do_ability_check, GameState, Map, NPCTable};
 
-#[derive(Debug)]
+#[derive(Debug,Serialize,Deserialize)]
 pub enum PirateType {
 	Swab,
 	Seadog,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Serialize,Deserialize)]
 pub struct Player {
 	pub name: String,
 	pub ac: u8,
@@ -189,6 +190,7 @@ impl Player {
 	}
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Monster {
 	pub name: String,
 	pub ac: u8,
@@ -196,7 +198,7 @@ pub struct Monster {
 	pub symbol: char,
 	pub row: usize,
 	pub col: usize,
-	pub color: Color,
+	pub color: (u8, u8, u8),
 	pub hit_bonus: i8,
 	pub dmg: u8,
 	pub dmg_dice: u8,
@@ -211,7 +213,7 @@ pub struct Monster {
 }
 
 impl Monster {
-	pub fn new(name: String, ac:u8, hp: u8, symbol: char, row: usize, col: usize, color: Color,
+	pub fn new(name: String, ac:u8, hp: u8, symbol: char, row: usize, col: usize, color: (u8, u8, u8),
 			hit_bonus: i8, dmg: u8, dmg_dice: u8, dmg_bonus: u8, score: u8) -> Monster {
 		Monster { name, ac, hp, symbol, row, col, color, hit_bonus, 
 			dmg, dmg_dice, dmg_bonus, special_dmg: String::from(""),

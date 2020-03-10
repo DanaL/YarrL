@@ -15,6 +15,7 @@
 
 use rand::Rng;
 
+use serde::{Serialize, Deserialize};
 use crate::dice;
 use crate::util;
 use crate::util::capitalize_word;
@@ -33,7 +34,7 @@ pub const BOW_S: char = '\u{25BC}';
 pub const AFT_STRAIGHT: char = '\u{25A0}'; 
 pub const AFT_ANGLE: char = '\u{25C6}'; 
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Ship {
 	pub name: String,
 	pub row: usize,

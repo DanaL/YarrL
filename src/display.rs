@@ -32,20 +32,20 @@ use sdl2::surface::Surface;
 use sdl2::ttf::Font;
 use sdl2::pixels::Color;
 
-pub static BLACK: Color = Color::RGBA(0, 0, 0, 255);
-pub static WHITE: Color = Color::RGBA(255, 255, 255, 255);
-pub static GREY: Color = Color::RGBA(136, 136, 136, 255);
-pub static GREEN: Color = Color::RGBA(144, 238, 144, 255);
-pub static DARK_GREEN: Color = Color::RGBA(46, 139, 87, 255);
-pub static BROWN: Color = Color::RGBA(150, 75, 0, 255);
-pub static DARK_BROWN: Color = Color::RGBA(101, 67, 33, 255);
-pub static BLUE: Color = Color::RGBA(0, 0, 200, 255);
-pub static LIGHT_BLUE: Color = Color::RGBA(55, 198, 255, 255);
-pub static BEIGE: Color = Color::RGBA(255, 178, 127, 255);
-pub static BRIGHT_RED: Color = Color::RGBA(208, 28, 31, 255);
-pub static GOLD: Color = Color::RGBA(255, 215, 0, 255);
-pub static YELLOW: Color = Color::RGBA(255, 225, 53, 255);
-pub static YELLOW_ORANGE: Color = Color::RGBA(255, 159, 0, 255);
+pub static BLACK: (u8, u8, u8) = (0, 0, 0);
+pub static WHITE: (u8, u8, u8) = (255, 255, 255);
+pub static GREY: (u8, u8, u8) = (136, 136, 136);
+pub static GREEN: (u8, u8, u8) = (144, 238, 144);
+pub static DARK_GREEN: (u8, u8, u8) = (46, 139, 87);
+pub static BROWN: (u8, u8, u8) = (150, 75, 0);
+pub static DARK_BROWN: (u8, u8, u8) = (101, 67, 33);
+pub static BLUE: (u8, u8, u8) = (0, 0, 200);
+pub static LIGHT_BLUE: (u8, u8, u8) = (55, 198, 255);
+pub static BEIGE: (u8, u8, u8) = (255, 178, 127);
+pub static BRIGHT_RED: (u8, u8, u8) = (208, 28, 31);
+pub static GOLD: (u8, u8, u8) = (255, 215, 0);
+pub static YELLOW: (u8, u8, u8) = (255, 225, 53);
+pub static YELLOW_ORANGE: (u8, u8, u8,) = (255, 159, 0);
 
 const SCREEN_WIDTH: u32 = 58;
 const SCREEN_HEIGHT: u32 = 22;
@@ -72,6 +72,10 @@ impl SidebarInfo {
 		SidebarInfo { name, ac, curr_hp, max_hp, wheel, bearing, turn,
 			charmed, poisoned, drunkeness }
 	}
+}
+
+fn tuple_to_sdl2_color(ct: &(u8, u8, u8)) -> Color {
+	Color::RGBA(ct.0, ct.1, ct.2, 255)
 }
 
 // I have literally zero clue why Rust wants two lifetime parameters
@@ -152,6 +156,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		line.push_str(title);
 		self.write_line(0, &line, false);
 
+		let red = tuple_to_sdl2_color(&BRIGHT_RED);
 		let screen_col = SCREEN_WIDTH / 2 - 7;
 		for r in 0..25 {
 			for c in 0..30 {
@@ -159,14 +164,14 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				let loc_c = map.nw_corner.1 + c;
 				let actual_c = screen_col as usize + c;
 				if loc_r == map.x_coord.0 && loc_c == map.x_coord.1 {
-					self.write_map_sq(1 + r, actual_c, ('X', BLACK));
+					self.write_map_sq(1 + r, actual_c, ('X', Color::RGBA(0, 0, 0, 255)));
 				} else {
 					let tile = &state.map[loc_r][loc_c];
 					let (mut ch, _) = GameUI::sq_info_for_tile(tile);
 					if ch == '}' {
 						ch = ' ';	
 					} 
-					self.write_map_sq(1 + r, actual_c, (ch, BRIGHT_RED));
+					self.write_map_sq(1 + r, actual_c, (ch, red));
 				}
 			}
 		}
@@ -330,6 +335,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::Read;
 						} else if val == "E" {
 							return Cmd::Eat;
+						} else if val == "S" {
+							return Cmd::Save; 
 						}
 
 						if state.player.on_ship {
@@ -458,33 +465,33 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 	pub fn sq_info_for_tile(tile: &map::Tile) -> (char, sdl2::pixels::Color) {
 		let ti = match tile {
-			map::Tile::Blank => (' ', BLACK),
-			map::Tile::Wall => ('#', GREY),
-			map::Tile::WoodWall => ('#', BROWN),
-			map::Tile::Tree => ('\u{03D9}', GREEN),
-			map::Tile::Dirt => ('.', BROWN),
-			map::Tile::Grass => ('\u{0316}', GREEN),
-			map::Tile::Player(color) => ('@', *color),
-			map::Tile::Water => ('}', LIGHT_BLUE),
-			map::Tile::DeepWater => ('}', BLUE),
-			map::Tile::WorldEdge => ('}', BLUE),
-			map::Tile::Sand => ('.', BEIGE),
-			map::Tile::StoneFloor => ('.', GREY),
-			map::Tile::Mountain => ('\u{039B}', GREY),
-			map::Tile::SnowPeak => ('\u{039B}', WHITE),
-			map::Tile::Lava => ('{', BRIGHT_RED),
-			map::Tile::Gate => ('#', LIGHT_BLUE),
-			map::Tile::Thing(color, ch) => (*ch, *color),
-			map::Tile::Separator => ('|', WHITE),
-			map::Tile::ShipPart(ch) => (*ch, BROWN),
-			map::Tile::Shipwreck(ch, _) => (*ch, BROWN),
-			map::Tile::Mast(ch) => (*ch, BROWN),
-			map::Tile::Bullet(ch) => (*ch, WHITE),
-			map::Tile::OldFirePit => ('"', GREY),
-			map::Tile::FirePit => ('"', BRIGHT_RED),
-			map::Tile::Floor => ('.', BEIGE),
-			map::Tile::Window(ch) => (*ch, BROWN),
-			map::Tile::Spring => ('~', LIGHT_BLUE),
+			map::Tile::Blank => (' ', tuple_to_sdl2_color(&BLACK)),
+			map::Tile::Wall => ('#', tuple_to_sdl2_color(&GREY)),
+			map::Tile::WoodWall => ('#', tuple_to_sdl2_color(&BROWN)),
+			map::Tile::Tree => ('\u{03D9}', tuple_to_sdl2_color(&GREEN)),
+			map::Tile::Dirt => ('.', tuple_to_sdl2_color(&BROWN)),
+			map::Tile::Grass => ('\u{0316}', tuple_to_sdl2_color(&GREEN)),
+			map::Tile::Player(color) => ('@', tuple_to_sdl2_color(color)),
+			map::Tile::Water => ('}', tuple_to_sdl2_color(&LIGHT_BLUE)),
+			map::Tile::DeepWater => ('}', tuple_to_sdl2_color(&BLUE)),
+			map::Tile::WorldEdge => ('}', tuple_to_sdl2_color(&BLUE)),
+			map::Tile::Sand => ('.', tuple_to_sdl2_color(&BEIGE)),
+			map::Tile::StoneFloor => ('.', tuple_to_sdl2_color(&GREY)),
+			map::Tile::Mountain => ('\u{039B}', tuple_to_sdl2_color(&GREY)),
+			map::Tile::SnowPeak => ('\u{039B}', tuple_to_sdl2_color(&WHITE)),
+			map::Tile::Lava => ('{', tuple_to_sdl2_color(&BRIGHT_RED)),
+			map::Tile::Gate => ('#', tuple_to_sdl2_color(&LIGHT_BLUE)),
+			map::Tile::Thing(color, ch) => (*ch, tuple_to_sdl2_color(color)),
+			map::Tile::Separator => ('|', tuple_to_sdl2_color(&WHITE)),
+			map::Tile::ShipPart(ch) => (*ch, tuple_to_sdl2_color(&BROWN)),
+			map::Tile::Shipwreck(ch, _) => (*ch, tuple_to_sdl2_color(&BROWN)),
+			map::Tile::Mast(ch) => (*ch, tuple_to_sdl2_color(&BROWN)),
+			map::Tile::Bullet(ch) => (*ch, tuple_to_sdl2_color(&WHITE)),
+			map::Tile::OldFirePit => ('"', tuple_to_sdl2_color(&GREY)),
+			map::Tile::FirePit => ('"', tuple_to_sdl2_color(&BRIGHT_RED)),
+			map::Tile::Floor => ('.', tuple_to_sdl2_color(&BEIGE)),
+			map::Tile::Window(ch) => (*ch, tuple_to_sdl2_color(&BROWN)),
+			map::Tile::Spring => ('~', tuple_to_sdl2_color(&LIGHT_BLUE)),
 		};
 
 		ti
@@ -497,14 +504,14 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		let (ch, char_colour) = tile_info;
 			
 		let surface = self.sm_font.render_char(ch)
-				.shaded(char_colour, BEIGE)
+				.shaded(char_colour, tuple_to_sdl2_color(&BEIGE))
 				.expect("Error creating character!");  
 
 		let texture_creator = self.canvas.texture_creator();
 		let texture = texture_creator.create_texture_from_surface(&surface)
 			.expect("Error creating texture!");
 
-		self.canvas.set_draw_color(BLACK);
+		self.canvas.set_draw_color(Color::RGBA(0, 0, 0, 255));
 
 		self.canvas.copy(&texture, None, Some(rect))
 			.expect("Error copying to canvas!");
@@ -544,30 +551,35 @@ impl<'a, 'b> GameUI<'a, 'b> {
 	}
 
 	fn write_sidebar(&mut self, sbi: &SidebarInfo) {
-		let fov_w = (FOV_WIDTH + 1) as i32 * self.font_width as i32; 
+		let brown = tuple_to_sdl2_color(&BROWN);
+		let grey = tuple_to_sdl2_color(&GREY);
+		let white = tuple_to_sdl2_color(&WHITE);
+		let green = tuple_to_sdl2_color(&GREEN);
+		let gold = tuple_to_sdl2_color(&GOLD);
 
-		self.write_sidebar_line(&sbi.name, fov_w, 1, WHITE);
+		let fov_w = (FOV_WIDTH + 1) as i32 * self.font_width as i32; 
+		self.write_sidebar_line(&sbi.name, fov_w, 1, white);
 
 		let s = format!("AC: {}", sbi.ac);
-		self.write_sidebar_line(&s, fov_w, 2, WHITE);
+		self.write_sidebar_line(&s, fov_w, 2, white);
 
 		let s = format!("Stamina: {}({})", sbi.curr_hp, sbi.max_hp);
-		self.write_sidebar_line(&s, fov_w, 3, WHITE);
+		self.write_sidebar_line(&s, fov_w, 3, white);
 
 		let s = format!("Turn: {}", sbi.turn);
-		self.write_sidebar_line(&s, fov_w, 21, WHITE);
+		self.write_sidebar_line(&s, fov_w, 21, white);
 
 		let mut l = 20;
 		if sbi.poisoned {
-			self.write_sidebar_line("POISONED", fov_w, l, GREEN);
+			self.write_sidebar_line("POISONED", fov_w, l, green);
 			l -= 1;
 		}
 		if sbi.charmed {
-			self.write_sidebar_line("CHARMED", fov_w, l, GOLD);
+			self.write_sidebar_line("CHARMED", fov_w, l, gold);
 			l -= 1;
 		}
 		if sbi.drunkeness > 20 {
-			self.write_sidebar_line("TIPSY", fov_w, l, BROWN);
+			self.write_sidebar_line("TIPSY", fov_w, l, brown);
 			l -= 1;
 		}
 
@@ -593,27 +605,27 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				_ => s.push_str(""),
 			}
 
-			self.write_sidebar_line(&s, fov_w, 5, WHITE);
+			self.write_sidebar_line(&s, fov_w, 5, brown);
 
 			let s = "      \\|/".to_string();
-			self.write_sidebar_line(&s, fov_w, 7, BROWN);
+			self.write_sidebar_line(&s, fov_w, 7, brown);
 			
 			let s = "      -o-".to_string();
-			self.write_sidebar_line(&s, fov_w, 8, BROWN);
+			self.write_sidebar_line(&s, fov_w, 8, brown);
 
 			let s = "      /|\\".to_string();
-			self.write_sidebar_line(&s, fov_w, 9, BROWN);
+			self.write_sidebar_line(&s, fov_w, 9, brown);
 
 			if sbi.wheel == 0 {
-				self.write_sq(6, FOV_WIDTH + 8, ('|', GREY));
+				self.write_sq(6, FOV_WIDTH + 8, ('|', grey));
 			} else if sbi.wheel == -1 {
-				self.write_sq(6, FOV_WIDTH + 7, ('\\', GREY));
+				self.write_sq(6, FOV_WIDTH + 7, ('\\', grey));
 			} else if sbi.wheel == 1 {
-				self.write_sq(6, FOV_WIDTH + 9, ('/', GREY));
+				self.write_sq(6, FOV_WIDTH + 9, ('/', grey));
 			} else if sbi.wheel == 2 {
-				self.write_sq(7, FOV_WIDTH + 9, ('-', GREY));
+				self.write_sq(7, FOV_WIDTH + 9, ('-', grey));
 			} else if sbi.wheel == -2 {
-				self.write_sq(7, FOV_WIDTH + 7, ('-', GREY));
+				self.write_sq(7, FOV_WIDTH + 7, ('-', grey));
 			}
 		}
 	}

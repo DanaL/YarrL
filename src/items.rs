@@ -16,15 +16,15 @@
 use rand::Rng;
 
 use std::collections::{HashMap, HashSet, VecDeque};
-use sdl2::pixels::Color;
+use serde::{Serialize, Deserialize};
 
 use crate::display;
 
 pub trait TileInfo {
-	fn get_tile_info(&self) -> (Color, char);
+	fn get_tile_info(&self) -> ((u8, u8, u8), char);
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Inventory {
 	next_slot: char,
 	inv: HashMap<char, (Item, u8)>,
@@ -317,6 +317,7 @@ impl Inventory {
 	}
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct ItemsTable {
 	table: HashMap<(usize, usize), VecDeque<Item>>,
 }
@@ -443,7 +444,7 @@ impl ItemsTable {
 	}
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ItemType {
 	Weapon,
 	Coat,
@@ -466,13 +467,13 @@ pub enum ItemType {
 // items of different categories. Like, doubloons should not
 // have an armour value, a bottle of rum doesn't need range
 // or loaded attributes
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Item {
 	pub name: String,
 	pub item_type: ItemType,
 	pub weight: u8,
 	pub symbol: char,
-	pub color: Color,
+	pub color: (u8, u8, u8),
 	pub stackable: bool,
 	pub prev_slot: char,
 	pub dmg: u8,
@@ -488,7 +489,7 @@ pub struct Item {
 }
 
 impl Item {
-	fn new(name: &str, item_type: ItemType, w: u8, stackable: bool, sym: char, color: Color) -> Item {
+	fn new(name: &str, item_type: ItemType, w: u8, stackable: bool, sym: char, color: (u8, u8, u8)) -> Item {
 		Item { name: String::from(name), 
 			item_type, weight: w, symbol: sym, color, stackable, prev_slot: '\0',
 				dmg: 1, dmg_dice: 1, bonus: 0, range: 0, armour_value: 0, 
@@ -661,7 +662,7 @@ impl TileInfo for Item {
 	// basically a duplicate of the same method for the Act trait in actor.rs
 	// but I don't think having my NPCs list in the main program be a vec of TileInfos
 	// insteaf of Act will work for the purposes I want to use it for ;/
-	fn get_tile_info(&self) -> (Color, char) {
+	fn get_tile_info(&self) -> ((u8, u8, u8), char) {
 		(self.color, self.symbol)
 	}
 }

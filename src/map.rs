@@ -15,17 +15,19 @@
 
 extern crate rand;
 extern crate sdl2;
+extern crate serde;
 
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::f32;
 
+use serde::{Serialize, Deserialize};
 use rand::Rng;
-use sdl2::pixels::Color;
 
+use crate::display;
 use crate::ship;
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Tile {
 	Blank,
 	Wall,
@@ -33,7 +35,7 @@ pub enum Tile {
 	Tree,
 	Dirt,
 	Grass,
-	Player(Color),
+	Player((u8, u8, u8)),
 	Water,
 	DeepWater,
 	WorldEdge,
@@ -42,7 +44,7 @@ pub enum Tile {
 	SnowPeak,
 	Gate,
 	StoneFloor,
-	Thing(Color, char), // ie., NPC or item so far,
+	Thing((u8, u8, u8), char), // ie., NPC or item so far,
 	Separator,
 	ShipPart(char),
 	Shipwreck(char, String),
