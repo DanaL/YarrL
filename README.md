@@ -10,4 +10,4 @@ I have arbitrarily declared that YarrL reached version 0.2.0 at the end of 7DRL.
 
 A couple of screenshots featuring exploring an island and sailing past a shipwreck:
 ![exploring the coast of an island](screenshot1.png)
-![sailing past a ship wreck](screenshot1.png)
+![sailing past a ship wreck](screenshot2.png)
