@@ -1579,8 +1579,6 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 }
 
 fn main() {
-	println!("{}", util::cartesian_d(19, 144, 17, 131));
-	println!("{}", util::cartesian_d(18, 130, 17, 131));
 	start_game();
 }
 

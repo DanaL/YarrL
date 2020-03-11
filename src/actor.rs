@@ -390,7 +390,7 @@ fn do_special_dmg(state: &mut GameState, special_dmg: &str) {
 
 fn stealth_check(state: &mut GameState, m: &mut Monster) {
 	let dex_mod = Player::mod_for_stat(state.player.dexterity);
-	if super::do_ability_check(dex_mod, 13, state.player.prof_bonus as i8) {
+	if !super::do_ability_check(dex_mod, 13, state.player.prof_bonus as i8) {
 		m.aware_of_player = true;
 		state.write_msg_buff("Something snarls.");
 	}
@@ -542,7 +542,7 @@ fn castaway_action(m: &mut Monster, state: &mut GameState,
 			let next_c = loc.1;
 
 			// The castaway won't wander too far from their campsite
-			if util::cartesian_d(m.row, next_r, m.col, next_c) < 4 {
+			if util::cartesian_d(m.row, m.col, next_r, next_c) < 4 {
 				m.row = next_r;
 				m.col = next_c;
 			}
@@ -596,14 +596,13 @@ fn pirate_action(m: &mut Monster, state: &mut GameState,
 		return Ok(());
 	} 
 
+	// Too far away and they just ignore the player
 	let d = util::cartesian_d(m.row, m.col, state.player.row, state.player.col);
-
 	if d > 20 {
 		return Ok(())
 	}
 
 	if m.aware_of_player {
-		// Too far away and they just ignore the player
 		let mut passable = HashSet::new();
 		passable.insert(map::Tile::Dirt);
 		passable.insert(map::Tile::Grass);
@@ -634,7 +633,7 @@ fn pirate_action(m: &mut Monster, state: &mut GameState,
 		}
 
 		// The pirate won't wander too far from their campsite
-		if util::cartesian_d(m.row, next_r, m.col, next_c) < 9 {
+		if util::cartesian_d(m.anchor.0, m.anchor.1, next_r, next_c) < 9 {
 			m.row = next_r;
 			m.col = next_c;
 		}
