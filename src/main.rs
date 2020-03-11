@@ -1527,7 +1527,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 						.collect::<Vec<(usize, usize)>>();
 
 			for loc in locs {
-				let d = util::cartesian_d(loc.0, state.player.row, loc.1, state.player.col);
+				let d = util::cartesian_d(loc.0, loc.1, state.player.row, state.player.col);
 				if d < 75 { 
 					let mut npc = state.npcs.remove(&loc).unwrap();
 					npc.act(state, ships)?;
@@ -1579,6 +1579,8 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 }
 
 fn main() {
+	println!("{}", util::cartesian_d(19, 144, 17, 131));
+	println!("{}", util::cartesian_d(18, 130, 17, 131));
 	start_game();
 }
 

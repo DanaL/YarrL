@@ -216,6 +216,7 @@ fn create_island(state: &mut GameState,
 	let mut max_campsites = 0;
 	let mut max_fruit = 0;
 	let mut spring = false;
+	let mut skeleton_island = false;
 
 	if island_type < 0.5 {
 		// regular island
@@ -226,6 +227,12 @@ fn create_island(state: &mut GameState,
 		max_campsites = 3;
 		island_info.length = 65;
 		spring = true;
+
+		// Once in a while, an island will be occupied by an undead
+		// skeleton captain who will raise an undead army 
+		if rand::thread_rng().gen_range(0.0, 1.0) < 1.0 {
+			skeleton_island = true;
+		}
 	} else if island_type < 0.85 {
 		// atoll
 		island = map::generate_atoll();
@@ -275,31 +282,44 @@ fn create_island(state: &mut GameState,
 	for _ in 0..rand::thread_rng().gen_range(0, max_fruit) {
 		add_fruit(&state.map, island_info, items);
 	}
-	for _ in 0..rand::thread_rng().gen_range(0, max_campsites) {
-		set_campsite(state, island_info, items);
-	}
 
-	set_castaway(state, island_info, items);
+	if !skeleton_island {
+		for _ in 0..rand::thread_rng().gen_range(0, max_campsites) {
+			set_campsite(state, island_info, items);
+		}
+	}
 
 	if rand::thread_rng().gen_range(0.0, 1.0) < 0.2 {
 		place_fort(&mut state.map, island_info, items);
 	}
 
-	// let's add some monsters in 
-	for _ in 2..rand::thread_rng().gen_range(3, 5) {
-		let loc = find_location_for_land_monster(&state.map, island_info);
-		let s = Monster::new_snake(loc.0, loc.1);
-		state.npcs.insert(loc, s);
-	}
-	for _ in 1..rand::thread_rng().gen_range(2, 4) {
-		let loc = find_location_for_land_monster(&state.map, island_info);
-		let b = Monster::new_boar(loc.0, loc.1);
-		state.npcs.insert(loc, b);
-	}
-	if rand::thread_rng().gen_range(0.0, 1.0) < 0.1 {
-		let loc = find_location_for_land_monster(&state.map, island_info);
-		let p = Monster::new_panther(loc.0, loc.1);
-		state.npcs.insert(loc, p);
+	if !skeleton_island {
+		if rand::thread_rng().gen_range(0.0, 1.0) < 0.25 {
+			set_castaway(state, island_info, items);
+		}
+
+		// let's add some monsters in 
+		for _ in 2..rand::thread_rng().gen_range(3, 5) {
+			let loc = find_location_for_land_monster(&state.map, island_info);
+			let s = Monster::new_snake(loc.0, loc.1);
+			state.npcs.insert(loc, s);
+		}
+		for _ in 1..rand::thread_rng().gen_range(2, 4) {
+			let loc = find_location_for_land_monster(&state.map, island_info);
+			let b = Monster::new_boar(loc.0, loc.1);
+			state.npcs.insert(loc, b);
+		}
+		if rand::thread_rng().gen_range(0.0, 1.0) < 0.1 {
+			let loc = find_location_for_land_monster(&state.map, island_info);
+			let p = Monster::new_panther(loc.0, loc.1);
+			state.npcs.insert(loc, p);
+		}
+	} else {
+		for _ in 0..rand::thread_rng().gen_range(8, 11) {
+			let loc = find_location_for_land_monster(&state.map, island_info);
+			let s = Monster::new_skeleton(loc.0, loc.1);
+			state.npcs.insert(loc, s);
+		}
 	}
 }
 

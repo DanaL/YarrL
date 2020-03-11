@@ -25,7 +25,7 @@ use std::collections::{HashMap, HashSet};
 use serde::{Serialize, Deserialize};
 
 use crate::dice;
-use crate::display::{DARK_BROWN, GREY, GREEN, BRIGHT_RED, BLUE, GOLD, YELLOW_ORANGE};
+use crate::display::{DARK_BROWN, GREY, GREEN, BRIGHT_RED, BLUE, GOLD, YELLOW_ORANGE, WHITE};
 use crate::items::{Item, Inventory};
 use crate::map;
 use crate::map::Tile;
@@ -210,6 +210,7 @@ pub struct Monster {
 	pub aware_of_player: bool,
 	pub hostile: bool,
 	pub voice_line: String,
+	pub owned: u8,
 }
 
 impl Monster {
@@ -218,7 +219,7 @@ impl Monster {
 		Monster { name, ac, hp, symbol, row, col, color, hit_bonus, 
 			dmg, dmg_dice, dmg_bonus, special_dmg: String::from(""),
 			gender: 0, anchor: (0, 0), score, aware_of_player: false, hostile: true,
-			voice_line: String::from("") }
+			voice_line: String::from(""), owned: 0 }
 	}
 
 	pub fn new_merperson(row: usize, col: usize) -> Monster {
@@ -241,8 +242,17 @@ impl Monster {
 		m
 	}
 
+	pub fn new_skeleton(row: usize, col: usize) -> Monster {
+		let hp = dice::roll(6, 2, 2);
+
+		let mut s = Monster::new(String::from("skeletal pirate"), 13, hp, 'Z', row, col, WHITE,
+			4, 6, 1, 0, 5);
+
+		s
+	}
+
 	pub fn new_pirate(row: usize, col: usize, anchor: (usize, usize)) -> Monster {
-		let hp = dice::roll(8, 2, 2);
+		let hp = dice::roll(8, 2, 0);
 
 		let mut p = Monster::new(String::from("marooned pirate"), 14, hp, '@', row, col, GREY,
 			5, 6, 1, 0, 10);
@@ -331,6 +341,8 @@ impl Monster {
 			castaway_action(self, state, ships)?;
 		} else if self.name == "wild boar" {
 			basic_monster_action(self, state, ships, "gores")?;
+		} else if self.name == "skeleton" {
+			basic_undead_action(self, state, ships);
 		} else {
 			basic_monster_action(self, state, ships, "bites")?;
 		}
@@ -382,6 +394,59 @@ fn stealth_check(state: &mut GameState, m: &mut Monster) {
 		m.aware_of_player = true;
 		state.write_msg_buff("Something snarls.");
 	}
+}
+
+
+fn basic_undead_action(m: &mut Monster, state: &mut GameState,
+							ships: &HashMap<(usize, usize), Ship>
+							) -> Result<(), String> {
+
+	// Skeletons are slow, and miss every third turn
+	if state.turn % 3 == 0 {
+		return Ok(());
+	}
+
+	// Otherwise they advance on the player if they are neaerby and attack them
+	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
+		if super::attack_player(state, m) {
+			let s = format!("The {} claws at you!", m.name);
+			state.write_msg_buff(&s);
+			let dmg_roll = dice::roll(m.dmg, m.dmg_dice, m.dmg_bonus as i8);
+			super::player_takes_dmg(&mut state.player, dmg_roll, &m.name)?;
+
+			if m.special_dmg != "" {
+				do_special_dmg(state, &m.special_dmg);
+			}
+		}
+	} else {
+		let dis = util::cartesian_d(m.row, m.col, state.player.row, state.player.col);
+		if dis < 25 {
+			let mut passable = HashSet::new();
+			passable.insert(map::Tile::Dirt);
+			passable.insert(map::Tile::Grass);
+			passable.insert(map::Tile::Sand);
+			passable.insert(map::Tile::Tree);
+			passable.insert(map::Tile::Floor);
+			passable.insert(map::Tile::Water);
+
+			let path = find_path(state, m.row, m.col, 
+				state.player.row, state.player.col, &passable, ships);
+		
+			if path.len() > 1 {
+				let new_loc = path[1];
+				if state.npcs.contains_key(&new_loc) {
+					let s = format!("The {} is blocked.", m.name);
+					state.write_msg_buff(&s);
+					return Ok(());
+				} 
+
+				m.row = new_loc.0;
+				m.col = new_loc.1;
+			}
+		}
+	}
+
+	Ok(())
 }
 
 fn basic_monster_action(m: &mut Monster, state: &mut GameState,
