@@ -315,11 +315,17 @@ fn create_island(state: &mut GameState,
 			state.npcs.insert(loc, p);
 		}
 	} else {
-		for _ in 0..rand::thread_rng().gen_range(8, 11) {
+		let roll = rand::thread_rng().gen_range(8, 11); 
+		for _ in 0..roll {
 			let loc = find_location_for_land_monster(&state.map, island_info);
 			let s = Monster::new_skeleton(loc.0, loc.1);
 			state.npcs.insert(loc, s);
 		}
+
+		let loc = find_location_for_land_monster(&state.map, island_info);
+		let mut boss = Monster::new_undead_boss(loc.0, loc.1);
+		boss.owned = roll;
+		state.npcs.insert(loc, boss);
 	}
 }
 

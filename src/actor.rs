@@ -243,10 +243,19 @@ impl Monster {
 	}
 
 	pub fn new_skeleton(row: usize, col: usize) -> Monster {
-		let hp = dice::roll(6, 2, 2);
+		let hp = dice::roll(6, 2, 1);
 
 		let mut s = Monster::new(String::from("skeletal pirate"), 13, hp, 'Z', row, col, WHITE,
 			4, 6, 1, 0, 5);
+
+		s
+	}
+
+	pub fn new_undead_boss(row: usize, col: usize) -> Monster {
+		let hp = dice::roll(6, 4, 0);
+
+		let mut s = Monster::new(String::from("undead pirate captain"), 14, hp, 'Z', row, col, BRIGHT_RED,
+			5, 8, 1, 0, 15);
 
 		s
 	}
@@ -343,6 +352,8 @@ impl Monster {
 			basic_monster_action(self, state, ships, "gores")?;
 		} else if self.name == "skeleton" {
 			basic_undead_action(self, state, ships);
+		} else if self.name == "undead pirate captain" {
+			undead_boss_action(self, state, ships);
 		} else {
 			basic_monster_action(self, state, ships, "bites")?;
 		}
@@ -396,6 +407,58 @@ fn stealth_check(state: &mut GameState, m: &mut Monster) {
 	}
 }
 
+
+fn undead_boss_action(m: &mut Monster, state: &mut GameState,
+							ships: &HashMap<(usize, usize), Ship>
+							) -> Result<(), super::ExitReason> {
+	
+	println!("# of minions: {}", m.owned);
+	if m.owned < 15 && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
+		let loc = util::rnd_adj();
+		let target_r = (m.row as i32 + loc.0) as usize;
+		let target_c = (m.col as i32 + loc.1) as usize;
+
+		if super::sq_is_open(state, ships, target_r, target_c) 
+				&& map::is_passable(&state.map[target_r][target_c]) {
+			let s = Monster::new_skeleton(target_r, target_c);
+			state.npcs.insert((target_r, target_c), s);
+			m.owned += 1;
+
+			let dis = util::cartesian_d(m.row, m.col, state.player.row, state.player.col);
+			if dis < 8 {
+				let roll = dice::roll(3, 1, 0);
+				if roll == 1 { state.write_msg_buff("The undead captain cackles."); }
+				else if roll == 2 { state.write_msg_buff("Arise, matey!"); }
+				else { state.write_msg_buff("Yer captain ain't done with ye, swab!"); }
+			}
+		}
+	} else if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
+		if super::attack_player(state, m) {
+			let s = format!("The {} claws at you!", m.name);
+			state.write_msg_buff(&s);
+			let dmg_roll = dice::roll(m.dmg, m.dmg_dice, m.dmg_bonus as i8);
+			super::player_takes_dmg(&mut state.player, dmg_roll, &m.name)?;
+
+			if m.special_dmg != "" {
+				do_special_dmg(state, &m.special_dmg);
+			}
+		}
+	} else {
+		let mut passable = HashSet::new();
+		passable.insert(map::Tile::Dirt);
+		passable.insert(map::Tile::Grass);
+		passable.insert(map::Tile::Sand);
+		passable.insert(map::Tile::Tree);
+		passable.insert(map::Tile::Floor);
+		passable.insert(map::Tile::Water);
+
+		let loc = find_adj_empty_sq(m.row as i32, m.col as i32, state, ships, &passable);
+		m.row = loc.0;
+		m.col = loc.1;
+	}
+
+	Ok(())
+}
 
 fn basic_undead_action(m: &mut Monster, state: &mut GameState,
 							ships: &HashMap<(usize, usize), Ship>
