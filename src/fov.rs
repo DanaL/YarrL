@@ -15,11 +15,11 @@
 
 use std::collections::HashMap;
 
-use crate::actor::Player;
+use crate::actor::{Player, NPCTracker};
 use crate::display::{WHITE, LIGHT_BLUE, BROWN};
 use crate::map;
 use crate::map::in_bounds;
-use super::{GameState, Map, NPCTable};
+use super::{GameState, Map};
 use crate::items::{ItemsTable, TileInfo};
 use crate::ship::Ship;
 
@@ -32,7 +32,7 @@ use crate::ship::Ship;
 // scheme complicated, I think)
 
 fn calc_actual_tile(r: usize, c: usize, map: &Map, 
-		npcs: &NPCTable, items: &ItemsTable) -> map::Tile {
+		npcs: &NPCTracker, items: &ItemsTable) -> map::Tile {
 	if items.count_at(r, c) > 0 {
 		let i = items.peek_top(r, c);
 		if !i.hidden {
@@ -41,9 +41,9 @@ fn calc_actual_tile(r: usize, c: usize, map: &Map,
 		} else {
 			map[r][c].clone()
 		}
-	} else if npcs.contains_key(&(r, c)) {
-		let m = npcs.get(&(r, c)).unwrap();
-		map::Tile::Thing(m.color, m.symbol)
+	} else if npcs.is_npc_at(r, c) {
+		let ti = npcs.tile_info(r, c);
+		map::Tile::Thing(ti.1, ti.0)
 	} else {
 		map[r][c].clone()
 	}

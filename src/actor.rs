@@ -34,7 +34,7 @@ use crate::ship::Ship;
 use crate::util;
 use crate::util::sqs_adj;
 
-use super::{do_ability_check, GameState, Map, NPCTable};
+use super::{do_ability_check, GameState, Map};
 
 #[derive(Debug,Serialize,Deserialize)]
 pub enum PirateType {
@@ -190,9 +190,225 @@ impl Player {
 	}
 }
 
+// The NPCTracker struct arose out of me wanting to have relationships between monsters.
+// The first example is the undead boss who can create new skeletons. I obviously wanted
+// to limit the # of skellies they could make so I didn't overwhelm the map, so I needed
+// a way to tell the boss when a skeleton was killed. My first idea was to include a boss
+// field that was a Weak Ref to the npc who created you, but I after struggling a bit with
+// the Weak Ref syntax down, I discovered that serde (seemingly) can't serialize objects 
+// with Rc/RefCell/etc, so I switched to this, essentially building a mini-database in 
+// memory to track monsters. I keep a hash table of ID-to-NPC and another with their 
+// locations. (This replaces a hash table that was just location -> NPC)
+//
+// Moving all the monster create functions here just made sense.
 #[derive(Serialize, Deserialize)]
+pub struct NPCTracker {
+    npc_id: usize,
+    npc_list: HashMap<usize, Monster>,
+    loc_index: HashMap<(usize, usize), usize>,
+}
+
+impl NPCTracker {
+    pub fn new() -> NPCTracker {
+        NPCTracker { npc_id:0, npc_list: HashMap::new(), loc_index: HashMap::new() }
+    }
+
+    pub fn is_npc_at(&self, row: usize, col: usize) -> bool {
+        self.loc_index.contains_key(&(row, col))
+    }
+
+    pub fn all_npc_locs(&self) -> Vec<(usize, usize)> {
+        let locs = self.loc_index.keys()
+            .map(|k| k.clone())
+            .collect::<Vec<(usize, usize)>>();
+
+        locs
+    }
+
+    pub fn tile_info(&self, row: usize, col: usize) -> (char, (u8, u8, u8)) {
+        let id = self.loc_index.get(&(row, col)).unwrap();
+        let m = self.npc_list.get(&id).unwrap();
+
+        (m.symbol, m.color)
+    }
+
+    pub fn npc_at(&mut self, row: usize, col: usize) -> Option<Monster> {
+        let loc = (row, col);
+        if self.loc_index.contains_key(&loc) {
+            let id = self.loc_index.get(&loc).unwrap();
+            return Some(self.npc_list[id].clone());
+        }
+
+        None
+    }
+
+    pub fn update(&mut self, m: Monster, prev_row: usize, prev_col: usize) {
+        let id = m.id;
+        if prev_row != m.row || prev_col != m.col {
+            let loc = (m.row, m.col);
+            self.loc_index.remove(&(prev_row, prev_col));
+            self.loc_index.insert(loc, id);
+        }
+        self.npc_list.insert(id, m);
+    }
+
+    pub fn remove(&mut self, id: usize, row: usize, col: usize) {
+        self.npc_list.remove(&id);
+        self.loc_index.remove(&(row, col));
+    }
+
+	pub fn new_merperson(&mut self, row: usize, col: usize) {
+        self.npc_id += 1;
+        let id = self.npc_id;
+		let hp = dice::roll(8, 2, 0);
+
+		let mut m = Monster::new(String::from("merperson"), id, 13, hp, 'y', row, col, YELLOW_ORANGE,
+			5, 1, 1, 0, 10);
+
+		m.aware_of_player = true; // they keep their eyes out for sailors
+
+		let roll = rand::thread_rng().gen_range(0.0, 1.0);
+		if roll < 0.33 {
+			m.name = String::from("mermaid");
+			m.gender = 1;
+		} else if roll < 0.66 {
+			m.name = String::from("merman");
+			m.gender = 2;
+		};
+
+        self.npc_list.insert(id, m);
+        self.loc_index.insert((row, col), id);
+	}
+
+	pub fn new_skeleton(&mut self, row: usize, col: usize) {
+        self.npc_id += 1;
+        let id = self.npc_id;
+		let hp = dice::roll(6, 2, 1);
+
+		let mut s = Monster::new(String::from("skeletal pirate"), id, 13, hp, 'Z', row, col, WHITE,
+			4, 6, 1, 0, 5);
+
+        self.npc_list.insert(id, s);
+        self.loc_index.insert((row, col), id);
+	}
+
+	pub fn new_undead_boss(&mut self, row: usize, col: usize) {
+        self.npc_id += 1;
+        let id = self.npc_id;
+		let hp = dice::roll(6, 4, 0);
+
+		let mut s = Monster::new(String::from("undead pirate captain"), id, 14, hp, 'Z', row, col, BRIGHT_RED,
+			5, 8, 1, 0, 15);
+
+        self.npc_list.insert(id, s);
+        self.loc_index.insert((row, col), id);
+	}
+
+	pub fn new_pirate(&mut self, row: usize, col: usize, anchor: (usize, usize)) {
+        self.npc_id += 1;
+        let id = self.npc_id;
+		let hp = dice::roll(8, 2, 0);
+
+		let mut p = Monster::new(String::from("marooned pirate"), id, 14, hp, '@', row, col, GREY,
+			5, 6, 1, 0, 10);
+		p.anchor = anchor;
+
+		let roll = rand::thread_rng().gen_range(0.0, 1.0);
+		if roll < 0.33 {
+			p.gender = 1;
+		} else if roll < 0.66 {
+			p.gender = 2;
+		};
+		
+        self.npc_list.insert(id, p);
+        self.loc_index.insert((row, col), id);
+	}
+
+	pub fn new_castaway(&mut self, row: usize, col: usize, anchor: (usize, usize), voice_line: String) {
+        self.npc_id += 1;
+        let id = self.npc_id;
+		let hp = dice::roll(8, 1, 0);
+
+		let mut c = Monster::new(String::from("castaway"), id, 10, hp, '@', row, col, GREY,
+			3, 6, 1, 0, 0);
+		c.anchor = anchor;
+        c.voice_line = String::from(voice_line);
+
+		let roll = rand::thread_rng().gen_range(0.0, 1.0);
+		if roll < 0.33 {
+			c.gender = 1;
+		} else if roll < 0.66 {
+			c.gender = 2;
+		};
+		c.hostile = false;
+	
+        self.npc_list.insert(id, c);
+        self.loc_index.insert((row, col), id);
+	}
+	
+	pub fn new_snake(&mut self, row: usize, col: usize) {
+        self.npc_id += 1;
+        let id = self.npc_id;
+		let hp = dice::roll(6, 2, 0);
+		let roll = rand::thread_rng().gen_range(0.0, 1.0);
+		
+		let colour = if roll < 0.33 {
+			BRIGHT_RED
+		} else if roll < 0.66 {
+			GOLD
+		} else {
+			GREEN 
+		};
+		
+		let mut s = Monster::new(String::from("snake"), id, 14, hp, 'S', row, col, colour,
+			4, 4, 1, 0, 10);
+		s.special_dmg = String::from("poison");
+
+        self.npc_list.insert(id, s);
+        self.loc_index.insert((row, col), id);
+	}
+	
+	pub fn new_shark(&mut self, row: usize, col: usize) {
+        self.npc_id += 1;
+        let id = self.npc_id;
+		let hp = dice::roll(6, 3, 0);
+		
+        let s = Monster::new(String::from("shark"), id, 12, hp, '^', row, col, GREY,
+			4, 8, 1, 2, 10);
+
+        self.npc_list.insert(id, s);
+        self.loc_index.insert((row, col), id);
+	}
+
+	pub fn new_panther(&mut self, row: usize, col: usize) {
+        self.npc_id += 1;
+        let id = self.npc_id;
+		let hp = dice::roll(8, 4, 0);
+		let mut p = Monster::new(String::from("panther"), id, 12, hp, 'f', row, col, BLUE,
+			5, 12, 1, 2, 10);
+
+		p.aware_of_player = true; // always on the hunt
+
+        self.npc_list.insert(id, p);
+        self.loc_index.insert((row, col), id);
+	}
+
+	pub fn new_boar(&mut self, row: usize, col: usize) {
+        self.npc_id += 1;
+        let id = self.npc_id;
+		let hp = dice::roll(5, 2, 0);
+		let b = Monster::new(String::from("wild boar"), id, 12, hp, 'b', row, col, DARK_BROWN,
+			4, 6, 1, 2, 5);
+
+        self.npc_list.insert(id, b);
+        self.loc_index.insert((row, col), id);
+	}
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Monster {
 	pub name: String,
+    pub id: usize,
 	pub ac: u8,
 	pub hp: u8,
 	pub symbol: char,
@@ -211,129 +427,16 @@ pub struct Monster {
 	pub hostile: bool,
 	pub voice_line: String,
 	pub owned: u8,
+    pub boss: usize,
 }
 
 impl Monster {
-	pub fn new(name: String, ac:u8, hp: u8, symbol: char, row: usize, col: usize, color: (u8, u8, u8),
+	pub fn new(name: String, id: usize, ac:u8, hp: u8, symbol: char, row: usize, col: usize, color: (u8, u8, u8),
 			hit_bonus: i8, dmg: u8, dmg_dice: u8, dmg_bonus: u8, score: u8) -> Monster {
-		Monster { name, ac, hp, symbol, row, col, color, hit_bonus, 
+		Monster { name, id, ac, hp, symbol, row, col, color, hit_bonus, 
 			dmg, dmg_dice, dmg_bonus, special_dmg: String::from(""),
 			gender: 0, anchor: (0, 0), score, aware_of_player: false, hostile: true,
-			voice_line: String::from(""), owned: 0 }
-	}
-
-	pub fn new_merperson(row: usize, col: usize) -> Monster {
-		let hp = dice::roll(8, 2, 0);
-
-		let mut m = Monster::new(String::from("merperson"), 13, hp, 'y', row, col, YELLOW_ORANGE,
-			5, 1, 1, 0, 10);
-
-		m.aware_of_player = true; // they keep their eyes out for sailors
-
-		let roll = rand::thread_rng().gen_range(0.0, 1.0);
-		if roll < 0.33 {
-			m.name = String::from("mermaid");
-			m.gender = 1;
-		} else if roll < 0.66 {
-			m.name = String::from("merman");
-			m.gender = 2;
-		};
-
-		m
-	}
-
-	pub fn new_skeleton(row: usize, col: usize) -> Monster {
-		let hp = dice::roll(6, 2, 1);
-
-		let mut s = Monster::new(String::from("skeletal pirate"), 13, hp, 'Z', row, col, WHITE,
-			4, 6, 1, 0, 5);
-
-		s
-	}
-
-	pub fn new_undead_boss(row: usize, col: usize) -> Monster {
-		let hp = dice::roll(6, 4, 0);
-
-		let mut s = Monster::new(String::from("undead pirate captain"), 14, hp, 'Z', row, col, BRIGHT_RED,
-			5, 8, 1, 0, 15);
-
-		s
-	}
-
-	pub fn new_pirate(row: usize, col: usize, anchor: (usize, usize)) -> Monster {
-		let hp = dice::roll(8, 2, 0);
-
-		let mut p = Monster::new(String::from("marooned pirate"), 14, hp, '@', row, col, GREY,
-			5, 6, 1, 0, 10);
-		p.anchor = anchor;
-
-		let roll = rand::thread_rng().gen_range(0.0, 1.0);
-		if roll < 0.33 {
-			p.gender = 1;
-		} else if roll < 0.66 {
-			p.gender = 2;
-		};
-		
-		p
-	}
-
-	pub fn new_castaway(row: usize, col: usize, anchor: (usize, usize)) -> Monster {
-		let hp = dice::roll(8, 1, 0);
-
-		let mut c = Monster::new(String::from("castaway"), 10, hp, '@', row, col, GREY,
-			3, 6, 1, 0, 0);
-		c.anchor = anchor;
-
-		let roll = rand::thread_rng().gen_range(0.0, 1.0);
-		if roll < 0.33 {
-			c.gender = 1;
-		} else if roll < 0.66 {
-			c.gender = 2;
-		};
-		c.hostile = false;
-	
-		c
-	}
-	
-	pub fn new_snake(row: usize, col: usize) -> Monster {
-		let hp = dice::roll(6, 2, 0);
-		let roll = rand::thread_rng().gen_range(0.0, 1.0);
-		
-		let colour = if roll < 0.33 {
-			BRIGHT_RED
-		} else if roll < 0.66 {
-			GOLD
-		} else {
-			GREEN 
-		};
-		
-		let mut s = Monster::new(String::from("snake"), 14, hp, 'S', row, col, colour,
-			4, 4, 1, 0, 10);
-		s.special_dmg = String::from("poison");
-
-		s
-	}
-	
-	pub fn new_shark(row: usize, col: usize) -> Monster {
-		let hp = dice::roll(6, 3, 0);
-		Monster::new(String::from("shark"), 12, hp, '^', row, col, GREY,
-			4, 8, 1, 2, 10)
-	}
-
-	pub fn new_panther(row: usize, col: usize) -> Monster {
-		let hp = dice::roll(8, 4, 0);
-		let mut p = Monster::new(String::from("panther"), 12, hp, 'f', row, col, BLUE,
-			5, 12, 1, 2, 10);
-
-		p.aware_of_player = true; // always on the hunt
-
-		p
-	}
-
-	pub fn new_boar(row: usize, col: usize) -> Monster {
-		let hp = dice::roll(5, 2, 0);
-		Monster::new(String::from("wild boar"), 12, hp, 'b', row, col, DARK_BROWN,
-			4, 6, 1, 2, 5)
+			voice_line: String::from(""), owned: 0, boss: 0 }
 	}
 
 	// I'm sure life doesn't need to be this way, but got to figure out the
@@ -411,8 +514,6 @@ fn stealth_check(state: &mut GameState, m: &mut Monster) {
 fn undead_boss_action(m: &mut Monster, state: &mut GameState,
 							ships: &HashMap<(usize, usize), Ship>
 							) -> Result<(), super::ExitReason> {
-	
-	println!("# of minions: {}", m.owned);
 	if m.owned < 15 && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
 		let loc = util::rnd_adj();
 		let target_r = (m.row as i32 + loc.0) as usize;
@@ -420,8 +521,7 @@ fn undead_boss_action(m: &mut Monster, state: &mut GameState,
 
 		if super::sq_is_open(state, ships, target_r, target_c) 
 				&& map::is_passable(&state.map[target_r][target_c]) {
-			let s = Monster::new_skeleton(target_r, target_c);
-			state.npcs.insert((target_r, target_c), s);
+            state.npcs.new_skeleton(target_r, target_c);
 			m.owned += 1;
 
 			let dis = util::cartesian_d(m.row, m.col, state.player.row, state.player.col);
@@ -497,7 +597,7 @@ fn basic_undead_action(m: &mut Monster, state: &mut GameState,
 		
 			if path.len() > 1 {
 				let new_loc = path[1];
-				if state.npcs.contains_key(&new_loc) {
+				if state.npcs.is_npc_at(new_loc.0, new_loc.1) {
 					let s = format!("The {} is blocked.", m.name);
 					state.write_msg_buff(&s);
 					return Ok(());
@@ -558,7 +658,7 @@ fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 	
 		if path.len() > 1 {
 			let new_loc = path[1];
-			if state.npcs.contains_key(&new_loc) {
+			if state.npcs.is_npc_at(new_loc.0, new_loc.1) {
 				let s = format!("The {} is blocked.", m.name);
 				state.write_msg_buff(&s);
 				return Ok(());
@@ -681,7 +781,7 @@ fn pirate_action(m: &mut Monster, state: &mut GameState,
 		let mut next_c = m.col;
 		if path.len() > 1 {
 			let new_loc = path[1];
-			if state.npcs.contains_key(&new_loc) {
+			if state.npcs.is_npc_at(new_loc.0, new_loc.1) {
 				let s = format!("The {} is blocked.", m.name);
 				state.write_msg_buff(&s);
 				return Ok(());
@@ -730,7 +830,7 @@ fn pick_fleeing_move(state: &mut GameState, m: &Monster, passable: HashSet<Tile>
 		let mv_r = (m.row as i32 + mv.0) as usize;
 		let mv_c = (m.col as i32 + mv.1) as usize;
 		if passable.contains(&state.map[mv_r][mv_c]) 
-				&& !state.npcs.contains_key(&(mv_r, mv_c)) { 
+				&& !state.npcs.is_npc_at(mv_r, mv_c) { 
 			return Some((mv_r, mv_c));
 		}
 	}
@@ -801,13 +901,12 @@ fn shark_action(m: &mut Monster, state: &mut GameState, ships: &HashMap<(usize, 
 		let mut water = HashSet::new();
 		water.insert(map::Tile::DeepWater);
 
-		//println!("Shark on turn {}", state.turn);
 		let path = find_path(state, m.row, m.col, 
 			state.player.row, state.player.col, &water, ships);
 		
 		if path.len() > 1 {
 			let new_loc = path[1];
-			if state.npcs.contains_key(&new_loc) {
+			if state.npcs.is_npc_at(new_loc.0, new_loc.1) {
 				let s = format!("The {} is blocked.", m.name);
 				state.write_msg_buff(&s);
 				return Ok(());

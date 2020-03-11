@@ -32,7 +32,7 @@ mod util;
 
 use serde::{Serialize, Deserialize};
 
-use crate::actor::{Monster, Player, PirateType};
+use crate::actor::{Monster, NPCTracker, Player, PirateType};
 use crate::content_factory::generate_world;
 use crate::display::{GameUI, SidebarInfo};
 use crate::items::{Item, ItemType, ItemsTable};
@@ -53,7 +53,6 @@ const FOV_WIDTH: usize = 41;
 const FOV_HEIGHT: usize = 21;
 
 pub type Map = Vec<Vec<map::Tile>>;
-type NPCTable = HashMap<(usize, usize), Monster>;
 
 pub enum ExitReason {
 	Save,
@@ -92,7 +91,7 @@ pub struct GameState {
 	msg_buff: VecDeque<String>,
 	msg_history: VecDeque<(String, u32)>,
 	map: Map,
-	npcs: NPCTable,
+	npcs: NPCTracker,
 	turn: u32,
 	world_seen: HashSet<(usize, usize)>,
 	pirate_lord: String,
@@ -105,7 +104,7 @@ pub struct GameState {
 }
 
 impl GameState {
-	pub fn new_pirate(name: String, p_type: PirateType, npcs: NPCTable) -> GameState {
+	pub fn new_pirate(name: String, p_type: PirateType, npcs: NPCTracker) -> GameState {
 		let player = match p_type {
 			PirateType::Swab => Player::new_swab(name),
 			PirateType::Seadog => Player::new_seadog(name),
@@ -161,7 +160,7 @@ fn sq_is_open(state: &GameState, ships: &HashMap<(usize, usize), Ship>,
 		return false;
 	} 
 
-	if state.npcs.contains_key(&(row, col)) {
+	if state.npcs.is_npc_at(row, col) {
 		return false;
 	}
 
@@ -264,7 +263,7 @@ fn player_takes_dmg(player: &mut Player, dmg: u8, source: &str) -> Result<(), Ex
 }
 
 fn attack_npc(state: &mut GameState, npc_row: usize, npc_col: usize) {
-	let mut npc = state.npcs.remove(&(npc_row, npc_col)).unwrap();
+	let mut npc = state.npcs.npc_at(npc_row, npc_col).unwrap();
 	npc.aware_of_player = true;
 	let str_mod = Player::mod_for_stat(state.player.strength);
 
@@ -295,14 +294,14 @@ fn attack_npc(state: &mut GameState, npc_row: usize, npc_col: usize) {
 			if npc.score > 0 {
 				state.player.max_stamina += 1;
 			}
+			state.npcs.remove(npc.id, npc_row, npc_col);
 		} else {
 			npc.hp -= dmg as u8;
-			state.npcs.insert((npc_row, npc_col), npc);
+			state.npcs.update(npc, npc_row, npc_col);
 		}
 	} else {
 		let s = format!("You miss the {}!", npc.name);
 		state.write_msg_buff(&s);
-		state.npcs.insert((npc_row, npc_col), npc);
 	}
 
 	state.turn += 1;
@@ -348,8 +347,8 @@ fn shoot(state: &mut GameState, dir: (i32, i32), gun: &Item, dex_mod: i8, gui: &
 		gui.write_screen(&mut state.msg_buff, &sbi);
 		// probably need to pause here, or I guess not because my frame drawing is so slow...
 
-		if state.npcs.contains_key(&(bullet_r as usize, bullet_c as usize)) {
-			let mut npc = state.npcs.remove(&(bullet_r as usize, bullet_c as usize)).unwrap();
+		if state.npcs.is_npc_at(bullet_r as usize, bullet_c as usize) {
+			let mut npc = state.npcs.npc_at(bullet_r as usize, bullet_c as usize).unwrap();
 			if do_ability_check(dex_mod, npc.ac, state.player.prof_bonus as i8) {
 				let s = format!("Your bullet hits the {}", npc.name);
 				state.write_msg_buff(&s);
@@ -369,16 +368,18 @@ fn shoot(state: &mut GameState, dir: (i32, i32), gun: &Item, dex_mod: i8, gui: &
 					let s = format!("You kill the {}!", npc.name);
 					state.write_msg_buff(&s);
 					state.player.score += npc.score;
-					return; // return here so the npc doesn't get added back into the npc structure
+					state.npcs.remove(npc.id, bullet_r as usize, bullet_c as usize);
+					return; 
 				} else {
 					npc.hp -= dmg as u8;
+					// Rust is such bullshit sometimes...
+					let npc_r = npc.row;
+					let npc_c = npc.col;
+					state.npcs.update(npc, npc_r, npc_c);
 				}
 
-				state.npcs.insert((bullet_r as usize, bullet_c as usize), npc);
 				break; // We hit someone so the bullet stops
-			} else {
-				state.npcs.insert((bullet_r as usize, bullet_c as usize), npc);
-			}
+			} 
 		}
 	}
 }
@@ -425,8 +426,8 @@ fn action_while_charmed(state: &mut GameState, items: &ItemsTable,
 		for c in -12..12 {
 			let sq_r = (state.player.row as i32 + r) as usize;
 			let sq_c = (state.player.col as i32 + c) as usize;
-			if state.npcs.contains_key(&(sq_r, sq_c)) { 
-				let m = &state.npcs[&(sq_r, sq_c)];
+			if state.npcs.is_npc_at(sq_r, sq_c) { 
+				let m = &state.npcs.npc_at(sq_r, sq_c).unwrap();
 				if m.name == "mermaid" || m.name == "merman" || m.name == "merperson" {
 					let d = util::cartesian_d(state.player.row, state.player.col, sq_r, sq_c);
 					if d < nearest {
@@ -489,23 +490,23 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 	}
 
 	let start_tile = &state.map[state.player.row][state.player.col];
-	let next_row = state.player.row as i32 + mv.0;
-	let next_col = state.player.col as i32 + mv.1;
-	let next_loc = (next_row as usize, next_col as usize);
-	let tile = &state.map[next_row as usize][next_col as usize];
+	let next_row = (state.player.row as i32 + mv.0) as usize;
+	let next_col = (state.player.col as i32 + mv.1) as usize;
+	let next_loc = (next_row, next_col);
+	let tile = &state.map[next_row][next_col];
 	
-	if state.npcs.contains_key(&next_loc) {
-		attack_npc(state, next_loc.0, next_loc.1);
+	if state.npcs.is_npc_at(next_row, next_col) {
+		attack_npc(state, next_row, next_col);
 	} else if ships.contains_key(&next_loc) {
-		state.player.col = next_col as usize;
-		state.player.row = next_row as usize;
+		state.player.col = next_col;
+		state.player.row = next_row;
 		let ship = ships.get(&next_loc).unwrap();
 		let s = format!("You climb aboard the {}.", ship.name);
 		state.write_msg_buff(&s);
 		state.turn += 1;
 	} else if map::is_passable(tile) {
-		state.player.col = next_col as usize;
-		state.player.row = next_row as usize;
+		state.player.col = next_col;
+		state.player.row = next_row;
 
 		match tile {
 			map::Tile::Water => state.write_msg_buff("You splash in the shallow water."),
@@ -1236,7 +1237,7 @@ fn preamble(gui: &mut GameUI) -> (GameState, ItemsTable, HashMap<(usize, usize),
 	menu.push("      leg slows you down but experience has taught ye a few".to_string());
 	menu.push("      tricks. And ye start with yer trusty flintlock.".to_string());
 
-	let npcs: NPCTable = HashMap::new();
+	let npcs = NPCTracker::new();
 	let mut ships: HashMap<(usize, usize), Ship> = HashMap::new();
 	let mut items = ItemsTable::new();
 	let state: GameState;
@@ -1566,18 +1567,15 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 		if state.turn > start_turn {
 			check_environment_hazards(state, ships)?;
 
-			let locs = state.npcs.keys()
-						.map(|v| v.clone())
-						.collect::<Vec<(usize, usize)>>();
-
+			let locs = state.npcs.all_npc_locs();
 			for loc in locs {
 				let d = util::cartesian_d(loc.0, loc.1, state.player.row, state.player.col);
 				if d < 75 { 
-					let mut npc = state.npcs.remove(&loc).unwrap();
+					let mut npc = state.npcs.npc_at(loc.0, loc.1).unwrap();
+					let prev_r = npc.row;
+					let prev_c = npc.col;
 					npc.act(state, ships)?;
-					let npc_r = npc.row;
-					let npc_c = npc.col;
-					state.npcs.insert((npc.row, npc.col), npc);
+					state.npcs.update(npc, prev_r, prev_c);
 				}
 			}
 

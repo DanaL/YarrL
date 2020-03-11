@@ -76,7 +76,6 @@ pub fn generate_world(state: &mut GameState,
 		ships: &mut HashMap<(usize, usize), Ship>) {
 
 	initialize_map(&mut state.map);
-
 	// at the moment I have two clue types: maps and 
 	// shipwrecks.
 	//
@@ -108,7 +107,6 @@ pub fn generate_world(state: &mut GameState,
 	create_island(state, items, &mut q3_info);
 	let mut q4_info = IslandInfo::new(100, 100);
 	create_island(state, items, &mut q4_info);
-
 	let islands = vec![q1_info, q2_info, q3_info, q4_info];
 
 	state.pirate_lord = get_pirate_lord();
@@ -120,7 +118,7 @@ pub fn generate_world(state: &mut GameState,
 	// player from just searching every shipwreck...
 	let mut c = Vec::new();
 	let chest = Item::get_macguffin(&state.pirate_lord);
-	c.push(chest);
+ 	c.push(chest);
 	let roll = rand::thread_rng().gen_range(0, 4);
 	let mut map_to_chest = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
 	map_to_chest.hidden = true;
@@ -273,6 +271,7 @@ fn create_island(state: &mut GameState,
 	
 	find_coastline(&state.map, island_info);
 	for _ in 0..rand::thread_rng().gen_range(0, max_shipwrecks) {
+
 		let cache = get_cache_items();
 		add_shipwreck(state, island_info, items, cache, false);
 	}
@@ -301,31 +300,26 @@ fn create_island(state: &mut GameState,
 		// let's add some monsters in 
 		for _ in 2..rand::thread_rng().gen_range(3, 5) {
 			let loc = find_location_for_land_monster(&state.map, island_info);
-			let s = Monster::new_snake(loc.0, loc.1);
-			state.npcs.insert(loc, s);
+            state.npcs.new_snake(loc.0, loc.1);
 		}
 		for _ in 1..rand::thread_rng().gen_range(2, 4) {
 			let loc = find_location_for_land_monster(&state.map, island_info);
-			let b = Monster::new_boar(loc.0, loc.1);
-			state.npcs.insert(loc, b);
+            state.npcs.new_boar(loc.0, loc.1);
 		}
 		if rand::thread_rng().gen_range(0.0, 1.0) < 0.1 {
 			let loc = find_location_for_land_monster(&state.map, island_info);
-			let p = Monster::new_panther(loc.0, loc.1);
-			state.npcs.insert(loc, p);
+            state.npcs.new_panther(loc.0, loc.1);
 		}
 	} else {
-		let roll = rand::thread_rng().gen_range(8, 11); 
-		for _ in 0..roll {
-			let loc = find_location_for_land_monster(&state.map, island_info);
-			let s = Monster::new_skeleton(loc.0, loc.1);
-			state.npcs.insert(loc, s);
-		}
-
+		let skellie_count = rand::thread_rng().gen_range(8, 11); 
 		let loc = find_location_for_land_monster(&state.map, island_info);
-		let mut boss = Monster::new_undead_boss(loc.0, loc.1);
-		boss.owned = roll;
-		state.npcs.insert(loc, boss);
+        state.npcs.new_undead_boss(loc.0, loc.1);
+		//boss.owned = roll;
+
+		for _ in 0..skellie_count {
+			let loc = find_location_for_land_monster(&state.map, island_info);
+            state.npcs.new_skeleton(loc.0, loc.1);
+		}
 	}
 }
 
@@ -485,11 +479,12 @@ fn set_campsite(state: &mut GameState,
 					let pirate_r = (r as i32 + delta.0) as usize;	
 					let pirate_c = (c as i32 + delta.1) as usize;
 	
-					if !state.npcs.contains_key(&(pirate_r, pirate_c)) {
-						let p = Monster::new_pirate(pirate_r, pirate_c, (r, c));
-						state.npcs.insert((pirate_r, pirate_c), p);
+					if !state.npcs.is_npc_at(pirate_r, pirate_c) {
+						state.npcs.new_pirate(pirate_r, pirate_c, (r, c));
 						break;	
 					}
+
+					break;
 				}
 			}
 	
@@ -534,13 +529,11 @@ fn set_castaway(state: &mut GameState,
 			let castaway_r = (r as i32 + delta.0) as usize;	
 			let castaway_c = (c as i32 + delta.1) as usize;
 
-			if !state.npcs.contains_key(&(castaway_r, castaway_c)) {
-				let mut p = Monster::new_castaway(castaway_r, castaway_c, (r, c));
-				p.voice_line = get_castaway_line();
-				state.npcs.insert((castaway_r, castaway_c), p);
+			if !state.npcs.is_npc_at(castaway_r, castaway_c) {
+				state.npcs.new_castaway(castaway_r, castaway_c, (r, c), get_castaway_line());
 				break;	
 			}
-
+            
 			break;
 		}	
 	}
@@ -869,13 +862,13 @@ fn place_mermaid(state: &mut GameState, loc: (usize, usize)) {
 		let delta_c = rand::thread_rng().gen_range(-5, 6);
 		let mer_r = (loc.0 as i32 + delta_r) as usize;
 		let mer_c = (loc.1 as i32 + delta_c) as usize;
+        
 		if map::in_bounds(&state.map, mer_r as i32, mer_c as i32) &&
 			(state.map[mer_r][mer_c] == Tile::Water ||
 				state.map[mer_r][mer_c] == Tile::DeepWater)	&&
-			!state.npcs.contains_key(&(mer_r, mer_c)) {
-			let m = Monster::new_merperson(mer_r, mer_c);
-			state.npcs.insert((mer_r, mer_c), m);
-			return;
+			    !state.npcs.is_npc_at(mer_r, mer_c) {
+                state.npcs.new_merperson(mer_r, mer_c);
+                return;
 		}
 	}
 }
@@ -1027,7 +1020,7 @@ fn largest_contiguous_block(map: &Vec<Vec<Tile>>, target: &Tile,
 	let mut targets_found: HashSet<(usize, usize)> = HashSet::new();
 	let mut best = HashSet::new();
 
-	'fuck: for r in offset_r..offset_r+length {
+	for r in offset_r..offset_r+length {
 		for c in offset_c..offset_c+length {
 			if map[r][c] == *target {
 				if !targets_found.contains(&(r, c)) {
