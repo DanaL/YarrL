@@ -280,28 +280,32 @@ impl NPCTracker {
         self.loc_index.insert((row, col), id);
 	}
 
-	pub fn new_skeleton(&mut self, row: usize, col: usize) {
+	pub fn new_skeleton(&mut self, row: usize, col: usize, boss_id: usize) {
         self.npc_id += 1;
         let id = self.npc_id;
 		let hp = dice::roll(6, 2, 1);
 
 		let mut s = Monster::new(String::from("skeletal pirate"), id, 13, hp, 'Z', row, col, WHITE,
 			4, 6, 1, 0, 5);
+        s.boss = boss_id;
 
         self.npc_list.insert(id, s);
         self.loc_index.insert((row, col), id);
 	}
 
-	pub fn new_undead_boss(&mut self, row: usize, col: usize) {
+	pub fn new_undead_boss(&mut self, row: usize, col: usize, initial_minion_count: u8) -> usize {
         self.npc_id += 1;
         let id = self.npc_id;
 		let hp = dice::roll(6, 4, 0);
 
 		let mut s = Monster::new(String::from("undead pirate captain"), id, 14, hp, 'Z', row, col, BRIGHT_RED,
 			5, 8, 1, 0, 15);
+        s.minions = initial_minion_count;
 
         self.npc_list.insert(id, s);
         self.loc_index.insert((row, col), id);
+
+        id
 	}
 
 	pub fn new_pirate(&mut self, row: usize, col: usize, anchor: (usize, usize)) {
@@ -426,7 +430,7 @@ pub struct Monster {
 	pub aware_of_player: bool,
 	pub hostile: bool,
 	pub voice_line: String,
-	pub owned: u8,
+	pub minions: u8,
     pub boss: usize,
 }
 
@@ -436,7 +440,7 @@ impl Monster {
 		Monster { name, id, ac, hp, symbol, row, col, color, hit_bonus, 
 			dmg, dmg_dice, dmg_bonus, special_dmg: String::from(""),
 			gender: 0, anchor: (0, 0), score, aware_of_player: false, hostile: true,
-			voice_line: String::from(""), owned: 0, boss: 0 }
+			voice_line: String::from(""), minions: 0, boss: 0 }
 	}
 
 	// I'm sure life doesn't need to be this way, but got to figure out the
@@ -514,15 +518,16 @@ fn stealth_check(state: &mut GameState, m: &mut Monster) {
 fn undead_boss_action(m: &mut Monster, state: &mut GameState,
 							ships: &HashMap<(usize, usize), Ship>
 							) -> Result<(), super::ExitReason> {
-	if m.owned < 15 && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
+    println!("flag");
+	if m.minions < 15 && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
 		let loc = util::rnd_adj();
 		let target_r = (m.row as i32 + loc.0) as usize;
 		let target_c = (m.col as i32 + loc.1) as usize;
 
 		if super::sq_is_open(state, ships, target_r, target_c) 
 				&& map::is_passable(&state.map[target_r][target_c]) {
-            state.npcs.new_skeleton(target_r, target_c);
-			m.owned += 1;
+            state.npcs.new_skeleton(target_r, target_c, m.id);
+			m.minions += 1;
 
 			let dis = util::cartesian_d(m.row, m.col, state.player.row, state.player.col);
 			if dis < 8 {

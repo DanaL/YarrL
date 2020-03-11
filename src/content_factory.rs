@@ -313,12 +313,11 @@ fn create_island(state: &mut GameState,
 	} else {
 		let skellie_count = rand::thread_rng().gen_range(8, 11); 
 		let loc = find_location_for_land_monster(&state.map, island_info);
-        state.npcs.new_undead_boss(loc.0, loc.1);
-		//boss.owned = roll;
-
+        let boss_id = state.npcs.new_undead_boss(loc.0, loc.1, skellie_count);
+        println!("Skellie boss at {} {}", loc.0, loc.1);
 		for _ in 0..skellie_count {
 			let loc = find_location_for_land_monster(&state.map, island_info);
-            state.npcs.new_skeleton(loc.0, loc.1);
+            state.npcs.new_skeleton(loc.0, loc.1, boss_id);
 		}
 	}
 }
