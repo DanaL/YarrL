@@ -330,7 +330,7 @@ impl Monster {
 	// I'm sure life doesn't need to be this way, but got to figure out the
 	// Rust polymorphism model
 	pub fn act(&mut self, state: &mut GameState, ships: &HashMap<(usize, usize), Ship>) 
-											-> Result<(), String> {
+											-> Result<(), super::ExitReason> {
 		if self.name == "shark" {
 			shark_action(self, state, ships)?;
 		} else if self.name == "marooned pirate" {
@@ -399,7 +399,7 @@ fn stealth_check(state: &mut GameState, m: &mut Monster) {
 
 fn basic_undead_action(m: &mut Monster, state: &mut GameState,
 							ships: &HashMap<(usize, usize), Ship>
-							) -> Result<(), String> {
+							) -> Result<(), super::ExitReason> {
 
 	// Skeletons are slow, and miss every third turn
 	if state.turn % 3 == 0 {
@@ -451,7 +451,7 @@ fn basic_undead_action(m: &mut Monster, state: &mut GameState,
 
 fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 							ships: &HashMap<(usize, usize), Ship>,
-							verb: &str) -> Result<(), String> {
+							verb: &str) -> Result<(), super::ExitReason> {
 	if m.aware_of_player && sqs_adj(m.row, m.col, state.player.row, state.player.col) {
 		if super::attack_player(state, m) {
 			let s = format!("The {} {} you!", m.name, verb);
@@ -510,7 +510,7 @@ fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 }
 
 fn castaway_action(m: &mut Monster, state: &mut GameState,
-					ships: &HashMap<(usize, usize), Ship>) -> Result<(), String> {
+					ships: &HashMap<(usize, usize), Ship>) -> Result<(), super::ExitReason> {
 	let pronoun = if m.gender == 0 {
 		"their"
 	} else if m.gender == 1 {
@@ -569,7 +569,7 @@ fn get_pirate_line() -> String {
 }
 
 fn pirate_action(m: &mut Monster, state: &mut GameState,
-					ships: &HashMap<(usize, usize), Ship>) -> Result<(), String> {
+					ships: &HashMap<(usize, usize), Ship>) -> Result<(), super::ExitReason> {
 	let pronoun = if m.gender == 0 {
 		"their"
 	} else if m.gender == 1 {
@@ -676,7 +676,7 @@ fn pick_fleeing_move(state: &mut GameState, m: &Monster, passable: HashSet<Tile>
 }
 
 // merfolk just want to lure the player to their death
-fn merfolk_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> {
+fn merfolk_action(m: &mut Monster, state: &mut GameState) -> Result<(), super::ExitReason> {
 	let dis = util::cartesian_d(m.row, m.col, state.player.row , state.player.col);
 	if dis < 13 {
 		if !state.player.charmed {
@@ -724,7 +724,7 @@ fn merfolk_action(m: &mut Monster, state: &mut GameState) -> Result<(), String> 
 }
 
 fn shark_action(m: &mut Monster, state: &mut GameState, ships: &HashMap<(usize, usize), Ship>) 
-													-> Result<(), String> {
+													-> Result<(), super::ExitReason> {
 	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
 		if super::attack_player(state, m) {
 			state.write_msg_buff("The shark bites you!");

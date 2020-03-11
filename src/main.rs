@@ -55,6 +55,13 @@ const FOV_HEIGHT: usize = 21;
 pub type Map = Vec<Vec<map::Tile>>;
 type NPCTable = HashMap<(usize, usize), Monster>;
 
+pub enum ExitReason {
+	Save,
+	Win,
+	Quit,
+	Death(String),
+}
+
 pub enum Cmd {
 	Quit,
 	Move(String),
@@ -247,9 +254,9 @@ fn do_ability_check(ability_mod: i8, difficulty: u8, bonus: i8) -> bool {
 	}
 }
 
-fn player_takes_dmg(player: &mut Player, dmg: u8, source: &str) -> Result<(), String> {
+fn player_takes_dmg(player: &mut Player, dmg: u8, source: &str) -> Result<(), ExitReason> {
 	if player.curr_stamina < dmg {
-		Err(source.to_string())
+		Err(ExitReason::Death(source.to_string()))
 	} else {
 		player.curr_stamina -= dmg;
 		Ok(())
@@ -403,7 +410,7 @@ fn fire_gun(state: &mut GameState, gui: &mut GameUI, items: &ItemsTable,
 }
 
 fn action_while_charmed(state: &mut GameState, items: &ItemsTable, 
-			ships: &HashMap<(usize, usize), Ship>) -> Result<(), String> {
+			ships: &HashMap<(usize, usize), Ship>) -> Result<(), ExitReason> {
 	// the charmed player attempts to swim to the mermaid
 	if state.player.on_ship {
 		state.player.on_ship = false;
@@ -452,7 +459,7 @@ fn action_while_charmed(state: &mut GameState, items: &ItemsTable,
 	Ok(())
 }
 
-fn check_environment_hazards(state: &mut GameState, ships: &HashMap<(usize, usize), Ship>) -> Result<(), String> {
+fn check_environment_hazards(state: &mut GameState, ships: &HashMap<(usize, usize), Ship>) -> Result<(), ExitReason> {
 	let pr = state.player.row;
 	let pc = state.player.col;
 
@@ -470,7 +477,7 @@ fn check_environment_hazards(state: &mut GameState, ships: &HashMap<(usize, usiz
 }
 
 fn do_move(state: &mut GameState, items: &ItemsTable, 
-			ships: &HashMap<(usize, usize), Ship>, dir: &str) -> Result<(), String> {
+			ships: &HashMap<(usize, usize), Ship>, dir: &str) -> Result<(), ExitReason> {
 	let mut mv = get_move_tuple(dir);
 
 	// if the player is poisoned they'll sometimes stagger
@@ -818,7 +825,7 @@ fn drop_item(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 	state.player.calc_ac();
 }
 
-fn pick_up(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) -> Result<(), String> {
+fn pick_up(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) -> Result<(), ExitReason> {
 	let item_count = items.count_at(state.player.row, state.player.col);
 	if item_count == 0 {
 		state.write_msg_buff("There is nothing here to pick up.");
@@ -831,7 +838,7 @@ fn pick_up(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) -> R
 		state.turn += 1;
 
 		if is_macguffin {
-			return Err(String::from("victory!"));
+			return Err(ExitReason::Win);
 		}
 	} else {
 		let mut menu = items.get_menu(state.player.row, state.player.col);
@@ -850,7 +857,7 @@ fn pick_up(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) -> R
 					state.player.inventory.add(item);
 				
 					if is_macguffin {
-						return Err(String::from("victory!"));
+						return Err(ExitReason::Win);
 					}
 				}
 			},
@@ -945,7 +952,7 @@ fn get_open_sq_adj_player(state: &GameState, ships: &HashMap<(usize, usize), Shi
 	}
 }
 
-fn ship_hit_land(state: &mut GameState, ship: &mut Ship, ships: &HashMap<(usize, usize), Ship>) -> Result<(), String> {
+fn ship_hit_land(state: &mut GameState, ship: &mut Ship, ships: &HashMap<(usize, usize), Ship>) -> Result<(), ExitReason> {
 	state.write_msg_buff("Ye've run yer ship aground!!");
 	state.write_msg_buff("You lose control o' the wheel!");
 	let mut new_wheel = ship.wheel + 2 + dice::roll(5, 1, 0) as i8;	
@@ -968,7 +975,7 @@ fn ship_hit_land(state: &mut GameState, ship: &mut Ship, ships: &HashMap<(usize,
 	Ok(())
 }
 
-fn sail(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
+fn sail(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), ExitReason> {
 	let mut ship = ships.remove(&(state.player.row, state.player.col)).unwrap();
 
 	let bow_tile = state.map[ship.bow_row][ship.bow_col].clone();
@@ -1166,10 +1173,10 @@ fn title_screen(gui: &mut GameUI) {
 	gui.write_long_msg(&lines, true);
 }
 
-fn confirm_quit(state: &GameState, gui: &mut GameUI) -> Result<(), String> {
+fn confirm_quit(state: &GameState, gui: &mut GameUI) -> Result<(), ExitReason> {
 	let sbi = state.curr_sidebar_info();
 	match gui.query_yes_no("Do you really want to Quit? (y/n)", &sbi) {
-		'y' => Err("quit".to_string()),
+		'y' => Err(ExitReason::Quit),
 		_ => Ok(()),
 	}
 }
@@ -1277,7 +1284,7 @@ fn existing_save_file(player_name: &str) -> bool {
 	false
 }
 
-fn serialize_game_data(state: &mut GameState, items: &ItemsTable, ships: &HashMap<(usize, usize), Ship>, gui: &mut GameUI) -> std::io::Result<()> { //-> Result<()> {
+fn serialize_game_data(state: &mut GameState, items: &ItemsTable, ships: &HashMap<(usize, usize), Ship>, gui: &mut GameUI) -> std::io::Result<()> { 
 	let filename = gen_save_filename(&state.player.name);
 	let game_data = (state, items, ships);
 
@@ -1289,15 +1296,64 @@ fn serialize_game_data(state: &mut GameState, items: &ItemsTable, ships: &HashMa
 	Ok(())
 }
 
-fn save_and_exit(state: &mut GameState, items: &ItemsTable, ships: &HashMap<(usize, usize), Ship>, gui: &mut GameUI) -> Result<(), String> {
+fn save_and_exit(state: &mut GameState, items: &ItemsTable, ships: &HashMap<(usize, usize), Ship>, gui: &mut GameUI) -> Result<(), ExitReason> {
 	let sbi = state.curr_sidebar_info();
 	match gui.query_yes_no("Save and exit? (y/n)", &sbi) {
 		'y' => { 
 				serialize_game_data(state, items, ships, gui); 
-				Err(String::from("quit")) 
+				Err(ExitReason::Save)
 		},
 		_ => Ok(())
 	}
+}
+
+fn save_msg(state: &mut GameState, gui: &mut GameUI) {
+	let sbi = state.curr_sidebar_info();
+	state.write_msg_buff("See you soon, mate! --More--");
+	gui.write_screen(&mut state.msg_buff, &sbi);
+	gui.pause_for_more();
+}
+
+fn quit_msg(state: &mut GameState, gui: &mut GameUI) {
+	let sbi = state.curr_sidebar_info();
+	state.write_msg_buff("Game over! --More--");
+	gui.write_screen(&mut state.msg_buff, &sbi);
+	gui.pause_for_more();
+
+	let mut lines = vec![String::from("")];
+	lines.push(String::from("Ye've quit. Abandoned your quest and the treasure. Perhaps the next"));
+	lines.push(String::from("pirate will have more pluck."));
+
+	lines.push(String::from(""));
+	let s = format!("{}'s treasure remains for some other swab...", state.pirate_lord);
+	lines.push(s);
+	lines.push(String::from(""));
+
+	let s = format!("So long, mate!");
+	lines.push(s);
+
+	gui.write_long_msg(&lines, true);
+}
+
+fn victory_msg(state: &mut GameState, gui: &mut GameUI) {
+	let sbi = state.curr_sidebar_info();
+	state.write_msg_buff("Game over! --More--");
+	gui.write_screen(&mut state.msg_buff, &sbi);
+	gui.pause_for_more();
+
+	let mut lines = vec![String::from("")];
+	lines.push(String::from("Well blow me down! Ye've found the lost treasure of"));
+	let s = format!("{}! Yer fame, and fortune, are assured and pirates will be", state.pirate_lord);
+	lines.push(s);
+	lines.push(String::from("talling tales of your exploits for years to come!"));
+	lines.push(String::from(""));
+	let s = format!("Congratulations, Captain {}!", state.player.name);
+	lines.push(s);
+
+	let s = format!("So long, mate!");
+	lines.push(s);
+
+	gui.write_long_msg(&lines, true);
 }
 
 fn death(state: &mut GameState, src: String, gui: &mut GameUI) {
@@ -1307,43 +1363,28 @@ fn death(state: &mut GameState, src: String, gui: &mut GameUI) {
 	gui.pause_for_more();
 	
 	let mut lines = vec![String::from("")];
-	if src == "victory!" {
-		lines.push(String::from("Well blow me down! Ye've found the lost treasure of"));
-		let s = format!("{}! Yer fame, and fortune, are assured and pirates will be", state.pirate_lord);
-		lines.push(s);
-		lines.push(String::from("talling tales of your exploits for years to come!"));
-		lines.push(String::from(""));
-		let s = format!("Congratulations, Captain {}!", state.player.name);
-		lines.push(s);
-	} else if src != "quit" {
-		let s = format!("Well shiver me timbers, {}, ye've died!", state.player.name);
-		lines.push(s);
-		lines.push(String::from(""));
+	let s = format!("Well shiver me timbers, {}, ye've died!", state.player.name);
+	lines.push(s);
+	lines.push(String::from(""));
 
-		if src == "swimming" {
-			lines.push(String::from("Ye died from drowning! Davy Jones'll have you for sure!"));
-		} else if src == "venom" {
-			lines.push(String::from("Ye died from venom!"));
-		} else if src == "burn" {
-			lines.push(String::from("Ye burned to death!"));
-		} else if src == "falling" {
-			lines.push(String::from("Ye took a nasty fall! But it's like they say: it don't be the fall"));
-			lines.push(String::from("what gets you, it be the landing..."));
-		} else  {
-			let s = format!("Killed by a {}!", src);
-			lines.push(s);
-		}
-	} else {
-		lines.push(String::from("Ye've quit. Abandoned your quest and the treasure. Perhaps the next"));
-		lines.push(String::from("pirate will have more pluck."));
+	if src == "swimming" {
+		lines.push(String::from("Ye died from drowning! Davy Jones'll have you for sure!"));
+	} else if src == "venom" {
+		lines.push(String::from("Ye died from venom!"));
+	} else if src == "burn" {
+		lines.push(String::from("Ye burned to death!"));
+	} else if src == "falling" {
+		lines.push(String::from("Ye took a nasty fall! But it's like they say: it don't be the fall"));
+		lines.push(String::from("what gets you, it be the landing..."));
+	} else  {
+		let s = format!("Killed by a {}!", src);
+		lines.push(s);
 	}
 
-	if src != "victory!" {
-		lines.push(String::from(""));
-		let s = format!("{}'s treasure remains for some other swab...", state.pirate_lord);
-		lines.push(s);
-		lines.push(String::from(""));
-	}
+	lines.push(String::from(""));
+	let s = format!("{}'s treasure remains for some other swab...", state.pirate_lord);
+	lines.push(s);
+	lines.push(String::from(""));
 	
 	let s = format!("So long, mate!");
 	lines.push(s);
@@ -1452,12 +1493,15 @@ fn start_game() {
 
 	match run(&mut gui, &mut state, &mut items, &mut ships) {
 		Ok(_) => println!("Game over I guess? Probably the player won?!"),
-		Err(src) => death(&mut state, src, &mut gui),
+		Err(ExitReason::Save) => save_msg(&mut state, &mut gui),
+		Err(ExitReason::Quit) => quit_msg(&mut state, &mut gui),
+		Err(ExitReason::Win) => victory_msg(&mut state, &mut gui),
+		Err(ExitReason::Death(src)) => death(&mut state, src, &mut gui),
 	}
 }
 
 fn run(gui: &mut GameUI, state: &mut GameState, 
-		items: &mut ItemsTable, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), String> {
+		items: &mut ItemsTable, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), ExitReason> {
 
 	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
 	gui.v_matrix = fov::calc_v_matrix(state, items, ships, FOV_HEIGHT, FOV_WIDTH);
