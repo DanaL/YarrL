@@ -420,8 +420,9 @@ impl ItemsTable {
 		let mut items = Vec::new();
 		let stack = self.table.get_mut(&(r, c)).unwrap();
 		for i in indices {
-			let item = stack.remove(i).unwrap();
-			items.push(item);
+			if let Some(item) = stack.remove(i) {
+                items.push(item);
+            }
 		}
 
 		items
