@@ -532,10 +532,17 @@ fn stealth_check(state: &mut GameState, m: &mut Monster) {
 	let dex_mod = Player::mod_for_stat(state.player.dexterity);
 	if !super::do_ability_check(dex_mod, 13, state.player.prof_bonus as i8) {
 		m.aware_of_player = true;
-		state.write_msg_buff("Something snarls.");
+        
+        match m.npc_type {
+            NPCType::MaroonedPirate => state.write_msg_buff("You hear a shout."),
+	        NPCType::Boar | NPCType::Panther => state.write_msg_buff("Something snarls."),
+            NPCType::Skeleton => state.write_msg_buff("You hear rattling bones."),
+            NPCType::Snake => state.write_msg_buff("You hear a hiss."),
+            NPCType::Merfolk => state.write_msg_buff("You hear a splash."),
+            _ => { /* no sound alert */ },
+        }
 	}
 }
-
 
 fn undead_boss_action(m: &mut Monster, state: &mut GameState,
 							ships: &HashMap<(usize, usize), Ship>
