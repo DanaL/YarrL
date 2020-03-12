@@ -217,12 +217,12 @@ impl NPCTracker {
         self.loc_index.contains_key(&(row, col))
     }
 
-    pub fn all_npc_locs(&self) -> Vec<(usize, usize)> {
-        let locs = self.loc_index.keys()
+    pub fn all_npc_ids(&self) -> Vec<usize> {
+        let ids = self.npc_list.keys()
             .map(|k| k.clone())
-            .collect::<Vec<(usize, usize)>>();
+            .collect::<Vec<usize>>();
 
-        locs
+        ids
     }
 
     pub fn tile_info(&self, row: usize, col: usize) -> (char, (u8, u8, u8)) {
@@ -230,6 +230,14 @@ impl NPCTracker {
         let m = self.npc_list.get(&id).unwrap();
 
         (m.symbol, m.color)
+    }
+
+    pub fn npc_with_id(&mut self, id: usize) -> Option<Monster> {
+        if self.npc_list.contains_key(&id) {
+            return Some(self.npc_list[&id].clone());
+        }
+
+        None
     }
 
     pub fn npc_at(&mut self, row: usize, col: usize) -> Option<Monster> {
@@ -286,8 +294,12 @@ impl NPCTracker {
 		let hp = dice::roll(6, 2, 1);
 
 		let mut s = Monster::new(String::from("skeletal pirate"), id, 13, hp, 'Z', row, col, WHITE,
-			4, 6, 1, 0, 5);
+			4, 0, 0, 0, 5);
         s.boss = boss_id;
+
+		if self.loc_index.contains_key(&(row, col)) {
+			println!("WHAT THE FUCK");
+		}
 
         self.npc_list.insert(id, s);
         self.loc_index.insert((row, col), id);
@@ -457,10 +469,10 @@ impl Monster {
 			castaway_action(self, state, ships)?;
 		} else if self.name == "wild boar" {
 			basic_monster_action(self, state, ships, "gores")?;
-		} else if self.name == "skeleton" {
-			basic_undead_action(self, state, ships);
+		} else if self.name == "skeletal pirate" {
+			basic_undead_action(self, state, ships)?;
 		} else if self.name == "undead pirate captain" {
-			undead_boss_action(self, state, ships);
+			undead_boss_action(self, state, ships)?;
 		} else {
 			basic_monster_action(self, state, ships, "bites")?;
 		}
@@ -481,7 +493,7 @@ fn find_adj_empty_sq(row: i32, col: i32, state: &GameState,
 	
 			if !map::in_bounds(&state.map, adj_r, adj_c) { continue; }
 			if !passable.contains(&state.map[adj_r as usize][adj_c as usize]) { continue; }
-			if !super::sq_open(state, ships, adj_r as usize, adj_c as usize) { continue; }
+			if !super::sq_is_open(state, ships, adj_r as usize, adj_c as usize) { continue; }
 
 			adj.push((adj_r as usize, adj_c as usize));
 		}
@@ -518,12 +530,11 @@ fn stealth_check(state: &mut GameState, m: &mut Monster) {
 fn undead_boss_action(m: &mut Monster, state: &mut GameState,
 							ships: &HashMap<(usize, usize), Ship>
 							) -> Result<(), super::ExitReason> {
-    println!("flag");
 	if m.minions < 15 && rand::thread_rng().gen_range(0.0, 1.0) < 0.33 {
 		let loc = util::rnd_adj();
 		let target_r = (m.row as i32 + loc.0) as usize;
 		let target_c = (m.col as i32 + loc.1) as usize;
-
+		
 		if super::sq_is_open(state, ships, target_r, target_c) 
 				&& map::is_passable(&state.map[target_r][target_c]) {
             state.npcs.new_skeleton(target_r, target_c, m.id);
@@ -543,10 +554,6 @@ fn undead_boss_action(m: &mut Monster, state: &mut GameState,
 			state.write_msg_buff(&s);
 			let dmg_roll = dice::roll(m.dmg, m.dmg_dice, m.dmg_bonus as i8);
 			super::player_takes_dmg(&mut state.player, dmg_roll, &m.name)?;
-
-			if m.special_dmg != "" {
-				do_special_dmg(state, &m.special_dmg);
-			}
 		}
 	} else {
 		let mut passable = HashSet::new();
@@ -581,10 +588,6 @@ fn basic_undead_action(m: &mut Monster, state: &mut GameState,
 			state.write_msg_buff(&s);
 			let dmg_roll = dice::roll(m.dmg, m.dmg_dice, m.dmg_bonus as i8);
 			super::player_takes_dmg(&mut state.player, dmg_roll, &m.name)?;
-
-			if m.special_dmg != "" {
-				do_special_dmg(state, &m.special_dmg);
-			}
 		}
 	} else {
 		let dis = util::cartesian_d(m.row, m.col, state.player.row, state.player.col);

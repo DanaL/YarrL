@@ -189,35 +189,6 @@ fn sq_is_open(state: &GameState, ships: &HashMap<(usize, usize), Ship>,
 
 	true
 }
-
-// This function is a testament to my terrible design mistakes :( I should have taken into account the
-// need to see if a square was open when choosing to use separate data structures for the map tiles, 
-// the items, the ships, and the NPCs...
-fn sq_open(state: &GameState, ships: &HashMap<(usize, usize), Ship>, row: usize, col: usize) -> bool {
-	if !map::in_bounds(&state.map, row as i32, col as i32) {
-		return false;
-	}
-
-	if !map::is_passable(&state.map[row][col]) {
-		return false;
-	}
-
-	// At least I will probably only ever have a handful of ships on the map...
-	for key in ships.keys() {
-		let ship = ships.get(key).unwrap();
-		if ship.row == row && ship.col == col {
-			return false;
-		}	
-		if ship.bow_row == row && ship.bow_col == col {
-			return false;
-		}	
-		if ship.aft_row == row && ship.aft_col == col {
-			return false;
-		}	
-	}
-
-	true
-}
  
 fn get_move_tuple(mv: &str) -> (i32, i32) {
 	let res: (i32, i32);
@@ -919,28 +890,28 @@ fn show_character_sheet(state: &GameState, gui: &mut GameUI) {
 
 fn get_open_sq_adj_player(state: &GameState, ships: &HashMap<(usize, usize), Ship>) -> Option<(usize, usize)> {
 	let mut sqs: Vec<(usize, usize)> = Vec::new();
-	if sq_open(state, ships, state.player.row - 1, state.player.col - 1) {
+	if sq_is_open(state, ships, state.player.row - 1, state.player.col - 1) {
 		sqs.push((state.player.row - 1, state.player.col - 1));
 	}
-	if sq_open(state, ships, state.player.row - 1, state.player.col) {
+	if sq_is_open(state, ships, state.player.row - 1, state.player.col) {
 		sqs.push((state.player.row - 1, state.player.col));
 	}
-	if sq_open(state, ships, state.player.row - 1, state.player.col + 1) {
+	if sq_is_open(state, ships, state.player.row - 1, state.player.col + 1) {
 		sqs.push((state.player.row - 1, state.player.col + 1));
 	}
-	if sq_open(state, ships, state.player.row, state.player.col + 1) {
+	if sq_is_open(state, ships, state.player.row, state.player.col + 1) {
 		sqs.push((state.player.row, state.player.col + 1));
 	}
-	if sq_open(state, ships, state.player.row, state.player.col - 1) {
+	if sq_is_open(state, ships, state.player.row, state.player.col - 1) {
 		sqs.push((state.player.row, state.player.col - 1));
 	}
-	if sq_open(state, ships, state.player.row + 1, state.player.col - 1) {
+	if sq_is_open(state, ships, state.player.row + 1, state.player.col - 1) {
 		sqs.push((state.player.row + 1, state.player.col - 1));
 	}
-	if sq_open(state, ships, state.player.row + 1, state.player.col) {
+	if sq_is_open(state, ships, state.player.row + 1, state.player.col) {
 		sqs.push((state.player.row + 1, state.player.col));
 	}
-	if sq_open(state, ships, state.player.row + 1, state.player.col + 1) {
+	if sq_is_open(state, ships, state.player.row + 1, state.player.col + 1) {
 		sqs.push((state.player.row + 1, state.player.col + 1));
 	}
 
@@ -1567,15 +1538,20 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 		if state.turn > start_turn {
 			check_environment_hazards(state, ships)?;
 
-			let locs = state.npcs.all_npc_locs();
-			for loc in locs {
-				let d = util::cartesian_d(loc.0, loc.1, state.player.row, state.player.col);
-				if d < 75 { 
-					let mut npc = state.npcs.npc_at(loc.0, loc.1).unwrap();
-					let prev_r = npc.row;
-					let prev_c = npc.col;
-					npc.act(state, ships)?;
-					state.npcs.update(npc, prev_r, prev_c);
+			let ids = state.npcs.all_npc_ids();
+			for id in ids {
+				match state.npcs.npc_with_id(id) {
+					Some(mut npc) => {
+						let d = util::cartesian_d(npc.row, npc.col, state.player.row, state.player.col);
+						if d < 75 { 
+							let prev_r = npc.row;
+							let prev_c = npc.col;
+							npc.act(state, ships)?;
+
+							state.npcs.update(npc, prev_r, prev_c);
+						}
+					},
+					None => { continue; }
 				}
 			}
 
