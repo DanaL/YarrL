@@ -137,7 +137,7 @@ fn astar(
 	let goal = (end_r, end_c);
 
 	queue.push(ASQueueItem::new((start_r, start_c), 0)); 
-	in_queue.insert((start_c, start_c));
+	in_queue.insert((start_r, start_c));
 
 	while queue.len() > 0 {
 		let node = queue.pop().unwrap();
