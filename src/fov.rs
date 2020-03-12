@@ -18,7 +18,6 @@ use std::collections::HashMap;
 use crate::actor::NPCTracker;
 use crate::display::{WHITE, LIGHT_BLUE, BROWN};
 use crate::map;
-use crate::map::in_bounds;
 use super::{GameState, Map};
 use crate::items::{ItemsTable, TileInfo};
 use crate::ship::Ship;
@@ -63,7 +62,7 @@ fn calc_actual_tile(r: usize, c: usize, map: &Map,
 // shadowcasting.
 fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, 
 		state: &mut GameState, items: &ItemsTable,
-		v_matrix: &mut Vec<Vec<map::Tile>>) {
+		v_matrix: &mut Vec<map::Tile>, width: usize) {
 	let mut r = r1;
 	let mut c = c1;
 	let mut error = 0;
@@ -97,9 +96,10 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 				return;
 			}
 
-			let vm_r = (r - r1 + 10) as usize;
-			let vm_c = (c - c1 + 20) as usize;
-			v_matrix[vm_r][vm_c] = calc_actual_tile(r as usize, c as usize, &state.map, &state.npcs, items);
+			let vm_r = r - r1 + 10;
+			let vm_c = c - c1 + 20;
+            let vmi = (vm_r * width as i32 + vm_c) as usize;
+			v_matrix[vmi] = calc_actual_tile(r as usize, c as usize, &state.map, &state.npcs, items);
 			state.world_seen.insert((r as usize, c as usize));
 
 			if !map::is_clear(&state.map[r as usize][c as usize]) {
@@ -135,9 +135,10 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 				return;
 			}
 
-			let vm_r = (r - r1 + 10) as usize;
-			let vm_c = (c - c1 + 20) as usize;
-			v_matrix[vm_r][vm_c] = calc_actual_tile(r as usize, c as usize, &state.map, &state.npcs, items);
+			let vm_r = r - r1 + 10;
+			let vm_c = c - c1 + 20;
+            let vmi = (vm_r * width as i32 + vm_c) as usize;
+			v_matrix[vmi] = calc_actual_tile(r as usize, c as usize, &state.map, &state.npcs, items);
 			state.world_seen.insert((r as usize, c as usize));
 
 			if !map::is_clear(&state.map[r as usize][c as usize]) {
@@ -164,8 +165,12 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 	}
 }
 
-fn add_ship(v_matrix: &mut Vec<Vec<map::Tile>>, row: usize, col: usize, ship: &Ship) {
-	v_matrix[row][col] = map::Tile::ShipPart(ship.deck_ch);
+fn add_ship(v_matrix: &mut Vec<map::Tile>, 
+            row: usize, 
+            col: usize, 
+            ship: &Ship,
+            width: usize) {
+	v_matrix[row * width + col] = map::Tile::ShipPart(ship.deck_ch);
 	
 	let delta_row_bow = ship.bow_row as i32 - ship.row as i32;
 	let delta_col_bow = ship.bow_col as i32 - ship.col as i32;
@@ -176,19 +181,22 @@ fn add_ship(v_matrix: &mut Vec<Vec<map::Tile>>, row: usize, col: usize, ship: &S
 	let bow_col = (delta_col_bow as i32 + col as i32) as usize;
 	let aft_row = (delta_row_aft as i32 + row as i32) as usize;
 	let aft_col = (delta_col_aft as i32 + col as i32) as usize;
-	
-	if in_bounds(v_matrix, bow_row as i32, bow_col as i32) && v_matrix[bow_row][bow_col] != map::Tile::Blank {
-		v_matrix[bow_row][bow_col] = map::Tile::ShipPart(ship.bow_ch);
+
+    let bow_i = bow_row * width + bow_col;
+    let aft_i = aft_row * width + aft_col;
+    
+	if bow_i < v_matrix.len() && v_matrix[bow_i] != map::Tile::Blank {
+		v_matrix[bow_i] = map::Tile::ShipPart(ship.bow_ch);
 	} 
-	if in_bounds(v_matrix, aft_row as i32, aft_col as i32) && v_matrix[aft_row][aft_col] != map::Tile::Blank {
-		v_matrix[aft_row][aft_col] = map::Tile::ShipPart(ship.aft_ch);
+	if aft_i < v_matrix.len() && v_matrix[aft_i] != map::Tile::Blank {
+		v_matrix[aft_i] = map::Tile::ShipPart(ship.aft_ch);
 	} 
 }
 
 // Because ships are multi-tile things, it's simpler to just add them to the map later...
 fn add_ships_to_v_matrix(
 		map: &Vec<Vec<map::Tile>>,
-		v_matrix: &mut Vec<Vec<map::Tile>>, 
+		v_matrix: &mut Vec<map::Tile>, 
 		ships: &HashMap<(usize, usize), Ship>,
 		player_row: usize, player_col: usize, 
 		height: usize, width: usize) {
@@ -198,28 +206,24 @@ fn add_ships_to_v_matrix(
 	for r in -half_height..half_height {
 		for c in -half_width..half_width {
 			// I'm very in love with how Rust refuses to do any integer casting right now...
-			if !in_bounds(map, r + player_row as i32, c + player_col as i32) { continue; }
+			if !map::in_bounds(map, r + player_row as i32, c + player_col as i32) { continue; }
 			let loc = ((r + player_row as i32) as usize, (c + player_col as i32) as usize);
-			if v_matrix[(r + half_height) as usize][(c + half_width) as usize] != 
-					map::Tile::Blank && ships.contains_key(&loc) {
+            let i = ((r + half_height) * width as i32 + c + half_width) as usize;
+			if v_matrix[i] != map::Tile::Blank && ships.contains_key(&loc) {
 				let ship = ships.get(&loc).unwrap();
-				add_ship(v_matrix, (r + half_height) as usize, (c + half_width) as usize, &ship);
+				add_ship(v_matrix, (r + half_height) as usize, (c + half_width) as usize, &ship, width);
 			}
 		}
 	}
 }
 
-// not yet taking into account objects on the ground and monsters...
 pub fn calc_v_matrix(
 		state: &mut GameState,
 		items: &ItemsTable,
 		ships: &HashMap<(usize, usize), Ship>,
-		height: usize, width: usize) -> Vec<Vec<map::Tile>> {
-	let mut v_matrix: Vec<Vec<map::Tile>> = Vec::new();
-	for _ in 0..height {
-		v_matrix.push(vec![map::Tile::Blank; width]);
-	}
-
+		height: usize, width: usize) -> Vec<map::Tile> {
+    let size = height * width;
+    let mut v_matrix = vec![map::Tile::Blank; size];
 	let fov_center_r = height / 2;
 	let fov_center_c = width / 2;
 
@@ -234,7 +238,7 @@ pub fn calc_v_matrix(
 		let actual_c: i32 = state.player.col as i32 + offset_c;
 
 		mark_visible(state.player.row as i32, state.player.col as i32,
-			actual_r as i32, actual_c as i32, state, items, &mut v_matrix);
+			actual_r as i32, actual_c as i32, state, items, &mut v_matrix, width);
 
 		let offset_r = (height - 1) as i32 - fov_center_r as i32;
 		let offset_c = col as i32 - fov_center_c as i32;
@@ -242,7 +246,7 @@ pub fn calc_v_matrix(
 		let actual_c: i32 = state.player.col as i32 + offset_c;
 
 		mark_visible(state.player.row as i32, state.player.col as i32,
-			actual_r as i32, actual_c as i32, state, items, &mut v_matrix);
+			actual_r as i32, actual_c as i32, state, items, &mut v_matrix, width);
 	}
 
 	for row in 0..height {
@@ -252,7 +256,7 @@ pub fn calc_v_matrix(
 		let actual_c: i32 = state.player.col as i32 + offset_c;
 
 		mark_visible(state.player.row as i32, state.player.col as i32,
-			actual_r as i32, actual_c as i32, state, items, &mut v_matrix);
+			actual_r as i32, actual_c as i32, state, items, &mut v_matrix, width);
 
 		let offset_r = row as i32 - fov_center_r as i32;
 		let offset_c = (width - 1) as i32 - fov_center_c as i32;
@@ -260,19 +264,20 @@ pub fn calc_v_matrix(
 		let actual_c: i32 = state.player.col as i32 + offset_c;
 
 		mark_visible(state.player.row as i32, state.player.col as i32,
-			actual_r as i32, actual_c as i32, state, items, &mut v_matrix);
+			actual_r as i32, actual_c as i32, state, items, &mut v_matrix, width);
 	}
 
 	add_ships_to_v_matrix(&state.map, &mut v_matrix, ships, 
 			state.player.row, state.player.col, height, width);
 
+    let fov_center_i = fov_center_r * width + fov_center_c;
 	if state.player.on_ship {
-		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(BROWN);
+		v_matrix[fov_center_i] = map::Tile::Player(BROWN);
 	} else if state.map[state.player.row][state.player.col] == map::Tile::DeepWater
 			&& !ships.contains_key(&(state.player.row, state.player.col)) {
-		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(LIGHT_BLUE);
+		v_matrix[fov_center_i] = map::Tile::Player(LIGHT_BLUE);
 	} else {
-		v_matrix[fov_center_r][fov_center_c] = map::Tile::Player(WHITE);
+		v_matrix[fov_center_i] = map::Tile::Player(WHITE);
 	}
 
 	v_matrix

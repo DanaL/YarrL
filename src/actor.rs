@@ -611,7 +611,7 @@ fn basic_undead_action(m: &mut Monster, state: &mut GameState,
 
 			let path = find_path(state, m.row, m.col, 
 				state.player.row, state.player.col, &passable, ships);
-		
+	
 			if path.len() > 1 {
 				let new_loc = path[1];
 				if state.npcs.is_npc_at(new_loc.0, new_loc.1) {

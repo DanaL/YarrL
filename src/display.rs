@@ -19,7 +19,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::items::Item;
 use crate::map;
-use super::{Cmd, GameState, Map, FOV_WIDTH, FOV_HEIGHT};
+use super::{Cmd, GameState, FOV_WIDTH, FOV_HEIGHT};
 
 use sdl2::event::Event;
 use sdl2::EventPump;
@@ -89,7 +89,7 @@ pub struct GameUI<'a, 'b> {
 	sm_font: &'a Font<'a, 'b>,
 	canvas: WindowCanvas,
 	event_pump: EventPump,
-	pub v_matrix: Map,
+	pub v_matrix: Vec<map::Tile>,
 	surface_cache: HashMap<(char, Color), Surface<'a>>,
 }
 
@@ -109,7 +109,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			.build()
 			.map_err(|e| e.to_string())?;
 
-		let v_matrix = vec![vec![map::Tile::Blank; FOV_WIDTH]; FOV_HEIGHT];
+		let v_matrix = vec![map::Tile::Blank; FOV_WIDTH * FOV_HEIGHT];
 		let canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
 		let gui = GameUI { 
 			screen_width_px, screen_height_px, 
@@ -634,7 +634,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.write_line(0, msg, false);
 		for row in 0..FOV_HEIGHT {
 			for col in 0..FOV_WIDTH {
-				let ti = GameUI::sq_info_for_tile(&self.v_matrix[row][col]);
+				let ti = GameUI::sq_info_for_tile(&self.v_matrix[row * FOV_WIDTH + col]);
 				self.write_sq(row, col, ti);
 			}
 			self.write_sq(row, FOV_WIDTH, GameUI::sq_info_for_tile(&map::Tile::Separator));

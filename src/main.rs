@@ -288,7 +288,7 @@ fn calc_bullet_ch(dir: (i32, i32)) -> char {
 	if dir == (1, 0)   || dir == (-1, 0) { return '|'; }
 	if dir == (-1, -1) || dir == (1, 1)  { return '\\'; }
 
-	('/')
+	'/'
 }
 
 fn shoot(state: &mut GameState, dir: (i32, i32), gun: &Item, dex_mod: i8, gui: &mut GameUI,
@@ -311,13 +311,14 @@ fn shoot(state: &mut GameState, dir: (i32, i32), gun: &Item, dex_mod: i8, gui: &
 		// Sophisticated animation goes here!
 		gui.v_matrix = fov::calc_v_matrix(state, items, ships, FOV_HEIGHT, FOV_WIDTH);
 		// Okay, need to calcuate where in the v_matrix the bullet currently is
-		let bullet_tile_r = (gui.v_matrix.len() / 2) as i32 + travelled.0;
-		let bullet_tile_c = (gui.v_matrix[0].len() / 2) as i32 + travelled.1;
+		let bullet_r = (FOV_HEIGHT / 2) as i32 + travelled.0;
+		let bullet_c = (FOV_WIDTH / 2) as i32 + travelled.1;
+        let bullet_i = (bullet_r * FOV_WIDTH as i32 + bullet_c) as usize;
 
 		// note, not currently checked for bounds because firearms don't have a range > screen dimensions...
-		if gui.v_matrix[bullet_tile_r as usize][bullet_tile_c as usize] != map::Tile::Blank {
+		if gui.v_matrix[bullet_i] != map::Tile::Blank {
 			let ch = calc_bullet_ch(dir);
-			gui.v_matrix[bullet_tile_r as usize][bullet_tile_c as usize] = map::Tile::Bullet(ch);
+			gui.v_matrix[bullet_i] = map::Tile::Bullet(ch);
 		}
 		let sbi = state.curr_sidebar_info();
 		gui.write_screen(&mut state.msg_buff, &sbi);
