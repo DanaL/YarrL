@@ -428,12 +428,12 @@ fn action_while_charmed(state: &mut GameState, items: &ItemsTable,
 			state.write_msg_buff("You are drawn to the merfolk!");
 			let dir = util::dir_between_sqs(state.player.row, state.player.col, mv.0, mv.1);
 			do_move(state, items, ships, &dir)?;
+			return Ok(());
 		}
 	}
-	else {
-		state.write_msg_buff("You are entranced by the merfolk!");
-		state.turn += 1;
-	}
+
+	state.write_msg_buff("You are entranced by the merfolk!");
+	state.turn += 1;
 
 	Ok(())
 }
