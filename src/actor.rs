@@ -34,7 +34,7 @@ use crate::ship::Ship;
 use crate::util;
 use crate::util::sqs_adj;
 
-use super::{do_ability_check, GameState, Map};
+use super::{do_ability_check, GameState};
 
 #[derive(Debug,Serialize,Deserialize)]
 pub enum PirateType {
@@ -691,14 +691,6 @@ fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 
 fn castaway_action(m: &mut Monster, state: &mut GameState,
 					ships: &HashMap<(usize, usize), Ship>) -> Result<(), super::ExitReason> {
-	let pronoun = if m.gender == 0 {
-		"their"
-	} else if m.gender == 1 {
-		"her"
-	} else {
-		"his"
-	};
-
 	if m.hostile {
 		basic_monster_action(m, state, ships, "attacks")?;
 	} else {
@@ -794,8 +786,8 @@ fn pirate_action(m: &mut Monster, state: &mut GameState,
 		let path = find_path(state, m.row, m.col, 
 			state.player.row, state.player.col, &passable, &ships);
 
-		let mut next_r = m.row;
-		let mut next_c = m.col;
+		let next_r;
+		let next_c;
 		if path.len() > 1 {
 			let new_loc = path[1];
 			if state.npcs.is_npc_at(new_loc.0, new_loc.1) {

@@ -17,7 +17,6 @@ extern crate sdl2;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::content_factory::{WORLD_WIDTH, WORLD_HEIGHT};
 use crate::items::Item;
 use crate::map;
 use super::{Cmd, GameState, Map, FOV_WIDTH, FOV_HEIGHT};
@@ -36,7 +35,6 @@ pub static BLACK: (u8, u8, u8) = (0, 0, 0);
 pub static WHITE: (u8, u8, u8) = (255, 255, 255);
 pub static GREY: (u8, u8, u8) = (136, 136, 136);
 pub static GREEN: (u8, u8, u8) = (144, 238, 144);
-pub static DARK_GREEN: (u8, u8, u8) = (46, 139, 87);
 pub static BROWN: (u8, u8, u8) = (150, 75, 0);
 pub static DARK_BROWN: (u8, u8, u8) = (101, 67, 33);
 pub static BLUE: (u8, u8, u8) = (0, 0, 200);
@@ -196,8 +194,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			let (_, color) = GameUI::sq_info_for_tile(&state.map[sq.0][sq.1]);
 			
 			self.canvas.set_draw_color(color);
-			self.canvas.fill_rect(Rect::new(sq.1 as i32 * 3, 
-					(self.font_height + sq.0 as u32) as i32 * 3, 3, 3));		
+			self.canvas.fill_rect(Rect::new(sq.1 as i32 * 3, (self.font_height + sq.0 as u32) as i32 * 3, 3, 3))
+                        .expect("Unable to draw screen!");
 		}
 
 		self.canvas.present();
@@ -580,7 +578,6 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 		if sbi.drunkeness > 20 {
 			self.write_sidebar_line("TIPSY", fov_w, l, brown);
-			l -= 1;
 		}
 
 		if sbi.bearing > -1 {

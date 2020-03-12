@@ -20,7 +20,6 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use rand::Rng;
 
 use super::{GameState, ItemsTable, Map};
-use crate::actor::Monster;
 use crate::dice;
 use crate::items::Item;
 use crate::map;
@@ -28,7 +27,6 @@ use crate::map::Tile;
 use crate::ship;
 use crate::ship::Ship;
 use crate::util;
-use crate::util::NameSeeds;
 use crate::util::rnd_adj;
 
 pub const WORLD_WIDTH: usize = 250;
@@ -207,12 +205,12 @@ fn find_location_for_land_monster(world_map: &Vec<Vec<Tile>>,
 fn create_island(state: &mut GameState, 
 					items: &mut ItemsTable,
 					island_info: &mut IslandInfo) {
-	let mut island;
+	let island;
 	let island_type = rand::thread_rng().gen_range(0.0, 1.0);
-	let mut max_shipwrecks = 0;
-	let mut max_old_campsites = 0;
-	let mut max_campsites = 0;
-	let mut max_fruit = 0;
+	let max_shipwrecks;
+	let max_old_campsites;
+	let max_campsites;
+	let max_fruit;
 	let mut spring = false;
 	let mut skeleton_island = false;
 
@@ -294,7 +292,7 @@ fn create_island(state: &mut GameState,
 
 	if !skeleton_island {
 		if rand::thread_rng().gen_range(0.0, 1.0) < 0.25 {
-			set_castaway(state, island_info, items);
+			set_castaway(state, island_info);
 		}
 
 		// let's add some monsters in 
@@ -508,10 +506,7 @@ fn get_castaway_line() -> String {
 }
 
 // largely duplicated from the campsite code...
-fn set_castaway(state: &mut GameState,
-				island_info: &IslandInfo,	
-				items: &mut ItemsTable) {
-
+fn set_castaway(state: &mut GameState, island_info: &IslandInfo) {
 	loop {
 		let r = rand::thread_rng().gen_range(island_info.offset_r,
 												island_info.offset_r + island_info.length);
@@ -581,6 +576,7 @@ fn set_treasure_map(world_map: &Vec<Vec<Tile>>, island_info: &IslandInfo,
 	// A cooler way to do this might be to pathfind my way inland like a real
 	// pirate might have but we'll save that for later
 
+    let mut count = 0;
 	loop {
 		let j = rand::thread_rng().gen_range(0, island_info.coastline.len());
 		let loc = island_info.coastline[j];	
@@ -607,6 +603,12 @@ fn set_treasure_map(world_map: &Vec<Vec<Tile>>, island_info: &IslandInfo,
 
 			return Some(map);
 		}
+
+        // I can't imagine ever hitting this point...
+        count += 1;
+        if count > 100 {
+            break;
+        }
 	}
 
 	None
@@ -658,7 +660,6 @@ fn good_for_fort(tile: &Tile) -> bool {
 }
 
 fn write_fort_sqs(loc: (usize, usize), world_map: &mut Vec<Vec<Tile>>,
-			island_info: &IslandInfo,
 			items: &mut ItemsTable) {
 	let tile = if rand::thread_rng().gen_range(0.0, 1.0) < 0.5 {
 		Tile::WoodWall
@@ -767,7 +768,7 @@ fn place_fort(world_map: &mut Vec<Vec<Tile>>,
 		}
 
 		if good_sqs > 10 {
-			write_fort_sqs(sq, world_map, island_info, items);
+			write_fort_sqs(sq, world_map, items);
 			break;
 		}	
 
@@ -975,6 +976,8 @@ fn find_nearest_clear_nw(map: &Vec<Vec<Tile>>) -> (usize, usize) {
 				return (nw.0 - 1, nw.1 - 1);
 			}
 		}
+
+        break;
 	}
 
 	(0, 0)

@@ -19,9 +19,7 @@ use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::cmp::Ordering;
 
-use crate::display::GameUI;
 use crate::map;
-use crate::map::Tile;
 use crate::ship::Ship;
 use crate::util::cartesian_d;
 use super::GameState;

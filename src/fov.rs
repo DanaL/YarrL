@@ -15,7 +15,7 @@
 
 use std::collections::HashMap;
 
-use crate::actor::{Player, NPCTracker};
+use crate::actor::NPCTracker;
 use crate::display::{WHITE, LIGHT_BLUE, BROWN};
 use crate::map;
 use crate::map::in_bounds;

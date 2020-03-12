@@ -575,7 +575,7 @@ impl Item {
 	pub fn get_item(name: &str) -> Option<Item> {
 		match name {
 			"draught of rum" => { 
-				let mut r = (Item::new(name, ItemType::Drink, 1, true, '!', display::BROWN));
+				let mut r = Item::new(name, ItemType::Drink, 1, true, '!', display::BROWN);
 				r.bonus = 15;
 				Some(r)
 			},

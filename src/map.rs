@@ -24,7 +24,6 @@ use std::f32;
 use serde::{Serialize, Deserialize};
 use rand::Rng;
 
-use crate::display;
 use crate::ship;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]

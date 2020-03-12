@@ -19,7 +19,6 @@ use serde::{Serialize, Deserialize};
 use crate::dice;
 use crate::util;
 use crate::util::capitalize_word;
-use crate::util::NameSeeds;
 
 pub const DECK_STRAIGHT: char = '\u{25A0}'; 
 pub const DECK_ANGLE: char = '\u{25C6}'; 

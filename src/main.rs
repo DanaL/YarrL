@@ -18,6 +18,7 @@ extern crate sdl2;
 extern crate serde;
 
 mod actor;
+#[allow(dead_code)]
 mod content_factory;
 mod dice;
 mod display;
@@ -738,7 +739,7 @@ fn search(state: &mut GameState, items: &mut ItemsTable) {
 	state.turn += 1;
 }
 
-fn reload(state: &mut GameState, gui: &mut GameUI) {
+fn reload(state: &mut GameState) {
 	match state.player.inventory.get_equiped_firearm() {
 		Some(g) => {
 			if g.loaded {
@@ -830,7 +831,6 @@ fn pick_up(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) -> R
 				let picked_up = items.get_many_at(state.player.row, state.player.col, &v);
 				for item in picked_up {
 					let is_macguffin = item.item_type == ItemType::MacGuffin;
-					let article = item.get_definite_article();
 					let s = format!("You pick up {}.", util::get_articled_name(true, &item));
 					state.write_msg_buff(&s);
 					state.player.inventory.add(item);
@@ -956,9 +956,7 @@ fn ship_hit_land(state: &mut GameState, ship: &mut Ship, ships: &HashMap<(usize,
 
 fn sail(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), ExitReason> {
 	let mut ship = ships.remove(&(state.player.row, state.player.col)).unwrap();
-
 	let bow_tile = state.map[ship.bow_row][ship.bow_col].clone();
-	let ship_tile = state.map[ship.row][ship.col].clone();
 
 	if ship.anchored {
 		state.write_msg_buff("The ships bobs.");
@@ -1193,7 +1191,7 @@ fn preamble(gui: &mut GameUI) -> (GameState, ItemsTable, HashMap<(usize, usize),
 		match load_existing_game(&player_name){
 			Ok(gd) => { return gd; },
 			Err(_) => {
-				let mut v = vec![String::from("Oh no! The save file appears to be damaged and unreadable :(")];
+				let v = vec![String::from("Oh no! The save file appears to be damaged and unreadable :(")];
 				gui.write_long_msg(&v, false);
 			},
 		}
@@ -1216,8 +1214,8 @@ fn preamble(gui: &mut GameUI) -> (GameState, ItemsTable, HashMap<(usize, usize),
 	menu.push("      tricks. And ye start with yer trusty flintlock.".to_string());
 
 	let npcs = NPCTracker::new();
-	let mut ships: HashMap<(usize, usize), Ship> = HashMap::new();
-	let mut items = ItemsTable::new();
+	let ships: HashMap<(usize, usize), Ship> = HashMap::new();
+	let items = ItemsTable::new();
 	let state: GameState;
 
 	let answer = gui.menu_picker(&menu, 2, true, true).unwrap();
@@ -1263,16 +1261,21 @@ fn existing_save_file(player_name: &str) -> bool {
 	false
 }
 
-fn serialize_game_data(state: &mut GameState, items: &ItemsTable, ships: &HashMap<(usize, usize), Ship>, gui: &mut GameUI) -> std::io::Result<()> { 
+fn serialize_game_data(state: &mut GameState, items: &ItemsTable, ships: &HashMap<(usize, usize), Ship>, _gui: &mut GameUI) {
 	let filename = gen_save_filename(&state.player.name);
 	let game_data = (state, items, ships);
 
 	let serialized = serde_yaml::to_string(&game_data).unwrap();
 
-	let mut buffer = File::create(&filename)?;
-	buffer.write_all(serialized.as_bytes())?;	
-
-	Ok(())
+    match File::create(&filename) {
+        Ok(mut buffer) => {
+            match buffer.write_all(serialized.as_bytes()) {
+                Ok(_) => { },
+                Err(_) => panic!("Oh no cannot write to file!"),
+            }
+        },
+        Err(_) => panic!("Oh no file error!"),
+    }
 }
 
 fn save_and_exit(state: &mut GameState, items: &ItemsTable, ships: &HashMap<(usize, usize), Ship>, gui: &mut GameUI) -> Result<(), ExitReason> {
@@ -1532,7 +1535,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 				Cmd::Quaff => quaff(state, gui),
 				Cmd::Eat => eat(state, gui),
 				Cmd::FireGun => fire_gun(state, gui, items, ships),
-				Cmd::Reload => reload(state, gui),
+				Cmd::Reload => reload(state),
 				Cmd::WorldMap => gui.show_world_map(state),
 				Cmd::Search => search(state, items),
 				Cmd::Read => read(state, gui),
@@ -1599,8 +1602,6 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 		
 		state.msg_buff.drain(..);	
     }
-
-	Ok(())
 }
 
 fn main() {
