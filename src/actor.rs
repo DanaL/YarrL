@@ -270,8 +270,8 @@ impl NPCTracker {
         let id = self.npc_id;
 		let hp = dice::roll(8, 2, 0);
 
-		let mut m = Monster::new(String::from("merperson"), id, 13, hp, 'y', row, col, YELLOW_ORANGE,
-			5, 1, 1, 0, 10);
+		let mut m = Monster::new(String::from("merperson"), id, NPCType::Merfolk, 13, hp, 'y', row, col, 
+			YELLOW_ORANGE, 5, 1, 1, 0, 10);
 
 		m.aware_of_player = true; // they keep their eyes out for sailors
 
@@ -293,8 +293,8 @@ impl NPCTracker {
         let id = self.npc_id;
 		let hp = dice::roll(6, 2, 1);
 
-		let mut s = Monster::new(String::from("skeletal pirate"), id, 13, hp, 'Z', row, col, WHITE,
-			4, 0, 0, 0, 5);
+		let mut s = Monster::new(String::from("skeletal pirate"), id, NPCType::Skeleton, 13, hp, 'Z', row, col, 
+			WHITE, 4, 0, 0, 0, 5);
         s.boss = boss_id;
 
 		if self.loc_index.contains_key(&(row, col)) {
@@ -310,8 +310,8 @@ impl NPCTracker {
         let id = self.npc_id;
 		let hp = dice::roll(6, 4, 0);
 
-		let mut s = Monster::new(String::from("undead pirate captain"), id, 14, hp, 'Z', row, col, BRIGHT_RED,
-			5, 8, 1, 0, 15);
+		let mut s = Monster::new(String::from("undead pirate captain"), id, NPCType::UndeadCaptain, 14, hp, 'Z', row, col, 
+			BRIGHT_RED, 5, 8, 1, 0, 15);
         s.minions = initial_minion_count;
 
         self.npc_list.insert(id, s);
@@ -325,8 +325,8 @@ impl NPCTracker {
         let id = self.npc_id;
 		let hp = dice::roll(8, 2, 0);
 
-		let mut p = Monster::new(String::from("marooned pirate"), id, 14, hp, '@', row, col, GREY,
-			5, 6, 1, 0, 10);
+		let mut p = Monster::new(String::from("marooned pirate"), id, NPCType::MaroonedPirate, 14, hp, '@', row, col, 
+			GREY, 5, 6, 1, 0, 10);
 		p.anchor = anchor;
 
 		let roll = rand::thread_rng().gen_range(0.0, 1.0);
@@ -345,8 +345,8 @@ impl NPCTracker {
         let id = self.npc_id;
 		let hp = dice::roll(8, 1, 0);
 
-		let mut c = Monster::new(String::from("castaway"), id, 10, hp, '@', row, col, GREY,
-			3, 6, 1, 0, 0);
+		let mut c = Monster::new(String::from("castaway"), id, NPCType::Castaway, 10, hp, '@', row, col, 
+			GREY, 3, 6, 1, 0, 0);
 		c.anchor = anchor;
         c.voice_line = String::from(voice_line);
 
@@ -376,8 +376,8 @@ impl NPCTracker {
 			GREEN 
 		};
 		
-		let mut s = Monster::new(String::from("snake"), id, 14, hp, 'S', row, col, colour,
-			4, 4, 1, 0, 10);
+		let mut s = Monster::new(String::from("snake"), id, NPCType::Snake, 14, hp, 'S', row, col, 
+			colour, 4, 4, 1, 0, 10);
 		s.special_dmg = String::from("poison");
 
         self.npc_list.insert(id, s);
@@ -389,8 +389,8 @@ impl NPCTracker {
         let id = self.npc_id;
 		let hp = dice::roll(6, 3, 0);
 		
-        let s = Monster::new(String::from("shark"), id, 12, hp, '^', row, col, GREY,
-			4, 8, 1, 2, 10);
+        let s = Monster::new(String::from("shark"), id, NPCType::Shark, 12, hp, '^', row, col, 
+			GREY, 4, 8, 1, 2, 10);
 
         self.npc_list.insert(id, s);
         self.loc_index.insert((row, col), id);
@@ -400,8 +400,8 @@ impl NPCTracker {
         self.npc_id += 1;
         let id = self.npc_id;
 		let hp = dice::roll(8, 4, 0);
-		let mut p = Monster::new(String::from("panther"), id, 12, hp, 'f', row, col, BLUE,
-			5, 12, 1, 2, 10);
+		let mut p = Monster::new(String::from("panther"), id, NPCType::Panther, 12, hp, 'f', row, col, 
+			BLUE, 5, 12, 1, 2, 10);
 
 		p.aware_of_player = true; // always on the hunt
 
@@ -413,8 +413,8 @@ impl NPCTracker {
         self.npc_id += 1;
         let id = self.npc_id;
 		let hp = dice::roll(5, 2, 0);
-		let b = Monster::new(String::from("wild boar"), id, 12, hp, 'b', row, col, DARK_BROWN,
-			4, 6, 1, 2, 5);
+		let b = Monster::new(String::from("wild boar"), id, NPCType::Boar, 12, hp, 'b', row, col, 
+			DARK_BROWN, 4, 6, 1, 2, 5);
 
         self.npc_list.insert(id, b);
         self.loc_index.insert((row, col), id);
@@ -422,9 +422,23 @@ impl NPCTracker {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+pub enum NPCType {
+	Boar,
+	Shark,
+	Snake,
+	Panther,
+	Skeleton,
+	UndeadCaptain,
+	Merfolk,
+	MaroonedPirate,
+	Castaway,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Monster {
 	pub name: String,
     pub id: usize,
+	pub npc_type: NPCType,
 	pub ac: u8,
 	pub hp: u8,
 	pub symbol: char,
@@ -447,9 +461,9 @@ pub struct Monster {
 }
 
 impl Monster {
-	pub fn new(name: String, id: usize, ac:u8, hp: u8, symbol: char, row: usize, col: usize, color: (u8, u8, u8),
-			hit_bonus: i8, dmg: u8, dmg_dice: u8, dmg_bonus: u8, score: u8) -> Monster {
-		Monster { name, id, ac, hp, symbol, row, col, color, hit_bonus, 
+	pub fn new(name: String, id: usize, npc_type: NPCType, ac:u8, hp: u8, symbol: char, row: usize, col: usize, 
+			color: (u8, u8, u8), hit_bonus: i8, dmg: u8, dmg_dice: u8, dmg_bonus: u8, score: u8) -> Monster {
+		Monster { name, id, npc_type, ac, hp, symbol, row, col, color, hit_bonus, 
 			dmg, dmg_dice, dmg_bonus, special_dmg: String::from(""),
 			gender: 0, anchor: (0, 0), score, aware_of_player: false, hostile: true,
 			voice_line: String::from(""), minions: 0, boss: 0 }
@@ -459,22 +473,15 @@ impl Monster {
 	// Rust polymorphism model
 	pub fn act(&mut self, state: &mut GameState, ships: &HashMap<(usize, usize), Ship>) 
 											-> Result<(), super::ExitReason> {
-		if self.name == "shark" {
-			shark_action(self, state, ships)?;
-		} else if self.name == "marooned pirate" {
-			pirate_action(self, state, ships)?;
-		} else if self.name == "mermaid" || self.name == "merperson" || self.name == "merman" {
-			merfolk_action(self, state)?;
-		} else if self.name == "castaway" {
-			castaway_action(self, state, ships)?;
-		} else if self.name == "wild boar" {
-			basic_monster_action(self, state, ships, "gores")?;
-		} else if self.name == "skeletal pirate" {
-			basic_undead_action(self, state, ships)?;
-		} else if self.name == "undead pirate captain" {
-			undead_boss_action(self, state, ships)?;
-		} else {
-			basic_monster_action(self, state, ships, "bites")?;
+		match self.npc_type {
+			NPCType::Shark => shark_action(self, state, ships)?,
+			NPCType::MaroonedPirate => pirate_action(self, state, ships)?,
+			NPCType::Merfolk => merfolk_action(self, state)?,
+			NPCType::Castaway => castaway_action(self, state, ships)?,
+			NPCType::Boar => basic_monster_action(self, state, ships, "gores")?,
+			NPCType::Skeleton => basic_undead_action(self, state, ships)?,
+			NPCType::UndeadCaptain => undead_boss_action(self, state, ships)?,
+			NPCType::Snake | NPCType::Panther =>basic_monster_action(self, state, ships, "bites")?,
 		}
 
 		Ok(())
