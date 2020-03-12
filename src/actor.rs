@@ -265,6 +265,13 @@ impl NPCTracker {
         self.loc_index.remove(&(row, col));
     }
 
+	pub fn minion_killed(&mut self, boss_id: usize) {
+		if self.npc_list.contains_key(&boss_id) {
+			let mut boss = self.npc_list.get_mut(&boss_id).unwrap(); 
+			boss.minions -= 1;
+		}
+	}
+
 	pub fn new_merperson(&mut self, row: usize, col: usize) {
         self.npc_id += 1;
         let id = self.npc_id;
@@ -296,10 +303,6 @@ impl NPCTracker {
 		let mut s = Monster::new(String::from("skeletal pirate"), id, NPCType::Skeleton, 13, hp, 'Z', row, col, 
 			WHITE, 4, 0, 0, 0, 5);
         s.boss = boss_id;
-
-		if self.loc_index.contains_key(&(row, col)) {
-			println!("WHAT THE FUCK");
-		}
 
         self.npc_list.insert(id, s);
         self.loc_index.insert((row, col), id);
@@ -421,7 +424,7 @@ impl NPCTracker {
 	}
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub enum NPCType {
 	Boar,
 	Shark,
@@ -546,7 +549,6 @@ fn undead_boss_action(m: &mut Monster, state: &mut GameState,
 				&& map::is_passable(&state.map[target_r][target_c]) {
             state.npcs.new_skeleton(target_r, target_c, m.id);
 			m.minions += 1;
-
 			let dis = util::cartesian_d(m.row, m.col, state.player.row, state.player.col);
 			if dis < 8 {
 				let roll = dice::roll(3, 1, 0);

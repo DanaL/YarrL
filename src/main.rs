@@ -260,6 +260,10 @@ fn attack_npc(state: &mut GameState, npc_row: usize, npc_col: usize) {
 
 		if dmg as u8 > npc.hp {
 			let s = format!("You kill the {}!", npc.name);
+			if npc.npc_type == actor::NPCType::Skeleton {
+				state.npcs.minion_killed(npc.boss);
+			}
+
 			state.write_msg_buff(&s);
 			state.player.score += npc.score;
 			if npc.score > 0 {
@@ -337,6 +341,9 @@ fn shoot(state: &mut GameState, dir: (i32, i32), gun: &Item, dex_mod: i8, gui: &
 
 				if dmg as u8 > npc.hp {
 					let s = format!("You kill the {}!", npc.name);
+					if npc.npc_type == actor::NPCType::Skeleton {
+						state.npcs.minion_killed(npc.boss);
+					}
 					state.write_msg_buff(&s);
 					state.player.score += npc.score;
 					state.npcs.remove(npc.id, bullet_r as usize, bullet_c as usize);
