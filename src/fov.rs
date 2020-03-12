@@ -177,19 +177,20 @@ fn add_ship(v_matrix: &mut Vec<map::Tile>,
 	let delta_row_aft = ship.aft_row as i32 - ship.row as i32;
 	let delta_col_aft = ship.aft_col as i32 - ship.col as i32;
 
-	let bow_row = (delta_row_bow as i32 + row as i32) as usize;
-	let bow_col = (delta_col_bow as i32 + col as i32) as usize;
-	let aft_row = (delta_row_aft as i32 + row as i32) as usize;
-	let aft_col = (delta_col_aft as i32 + col as i32) as usize;
-
-    let bow_i = bow_row * width + bow_col;
-    let aft_i = aft_row * width + aft_col;
+	let bow_row = delta_row_bow + row as i32;
+	let bow_col = delta_col_bow + col as i32;
+	let aft_row = delta_row_aft + row as i32;
+	let aft_col = delta_col_aft + col as i32;
     
-	if bow_i < v_matrix.len() && v_matrix[bow_i] != map::Tile::Blank {
-		v_matrix[bow_i] = map::Tile::ShipPart(ship.bow_ch);
+    let bow_i = bow_row * width as i32 + bow_col;
+    let aft_i = aft_row * width as i32 + aft_col;
+    let v_len = v_matrix.len() as i32; 
+        
+	if bow_i > 0 && bow_i < v_len && v_matrix[bow_i as usize] != map::Tile::Blank {
+		v_matrix[bow_i as usize] = map::Tile::ShipPart(ship.bow_ch);
 	} 
-	if aft_i < v_matrix.len() && v_matrix[aft_i] != map::Tile::Blank {
-		v_matrix[aft_i] = map::Tile::ShipPart(ship.aft_ch);
+	if aft_i > 0 && bow_i < v_len && v_matrix[aft_i as usize] != map::Tile::Blank {
+		v_matrix[aft_i as usize] = map::Tile::ShipPart(ship.aft_ch);
 	} 
 }
 
