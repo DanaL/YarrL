@@ -311,9 +311,9 @@ fn shoot(state: &mut GameState, dir: (i32, i32), gun: &Item, dex_mod: i8, gui: &
 		// Sophisticated animation goes here!
 		gui.v_matrix = fov::calc_v_matrix(state, items, ships, FOV_HEIGHT, FOV_WIDTH);
 		// Okay, need to calcuate where in the v_matrix the bullet currently is
-		let bullet_r = (FOV_HEIGHT / 2) as i32 + travelled.0;
-		let bullet_c = (FOV_WIDTH / 2) as i32 + travelled.1;
-        let bullet_i = (bullet_r * FOV_WIDTH as i32 + bullet_c) as usize;
+		let vm_bullet_r = (FOV_HEIGHT / 2) as i32 + travelled.0;
+		let vm_bullet_c = (FOV_WIDTH / 2) as i32 + travelled.1;
+        let bullet_i = (vm_bullet_r * FOV_WIDTH as i32 + vm_bullet_c) as usize;
 
 		// note, not currently checked for bounds because firearms don't have a range > screen dimensions...
 		if gui.v_matrix[bullet_i] != map::Tile::Blank {
@@ -348,6 +348,7 @@ fn shoot(state: &mut GameState, dir: (i32, i32), gun: &Item, dex_mod: i8, gui: &
 					}
 					state.write_msg_buff(&s);
 					state.player.score += npc.score;
+                    state.player.max_stamina += 1;
 					state.npcs.remove(npc.id, bullet_r as usize, bullet_c as usize);
 					return; 
 				} else {
