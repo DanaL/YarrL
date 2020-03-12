@@ -167,7 +167,11 @@ fn astar(
 							.or_insert(tentative_score);
 
 					let mut d_to_goal = (nr - end_r as i32).abs() + (nc - end_c as i32).abs();
-					if d_to_goal < 0 { d_to_goal *= -1 }
+
+                    if d_to_goal > 60 {
+                        continue;
+                    }
+
 					d_to_goal += tentative_score as i32;
 
 					if !in_queue.contains(&n_loc) {
