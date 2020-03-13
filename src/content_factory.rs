@@ -20,6 +20,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use rand::Rng;
 
 use super::{GameState, ItemsTable};
+use crate::actor::NPCTracker;
 use crate::dice;
 use crate::items::Item;
 use crate::map;
@@ -217,6 +218,7 @@ fn create_island(state: &mut GameState,
 	let max_fruit;
 	let mut spring = false;
 	let mut skeleton_island = false;
+    let mut has_cave = false;
 
 	if island_type < 0.5 {
 		// regular island
@@ -230,9 +232,14 @@ fn create_island(state: &mut GameState,
 
 		// Once in a while, an island will be occupied by an undead
 		// skeleton captain who will raise an undead army 
-		if rand::thread_rng().gen_range(0.0, 1.0) < 1.0 {
+		if rand::thread_rng().gen_range(0.0, 1.0) < 0.15 {
 			skeleton_island = true;
 		}
+
+		if rand::thread_rng().gen_range(0.0, 1.0) < 1.00 {
+            has_cave = true;
+        }
+
 	} else if island_type < 0.85 {
 		// atoll
 		island = map::generate_atoll();
@@ -250,6 +257,10 @@ fn create_island(state: &mut GameState,
 		max_campsites = 3;
 		island_info.length = 65;
 		spring = true;
+
+		if rand::thread_rng().gen_range(0.0, 1.0) < 1.00 {
+            has_cave = true;
+        }
 	}
 
 	// this doesn't do what I wanted it to, I don't think
@@ -327,6 +338,10 @@ fn create_island(state: &mut GameState,
             npcs.new_skeleton(loc.0, loc.1, boss_id);
 		}
 	}
+
+    if has_cave {
+        place_cave(state, items, island_info);
+    }
 }
 
 fn get_pirate_lord() -> String {
@@ -958,20 +973,23 @@ fn is_hidden_valley(map: &Vec<Vec<Tile>>, r: usize, c: usize) -> HashSet<(usize,
 // Look for any blocks of trees where all their neighbours are 
 // either trees, mountains or snow peeaks. (And maybe I should 
 // include lava?) Another floodfill type search...
-fn find_hidden_valleys(map: &Vec<Vec<Tile>>) {
-	//let valleys = Vec::new();
+fn find_hidden_valleys(map: &Vec<Vec<Tile>>, island_info: &IslandInfo) -> HashSet<(usize, usize)> {
+	let mut valleys = HashSet::new();
 
-	for r in 0..map.len() {
-		for c in 0..map.len() {
+	for r in island_info.offset_r..island_info.length + island_info.offset_r {
+        for c in island_info.offset_c..island_info.length + island_info.offset_c {
+            if valleys.contains(&(r, c)) {
+                continue;
+            }
+
 			if map[r][c] == Tile::Tree {
-				let c = is_hidden_valley(map, r, c);
-				if c.len() > 0 {
-					println!("found a hidden valley!");
-					println!("{:?}", c);
-				}
+				let valley = is_hidden_valley(map, r, c);
+                valleys.extend(valley);
 			}
 		}
 	}	
+
+    valleys
 }
 
 // Since the maps can be generated sometimes small (especially
@@ -1100,4 +1118,98 @@ fn find_coastline(world_map: &Vec<Vec<Tile>>, island_info: &mut IslandInfo) {
 	}
 }
 
+// Should probably switch to a more generic "Find any of these tile types that are accessible from
+// the shore"
+fn mountains_reachable_by_shore(map: &Vec<Vec<Tile>>, island_info: &IslandInfo) -> VecDeque<(usize, usize)> {
+    let mut reachable = VecDeque::new();
+
+    let hidden_valleys = find_hidden_valleys(map, island_info);
+
+    // Criteria for a mountain that's reachable from the shore is:
+    // any mountain that isn't completely surrounded by mountains or 
+    // locations in hidden valleys
+    for r in island_info.offset_r..island_info.length + island_info.offset_r {
+        for c in island_info.offset_c..island_info.length + island_info.offset_c {
+            if map[r][c] != Tile::Mountain { continue; }
+            if hidden_valleys.contains(&(r, c)) { continue; }
+            
+            if (map[r - 1][c] == Tile::Mountain || map[r - 1][c] == Tile::SnowPeak) &&
+                (map[r + 1][c] == Tile::Mountain || map[r + 1][c] == Tile::SnowPeak) &&
+                (map[r][c - 1] == Tile::Mountain || map[r][c - 1] == Tile::SnowPeak) &&
+                (map[r][c + 1] == Tile::Mountain || map[r][c + 1] == Tile::SnowPeak) {
+                continue;
+            }
+
+            reachable.push_back((r, c));
+        }
+    }
+    
+    reachable
+}
+
+// This assumes the caves generated are always fully connected...
+fn find_cave_exit(cave_map: &Vec<Vec<Tile>>, length: usize, width: usize) -> (usize, usize) {
+    let roll = rand::thread_rng().gen_range(0.0, 1.0);
+    if roll < 0.5 {
+        let col = rand::thread_rng().gen_range(2, 28);
+        if roll < 0.25 {
+            for row in 1..19 {
+                if cave_map[row][col] != Tile::Wall {
+                    return (row, col);
+                }
+            }
+        } else {
+            for row in (1..19).rev() {
+                if cave_map[row][col] != Tile::Wall {
+                    return (row, col);
+                }
+            }
+        }
+    } else {
+        let row = rand::thread_rng().gen_range(2, 19);
+        if roll < 0.5 {
+            for col in 1..28 {
+                if cave_map[row][col] != Tile::Wall {
+                    return (row, col);
+                }
+            }
+        } else {
+            for col in (1..28).rev() {
+                if cave_map[row][col] != Tile::Wall {
+                    return (row, col);
+                }
+            }
+        }
+    }
+
+    (0, 0)
+}
+
+fn place_cave(state: &mut GameState, items: &mut HashMap<u8, ItemsTable>, island_info: &IslandInfo) {
+    let reachable = mountains_reachable_by_shore(&state.map[&state.map_id], island_info);
+    let next_map_id = state.map.len() as u8;
+    let curr_map = state.map.get_mut(&state.map_id).unwrap();
+
+    if reachable.len() > 0 {
+        let cave_loc_id = rand::thread_rng().gen_range(0, reachable.len());
+        let cave_loc = reachable[cave_loc_id];
+        curr_map[cave_loc.0][cave_loc.1] = Tile::Portal((cave_loc.0, cave_loc.1, 1));
+        println!("{:?}", cave_loc);
+
+        let mut cave_map = map::generate_cave(30, 20);
+
+        let exit = find_cave_exit(&cave_map, 20, 30);
+        if exit.0 != 0 && exit.1 != 0 {
+            cave_map[exit.0][exit.1] = Tile::Portal((cave_loc.0, cave_loc.1, state.map_id));
+            curr_map[cave_loc.0][cave_loc.1] = Tile::Portal((exit.0, exit.1, next_map_id));
+            state.map.insert(next_map_id, cave_map);
+
+            state.npcs.insert(next_map_id, NPCTracker::new());
+            let mut items = HashMap::new();
+            println!("foo {}", items.len());
+            items.insert(next_map_id, ItemsTable::new());
+            println!("foo {}", items.len());
+        }
+    }
+}
 

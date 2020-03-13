@@ -371,7 +371,9 @@ impl<'a, 'b> GameUI<'a, 'b> {
 								return Cmd::DropItem;
 							} else if val == "s" {
 								return Cmd::Search;
-							}
+							} else if val == "e" {
+                                return Cmd::EnterPortal;
+                            }
 						}
 					},
 					_ => { continue },
@@ -493,6 +495,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::Floor => ('.', tuple_to_sdl2_color(&BEIGE)),
 			map::Tile::Window(ch) => (*ch, tuple_to_sdl2_color(&BROWN)),
 			map::Tile::Spring => ('~', tuple_to_sdl2_color(&LIGHT_BLUE)),
+            map::Tile::Portal(_) => ('Ո', tuple_to_sdl2_color(&GREY)),
 		};
 
 		ti

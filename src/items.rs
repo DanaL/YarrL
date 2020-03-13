@@ -317,7 +317,7 @@ impl Inventory {
 	}
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ItemsTable {
 	table: HashMap<(usize, usize), VecDeque<Item>>,
 }

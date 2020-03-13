@@ -85,6 +85,7 @@ pub enum Cmd {
 	Read,
 	Eat,
 	Save,
+    EnterPortal,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -535,6 +536,7 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 					state.write_msg_buff("Whew, you stumble ashore.");
 				}
 			},
+            map::Tile::Portal(_) => state.write_msg_buff("Where could this lead..."),
 		}
 
 		let items_count = items.count_at(state.player.row, state.player.col);
@@ -552,6 +554,28 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 	}
 
 	Ok(())
+}
+
+fn enter_portal(state: &mut GameState, items: &HashMap<u8, ItemsTable>, 
+                ships: &HashMap<(usize, usize), Ship>,  gui: &mut GameUI) {
+    match state.map[&state.map_id][state.player.row][state.player.col] {
+        Tile::Portal((pr, pc, map_id)) => {
+            println!("Portal to {} {} on map {} here.", pr, pc, map_id);
+            state.map_id = map_id;
+            println!("{}", state.map.len());
+            println!("{}", items.len());
+            state.player.row = pr;
+            state.player.col = pc;
+
+            
+            let map_items = ItemsTable::new();
+            gui.v_matrix = fov::calc_v_matrix(state, &map_items, ships, FOV_HEIGHT, FOV_WIDTH);
+            let sbi = state.curr_sidebar_info();
+            gui.write_screen(&mut state.msg_buff, &sbi);
+            gui.pause_for_more();
+        },
+        _ => state.write_msg_buff("Nothing to enter here."),
+    }
 }
 
 fn show_message_history(state: &GameState, gui: &mut GameUI) {
@@ -1570,6 +1594,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 				Cmd::Search => search(state, map_items),
 				Cmd::Read => read(state, gui),
 				Cmd::Save => save_and_exit(state, items, ships, gui)?,
+                Cmd::EnterPortal => enter_portal(state, items, ships, gui),
 			}
 		}
 

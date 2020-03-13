@@ -55,6 +55,7 @@ pub enum Tile {
 	Floor,
 	Window(char),
 	Spring,
+    Portal((usize, usize, u8)),
 }
 
 pub fn all_passable() -> HashSet<Tile> {
