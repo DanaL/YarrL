@@ -501,8 +501,8 @@ fn find_adj_empty_sq(row: i32, col: i32, state: &GameState,
 			let adj_r = row + r;
 			let adj_c = col + c;
 	
-			if !map::in_bounds(&state.map, adj_r, adj_c) { continue; }
-			if !passable.contains(&state.map[adj_r as usize][adj_c as usize]) { continue; }
+			if !map::in_bounds(&state.map[&state.map_id], adj_r, adj_c) { continue; }
+			if !passable.contains(&state.map[&state.map_id][adj_r as usize][adj_c as usize]) { continue; }
 			if !super::sq_is_open(state, ships, adj_r as usize, adj_c as usize) { continue; }
 
 			adj.push((adj_r as usize, adj_c as usize));
@@ -553,8 +553,10 @@ fn undead_boss_action(m: &mut Monster, state: &mut GameState,
 		let target_c = (m.col as i32 + loc.1) as usize;
 		
 		if super::sq_is_open(state, ships, target_r, target_c) 
-				&& map::is_passable(&state.map[target_r][target_c]) {
-            state.npcs.new_skeleton(target_r, target_c, m.id);
+				&& map::is_passable(&state.map[&state.map_id][target_r][target_c]) {
+            state.npcs.get_mut(&state.map_id)
+						.unwrap()
+						.new_skeleton(target_r, target_c, m.id);
 			m.minions += 1;
 			let dis = util::cartesian_d(m.row, m.col, state.player.row, state.player.col);
 			if dis < 8 {
@@ -621,7 +623,7 @@ fn basic_undead_action(m: &mut Monster, state: &mut GameState,
 	
 			if path.len() > 1 {
 				let new_loc = path[1];
-				if state.npcs.is_npc_at(new_loc.0, new_loc.1) {
+				if state.npcs[&state.map_id].is_npc_at(new_loc.0, new_loc.1) {
 					let s = format!("The {} is blocked.", m.name);
 					state.write_msg_buff(&s);
 					return Ok(());
@@ -682,7 +684,7 @@ fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 	
 		if path.len() > 1 {
 			let new_loc = path[1];
-			if state.npcs.is_npc_at(new_loc.0, new_loc.1) {
+			if state.npcs[&state.map_id].is_npc_at(new_loc.0, new_loc.1) {
 				let s = format!("The {} is blocked.", m.name);
 				state.write_msg_buff(&s);
 				return Ok(());
@@ -797,7 +799,7 @@ fn pirate_action(m: &mut Monster, state: &mut GameState,
 		let next_c;
 		if path.len() > 1 {
 			let new_loc = path[1];
-			if state.npcs.is_npc_at(new_loc.0, new_loc.1) {
+			if state.npcs[&state.map_id].is_npc_at(new_loc.0, new_loc.1) {
 				let s = format!("The {} is blocked.", m.name);
 				state.write_msg_buff(&s);
 				return Ok(());
@@ -845,8 +847,8 @@ fn pick_fleeing_move(state: &mut GameState, m: &Monster, passable: HashSet<Tile>
 	for mv in options {
 		let mv_r = (m.row as i32 + mv.0) as usize;
 		let mv_c = (m.col as i32 + mv.1) as usize;
-		if passable.contains(&state.map[mv_r][mv_c]) 
-				&& !state.npcs.is_npc_at(mv_r, mv_c) { 
+		if passable.contains(&state.map[&state.map_id][mv_r][mv_c]) 
+				&& !state.npcs[&state.map_id].is_npc_at(mv_r, mv_c) { 
 			return Some((mv_r, mv_c));
 		}
 	}
@@ -884,13 +886,14 @@ fn merfolk_action(m: &mut Monster, state: &mut GameState) -> Result<(), super::E
 		}
 	} else if dis < 25 {
 		// just move a random sq somteimes
+		let curr_map = &state.map[&state.map_id];
 		if rand::thread_rng().gen_range(0.0, 1.0) < 0.25 {
 			for _ in 0..6 {
 				let mv = util::rnd_adj();
 				let next_r = (m.row as i32 + mv.0) as usize;
 				let next_c = (m.col as i32 + mv.1) as usize;
-				if state.map[next_r][next_c] == Tile::Water 
-								|| state.map[next_r][next_c] == Tile::DeepWater {
+				if curr_map[next_r][next_c] == Tile::Water 
+								|| curr_map[next_r][next_c] == Tile::DeepWater {
 					m.row = next_r;
 					m.col = next_r;
 					break;
@@ -922,7 +925,7 @@ fn shark_action(m: &mut Monster, state: &mut GameState, ships: &HashMap<(usize, 
 		
 		if path.len() > 1 {
 			let new_loc = path[1];
-			if state.npcs.is_npc_at(new_loc.0, new_loc.1) {
+			if state.npcs[&state.map_id].is_npc_at(new_loc.0, new_loc.1) {
 				let s = format!("The {} is blocked.", m.name);
 				state.write_msg_buff(&s);
 				return Ok(());

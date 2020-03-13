@@ -63,6 +63,7 @@ fn calc_actual_tile(r: usize, c: usize, map: &Map,
 fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, 
 		state: &mut GameState, items: &ItemsTable,
 		v_matrix: &mut Vec<map::Tile>, width: usize) {
+	let curr_map = &state.map[&state.map_id];
 	let mut r = r1;
 	let mut c = c1;
 	let mut error = 0;
@@ -92,22 +93,22 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 				break;
 			}
 
-			if !map::in_bounds(&state.map, r, c) {
+			if !map::in_bounds(curr_map, r, c) {
 				return;
 			}
 
 			let vm_r = r - r1 + 10;
 			let vm_c = c - c1 + 20;
             let vmi = (vm_r * width as i32 + vm_c) as usize;
-			v_matrix[vmi] = calc_actual_tile(r as usize, c as usize, &state.map, &state.npcs, items);
+			v_matrix[vmi] = calc_actual_tile(r as usize, c as usize, curr_map, &state.npcs[&state.map_id], items);
 			state.world_seen.insert((r as usize, c as usize));
 
-			if !map::is_clear(&state.map[r as usize][c as usize]) {
+			if !map::is_clear(&curr_map[r as usize][c as usize]) {
 				return;
 			}
 
 			// I want trees to not totally block light, but instead reduce visibility
-			if map::Tile::Tree == state.map[r as usize][c as usize] && !(r == r1 && c == c1) {
+			if map::Tile::Tree == curr_map[r as usize][c as usize] && !(r == r1 && c == c1) {
 				if r_step > 0 {
 					r_end -= 3;
 				} else {
@@ -131,23 +132,23 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 				break;
 			}
 
-			if !map::in_bounds(&state.map, r, c) {
+			if !map::in_bounds(curr_map, r, c) {
 				return;
 			}
 
 			let vm_r = r - r1 + 10;
 			let vm_c = c - c1 + 20;
             let vmi = (vm_r * width as i32 + vm_c) as usize;
-			v_matrix[vmi] = calc_actual_tile(r as usize, c as usize, &state.map, &state.npcs, items);
+			v_matrix[vmi] = calc_actual_tile(r as usize, c as usize, curr_map, &state.npcs[&state.map_id], items);
 			state.world_seen.insert((r as usize, c as usize));
 
-			if !map::is_clear(&state.map[r as usize][c as usize]) {
+			if !map::is_clear(&curr_map[r as usize][c as usize]) {
 				return;
 			}
 		
 			// Same as above, trees partially block vision instead of cutting it off
 			// altogether
-			if map::Tile::Tree == state.map[r as usize][c as usize] && !(r == r1 && c == c1) {
+			if map::Tile::Tree == curr_map[r as usize][c as usize] && !(r == r1 && c == c1) {
 				if c_step > 0 {
 					c_end -= 3;
 				} else {
@@ -267,14 +268,15 @@ pub fn calc_v_matrix(
 		mark_visible(state.player.row as i32, state.player.col as i32,
 			actual_r as i32, actual_c as i32, state, items, &mut v_matrix, width);
 	}
-
-	add_ships_to_v_matrix(&state.map, &mut v_matrix, ships, 
+	
+	let curr_map = &state.map[&state.map_id];
+	add_ships_to_v_matrix(curr_map, &mut v_matrix, ships, 
 			state.player.row, state.player.col, height, width);
 
     let fov_center_i = fov_center_r * width + fov_center_c;
 	if state.player.on_ship {
 		v_matrix[fov_center_i] = map::Tile::Player(BROWN);
-	} else if state.map[state.player.row][state.player.col] == map::Tile::DeepWater
+	} else if curr_map[state.player.row][state.player.col] == map::Tile::DeepWater
 			&& !ships.contains_key(&(state.player.row, state.player.col)) {
 		v_matrix[fov_center_i] = map::Tile::Player(LIGHT_BLUE);
 	} else {

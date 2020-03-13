@@ -134,6 +134,7 @@ fn astar(
 	g_scores.insert((start_r, start_c), 0);
 	let goal = (end_r, end_c);
 
+	let curr_map = &state.map[&state.map_id];
 	queue.push(ASQueueItem::new((start_r, start_c), 0)); 
 	in_queue.insert((start_r, start_c));
 
@@ -149,10 +150,10 @@ fn astar(
 				if r == 0 && c == 0 { continue; }
 				let nr = curr.0 as i32 + r;
 				let nc = curr.1 as i32 + c;
-				if !map::in_bounds(&state.map, nr, nc) { continue; }
+				if !map::in_bounds(curr_map, nr, nc) { continue; }
 
 				let n_loc = (nr as usize, nc as usize);
-				if !passable_by_me(&state.map[n_loc.0][n_loc.1], passable_tiles) { continue; }
+				if !passable_by_me(&curr_map[n_loc.0][n_loc.1], passable_tiles) { continue; }
 				if n_loc != goal && !super::sq_is_open(state, ships, n_loc.0, n_loc.1) { continue; }
 
 				let tentative_score = *g_scores.get(&curr).unwrap() + 1;
@@ -208,9 +209,10 @@ pub fn find_path(
 	//
 	// (I could also do this if the astar() returns no path but worry that would 
 	// start to get expensive)
-	if !passable_by_me(&state.map[end_r][end_c], &passable_tiles) {
+	let tile = &state.map[&state.map_id][end_r][end_c];
+	if !passable_by_me(&tile, &passable_tiles) {
 		// The goal is on an impassable sq so gotta try something else
-		let res = find_nearest_reachable(&state.map, start_r, start_c, end_r, end_c, passable_tiles);
+		let res = find_nearest_reachable(&state.map[&state.map_id], start_r, start_c, end_r, end_c, passable_tiles);
 		if res == (0, 0) {
 			return Vec::new();
 		}

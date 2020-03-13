@@ -487,6 +487,7 @@ pub struct Item {
 	pub hidden: bool,
 	pub nw_corner: (usize, usize),
 	pub x_coord: (usize, usize),
+	pub of_map_id: u8,
 }
 
 impl Item {
@@ -495,7 +496,7 @@ impl Item {
 			item_type, weight: w, symbol: sym, color, stackable, prev_slot: '\0',
 				dmg: 1, dmg_dice: 1, bonus: 0, range: 0, armour_value: 0, 
 				equiped: false, loaded: false, hidden: false, nw_corner: (0, 0),
-				x_coord: (0, 0) }
+				x_coord: (0, 0), of_map_id: 0 }
 	}
 
 	pub fn get_indefinite_article(&self) -> String {
@@ -528,10 +529,12 @@ impl Item {
 		}
 	}
 
-	pub fn get_map(nw_corner: (usize, usize), x_coord: (usize, usize)) -> Item {
+	pub fn get_map(nw_corner: (usize, usize), x_coord: (usize, usize),
+				of_map_id: u8) -> Item {
 		let mut map = Item::new("treasure map", ItemType::TreasureMap, 0, false, '?', display::WHITE);
 		map.nw_corner =	nw_corner; 
 		map.x_coord = x_coord;
+		map.of_map_id = of_map_id;
 
 		map
 	}

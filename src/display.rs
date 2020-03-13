@@ -154,6 +154,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		line.push_str(title);
 		self.write_line(0, &line, false);
 
+		let curr_map = &state.map[&map.of_map_id];
 		let red = tuple_to_sdl2_color(&BRIGHT_RED);
 		let screen_col = SCREEN_WIDTH / 2 - 7;
 		for r in 0..25 {
@@ -164,8 +165,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				if loc_r == map.x_coord.0 && loc_c == map.x_coord.1 {
 					self.write_map_sq(1 + r, actual_c, ('X', Color::RGBA(0, 0, 0, 255)));
 				} else {
-					let tile = &state.map[loc_r][loc_c];
-					let (mut ch, _) = GameUI::sq_info_for_tile(tile);
+					let tile = &curr_map[loc_r][loc_c];
+					let (mut ch, _) = GameUI::sq_info_for_tile(&tile);
 					if ch == '}' {
 						ch = ' ';	
 					} 
@@ -178,7 +179,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		self.wait_for_key_input();
 	}
 
-	pub fn show_world_map(&mut self, state: &GameState) {
+	pub fn show_world_map(&mut self, _state: &GameState) {
+		/*
 		self.canvas.clear();
 
 		let title = "~Ye Olde World Map~";
@@ -200,6 +202,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 		self.canvas.present();
 		self.wait_for_key_input();
+		*/
 	}
 
 	pub fn query_single_response(&mut self, question: &str, sbi: &SidebarInfo) -> Option<char> {

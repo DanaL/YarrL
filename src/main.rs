@@ -17,6 +17,7 @@ extern crate rand;
 extern crate sdl2;
 extern crate serde;
 
+#[allow(dead_code)]
 mod actor;
 #[allow(dead_code)]
 mod content_factory;
@@ -91,8 +92,9 @@ pub struct GameState {
 	player: Player,
 	msg_buff: VecDeque<String>,
 	msg_history: VecDeque<(String, u32)>,
-	map: Map,
-	npcs: NPCTracker,
+	map: HashMap<u8, Map>,
+	npcs: HashMap<u8, NPCTracker>,
+	map_id: u8,
 	turn: u32,
 	world_seen: HashSet<(usize, usize)>,
 	pirate_lord: String,
@@ -105,14 +107,21 @@ pub struct GameState {
 }
 
 impl GameState {
-	pub fn new_pirate(name: String, p_type: PirateType, npcs: NPCTracker) -> GameState {
+	pub fn new_pirate(name: String, p_type: PirateType) -> GameState {
 		let player = match p_type {
 			PirateType::Swab => Player::new_swab(name),
 			PirateType::Seadog => Player::new_seadog(name),
 		};
 
+		let world_map = Vec::new();
+		let mut map = HashMap::new();
+		map.insert(0, world_map);
+
+		let mut npcs = HashMap::new();
+		npcs.insert(0, NPCTracker::new());
+
 		GameState {player, msg_buff: VecDeque::new(), 
-			msg_history: VecDeque::new(), turn: 0, map: Vec::new(), npcs,
+			msg_history: VecDeque::new(), turn: 0, map, npcs, map_id: 0,
 			world_seen: HashSet::new(), pirate_lord: String::from(""),
 			player_ship: String::from(""), pirate_lord_ship: String::from(""),
 			starter_clue: 0, notes: HashMap::new(), note_count: 0,
@@ -161,7 +170,7 @@ fn sq_is_open(state: &GameState, ships: &HashMap<(usize, usize), Ship>,
 		return false;
 	} 
 
-	if state.npcs.is_npc_at(row, col) {
+	if state.npcs[&state.map_id].is_npc_at(row, col) {
 		return false;
 	}
 
@@ -235,7 +244,7 @@ fn player_takes_dmg(player: &mut Player, dmg: u8, source: &str) -> Result<(), Ex
 }
 
 fn attack_npc(state: &mut GameState, npc_row: usize, npc_col: usize) {
-	let mut npc = state.npcs.npc_at(npc_row, npc_col).unwrap();
+	let mut npc = state.npcs.get_mut(&state.map_id).unwrap().npc_at(npc_row, npc_col).unwrap();
 	npc.aware_of_player = true;
 	let str_mod = Player::mod_for_stat(state.player.strength);
 
@@ -262,7 +271,7 @@ fn attack_npc(state: &mut GameState, npc_row: usize, npc_col: usize) {
 		if dmg as u8 > npc.hp {
 			let s = format!("You kill the {}!", npc.name);
 			if npc.npc_type == actor::NPCType::Skeleton {
-				state.npcs.minion_killed(npc.boss);
+				state.npcs.get_mut(&state.map_id).unwrap().minion_killed(npc.boss);
 			}
 
 			state.write_msg_buff(&s);
@@ -270,10 +279,10 @@ fn attack_npc(state: &mut GameState, npc_row: usize, npc_col: usize) {
 			if npc.score > 0 {
 				state.player.max_stamina += 1;
 			}
-			state.npcs.remove(npc.id, npc_row, npc_col);
+			state.npcs.get_mut(&state.map_id).unwrap().remove(npc.id, npc_row, npc_col);
 		} else {
 			npc.hp -= dmg as u8;
-			state.npcs.update(npc, npc_row, npc_col);
+			state.npcs.get_mut(&state.map_id).unwrap().update(npc, npc_row, npc_col);
 		}
 	} else {
 		let s = format!("You miss the {}!", npc.name);
@@ -304,8 +313,8 @@ fn shoot(state: &mut GameState, dir: (i32, i32), gun: &Item, dex_mod: i8, gui: &
 		travelled = (travelled.0 + dir.0, travelled.1 + dir.1);
 		distance += 1;
 
-		if !map::in_bounds(&state.map, bullet_r, bullet_c) { break; }
-		if !map::is_passable(&state.map[bullet_r as usize][bullet_c as usize]) { break; }
+		if !map::in_bounds(&state.map[&state.map_id], bullet_r, bullet_c) { break; }
+		if !map::is_passable(&state.map[&state.map_id][bullet_r as usize][bullet_c as usize]) { break; }
 		if distance > gun.range { break; }
 
 		// Sophisticated animation goes here!
@@ -324,8 +333,11 @@ fn shoot(state: &mut GameState, dir: (i32, i32), gun: &Item, dex_mod: i8, gui: &
 		gui.write_screen(&mut state.msg_buff, &sbi);
 		// probably need to pause here, or I guess not because my frame drawing is so slow...
 
-		if state.npcs.is_npc_at(bullet_r as usize, bullet_c as usize) {
-			let mut npc = state.npcs.npc_at(bullet_r as usize, bullet_c as usize).unwrap();
+		if state.npcs[&state.map_id].is_npc_at(bullet_r as usize, bullet_c as usize) {
+			let mut npc = state.npcs.get_mut(&state.map_id)
+										.unwrap()
+										.npc_at(bullet_r as usize, bullet_c as usize)
+										.unwrap();
 			if do_ability_check(dex_mod, npc.ac, state.player.prof_bonus as i8) {
 				let s = format!("Your bullet hits the {}", npc.name);
 				state.write_msg_buff(&s);
@@ -344,19 +356,25 @@ fn shoot(state: &mut GameState, dir: (i32, i32), gun: &Item, dex_mod: i8, gui: &
 				if dmg as u8 > npc.hp {
 					let s = format!("You kill the {}!", npc.name);
 					if npc.npc_type == actor::NPCType::Skeleton {
-						state.npcs.minion_killed(npc.boss);
+						state.npcs.get_mut(&state.map_id)
+									.unwrap()
+									.minion_killed(npc.boss);
 					}
 					state.write_msg_buff(&s);
 					state.player.score += npc.score;
                     state.player.max_stamina += 1;
-					state.npcs.remove(npc.id, bullet_r as usize, bullet_c as usize);
+					state.npcs.get_mut(&state.map_id)
+								.unwrap()
+								.remove(npc.id, bullet_r as usize, bullet_c as usize);
 					return; 
 				} else {
 					npc.hp -= dmg as u8;
 					// Rust is such bullshit sometimes...
 					let npc_r = npc.row;
 					let npc_c = npc.col;
-					state.npcs.update(npc, npc_r, npc_c);
+					state.npcs.get_mut(&state.map_id)
+							.unwrap()
+							.update(npc, npc_r, npc_c);
 				}
 
 				break; // We hit someone so the bullet stops
@@ -391,7 +409,8 @@ fn fire_gun(state: &mut GameState, gui: &mut GameUI, items: &ItemsTable,
 	}
 }
 
-fn action_while_charmed(state: &mut GameState, items: &ItemsTable, 
+fn action_while_charmed(state: &mut GameState, 
+			items: &HashMap<u8, ItemsTable>, 
 			ships: &HashMap<(usize, usize), Ship>) -> Result<(), ExitReason> {
 	// the charmed player attempts to swim to the mermaid
 	if state.player.on_ship {
@@ -407,8 +426,9 @@ fn action_while_charmed(state: &mut GameState, items: &ItemsTable,
 		for c in -12..12 {
 			let sq_r = (state.player.row as i32 + r) as usize;
 			let sq_c = (state.player.col as i32 + c) as usize;
-			if state.npcs.is_npc_at(sq_r, sq_c) { 
-				let m = &state.npcs.npc_at(sq_r, sq_c).unwrap();
+			if state.npcs[&state.map_id].is_npc_at(sq_r, sq_c) { 
+				let m = &state.npcs.get_mut(&state.map_id).unwrap()
+								.npc_at(sq_r, sq_c).unwrap();
 				if m.name == "mermaid" || m.name == "merman" || m.name == "merperson" {
 					let d = util::cartesian_d(state.player.row, state.player.col, sq_r, sq_c);
 					if d < nearest {
@@ -430,7 +450,7 @@ fn action_while_charmed(state: &mut GameState, items: &ItemsTable,
 			let mv = &path[1];
 			state.write_msg_buff("You are drawn to the merfolk!");
 			let dir = util::dir_between_sqs(state.player.row, state.player.col, mv.0, mv.1);
-			do_move(state, items, ships, &dir)?;
+			do_move(state, items.get(&state.map_id).unwrap(), ships, &dir)?;
 			return Ok(());
 		}
 	}
@@ -444,14 +464,15 @@ fn action_while_charmed(state: &mut GameState, items: &ItemsTable,
 fn check_environment_hazards(state: &mut GameState, ships: &HashMap<(usize, usize), Ship>) -> Result<(), ExitReason> {
 	let pr = state.player.row;
 	let pc = state.player.col;
+	let tile = &state.map[&state.map_id][pr][pc];
 
-	if state.map[pr][pc] == Tile::DeepWater && !state.player.on_ship
+	if *tile == Tile::DeepWater && !state.player.on_ship
 			&& !ships.contains_key(&(state.player.row, state.player.col)) {
 		player_takes_dmg(&mut state.player, 2, "swimming")?;
-	} else if state.map[pr][pc] == Tile::FirePit {
+	} else if *tile == Tile::FirePit {
 		let dmg = dice::roll(6, 1, 0);
 		player_takes_dmg(&mut state.player, dmg, "burn")?;
-	} else if state.map[pr][pc] == Tile::Lava {
+	} else if *tile == Tile::Lava {
 		player_takes_dmg(&mut state.player, 25, "burn")?;
 	}
 
@@ -470,13 +491,13 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 		}
 	}
 
-	let start_tile = &state.map[state.player.row][state.player.col];
+	let start_tile = &state.map[&state.map_id][state.player.row][state.player.col];
 	let next_row = (state.player.row as i32 + mv.0) as usize;
 	let next_col = (state.player.col as i32 + mv.1) as usize;
 	let next_loc = (next_row, next_col);
-	let tile = &state.map[next_row][next_col];
+	let tile = &state.map[&state.map_id][next_row][next_col];
 	
-	if state.npcs.is_npc_at(next_row, next_col) {
+	if state.npcs[&state.map_id].is_npc_at(next_row, next_col) {
 		attack_npc(state, next_row, next_col);
 	} else if ships.contains_key(&next_loc) {
 		state.player.col = next_col;
@@ -628,7 +649,7 @@ fn quaff_spring(state: &mut GameState) {
 }
 
 fn quaff(state: &mut GameState, gui: &mut GameUI) {
-	if state.map[state.player.row][state.player.col] == Tile::Spring {
+	if state.map[&state.map_id][state.player.row][state.player.col] == Tile::Spring {
 		let sbi = state.curr_sidebar_info();
 		match gui.query_yes_no("Spring from the spring? (y/n)", &sbi) {
 			'y' => {
@@ -958,7 +979,7 @@ fn ship_hit_land(state: &mut GameState, ship: &mut Ship, ships: &HashMap<(usize,
 
 fn sail(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), ExitReason> {
 	let mut ship = ships.remove(&(state.player.row, state.player.col)).unwrap();
-	let bow_tile = state.map[ship.bow_row][ship.bow_col].clone();
+	let bow_tile = state.map[&state.map_id][ship.bow_row][ship.bow_col].clone();
 
 	if ship.anchored {
 		state.write_msg_buff("The ships bobs.");
@@ -1055,10 +1076,9 @@ fn sail(state: &mut GameState, ships: &mut HashMap<(usize, usize), Ship>) -> Res
 		ship.update_loc_info();
 		ship.prev_move = delta;
 
-		//if map[ship.row][ship.col] == map::Tile::Water || 
-		if state.map[ship.bow_row][ship.bow_col] == map::Tile::Water {
+		if state.map[&state.map_id][ship.bow_row][ship.bow_col] == map::Tile::Water {
 			state.write_msg_buff("Shallow water...");
-		} else if state.map[ship.bow_row][ship.bow_col] != map::Tile::DeepWater {
+		} else if state.map[&state.map_id][ship.bow_row][ship.bow_col] != map::Tile::DeepWater {
 			ship_hit_land(state, &mut ship, ships)?;
 		}
 	}
@@ -1166,7 +1186,7 @@ fn is_putting_on_airs(name: &str) -> bool {
 		name.to_lowercase().starts_with("cap'n") 
 }
 
-fn preamble(gui: &mut GameUI) -> (GameState, ItemsTable, HashMap<(usize, usize), Ship>, bool) {
+fn preamble(gui: &mut GameUI) -> (GameState, HashMap<u8, ItemsTable>, HashMap<(usize, usize), Ship>, bool) {
 	let mut player_name: String;
 
 	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0, -1, -1, 0, false, false, 0);
@@ -1215,16 +1235,16 @@ fn preamble(gui: &mut GameUI) -> (GameState, ItemsTable, HashMap<(usize, usize),
 	menu.push("      leg slows you down but experience has taught ye a few".to_string());
 	menu.push("      tricks. And ye start with yer trusty flintlock.".to_string());
 
-	let npcs = NPCTracker::new();
 	let ships: HashMap<(usize, usize), Ship> = HashMap::new();
-	let items = ItemsTable::new();
+	let mut items = HashMap::new();
+	items.insert(0, ItemsTable::new());
 	let state: GameState;
 
 	let answer = gui.menu_picker(&menu, 2, true, true).unwrap();
 	if answer.contains(&0) {
-		state = GameState::new_pirate(player_name, PirateType::Swab, npcs);
+		state = GameState::new_pirate(player_name, PirateType::Swab);
 	} else {
-		state = GameState::new_pirate(player_name, PirateType::Seadog, npcs);
+		state = GameState::new_pirate(player_name, PirateType::Seadog);
 	}
 
 	(state, items, ships, true)
@@ -1242,10 +1262,12 @@ fn gen_save_filename(player_name: &str) -> String {
 	format!("{}.yaml", s)
 }
 
-fn load_existing_game(player_name: &str) -> Result<(GameState, ItemsTable, HashMap<(usize, usize), Ship>, bool), serde_yaml::Error> {
+fn load_existing_game(player_name: &str) -> Result<(GameState, HashMap<u8, 
+			ItemsTable>, HashMap<(usize, usize), Ship>, bool), serde_yaml::Error> {
 	let filename = gen_save_filename(&player_name);
 	let blob = fs::read_to_string(filename).expect("Error reading save file");
-	let game_data: (GameState, ItemsTable, HashMap<(usize, usize), Ship>) = serde_yaml::from_str(&blob)?;
+	let game_data: (GameState, HashMap<u8, ItemsTable>, 
+			HashMap<(usize, usize), Ship>) = serde_yaml::from_str(&blob)?;
 
 	Ok((game_data.0, game_data.1, game_data.2, false))
 }
@@ -1263,7 +1285,9 @@ fn existing_save_file(player_name: &str) -> bool {
 	false
 }
 
-fn serialize_game_data(state: &mut GameState, items: &ItemsTable, ships: &HashMap<(usize, usize), Ship>, _gui: &mut GameUI) {
+fn serialize_game_data(state: &mut GameState, 
+			items: &HashMap<u8, ItemsTable>, 
+			ships: &HashMap<(usize, usize), Ship>, _gui: &mut GameUI) {
 	let filename = gen_save_filename(&state.player.name);
 	let game_data = (state, items, ships);
 
@@ -1280,7 +1304,8 @@ fn serialize_game_data(state: &mut GameState, items: &ItemsTable, ships: &HashMa
     }
 }
 
-fn save_and_exit(state: &mut GameState, items: &ItemsTable, ships: &HashMap<(usize, usize), Ship>, gui: &mut GameUI) -> Result<(), ExitReason> {
+fn save_and_exit(state: &mut GameState, items: &HashMap<u8, ItemsTable>, 
+			ships: &HashMap<(usize, usize), Ship>, gui: &mut GameUI) -> Result<(), ExitReason> {
 	let sbi = state.curr_sidebar_info();
 	match gui.query_yes_no("Save and exit? (y/n)", &sbi) {
 		'y' => { 
@@ -1380,6 +1405,7 @@ fn check_drifting_ships(state: &mut GameState, ships: &mut HashMap<(usize, usize
 	let ship_loc = ships.keys()
 			.map(|v| v.clone())
 			.collect::<Vec<(usize, usize)>>();
+	let curr_map = &state.map[&state.map_id];
 	for sl in ship_loc {
 		let mut ship = ships.remove(&sl).unwrap();
 		if ship.row != state.player.row && ship.col != state.player.col && !ship.anchored {
@@ -1389,7 +1415,7 @@ fn check_drifting_ships(state: &mut GameState, ships: &mut HashMap<(usize, usize
 					if r == 0 && c == 0 { continue; }
 					let adj_r = (sl.0 as i32 + r) as usize;
 					let adj_c = (sl.1 as i32 + c) as usize;
-					if state.map[adj_r][adj_c] != Tile::Water && state.map[adj_r][adj_c] != Tile::DeepWater {
+					if curr_map[adj_r][adj_c] != Tile::Water && curr_map[adj_r][adj_c] != Tile::DeepWater {
 						continue;
 					}
 					if sq_is_open(state, ships, adj_r, adj_c) {
@@ -1485,26 +1511,28 @@ fn start_game() {
 }
 
 fn run(gui: &mut GameUI, state: &mut GameState, 
-		items: &mut ItemsTable, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), ExitReason> {
+		items: &mut HashMap<u8, ItemsTable>, ships: &mut HashMap<(usize, usize), Ship>) -> Result<(), ExitReason> {
 
 	state.write_msg_buff(&format!("Welcome, {}!", state.player.name));
-	gui.v_matrix = fov::calc_v_matrix(state, items, ships, FOV_HEIGHT, FOV_WIDTH);
+	gui.v_matrix = fov::calc_v_matrix(state, items.get(&state.map_id).unwrap(), ships, FOV_HEIGHT, FOV_WIDTH);
 	let sbi = state.curr_sidebar_info();
 	gui.write_screen(&mut state.msg_buff, &sbi);
 	state.msg_buff.drain(..0);
 
     loop {
 		let start_turn = state.turn;
+		let map_items = items.get_mut(&state.map_id).unwrap();
+
 		if state.player.charmed {
 			action_while_charmed(state, items, ships)?;
 		} else {
 			let cmd = gui.get_command(&state);
 			match cmd {
 				Cmd::Quit => confirm_quit(state, gui)?,
-				Cmd::Move(dir) => do_move(state, items, ships, &dir)?,
+				Cmd::Move(dir) => do_move(state, map_items, ships, &dir)?,
 				Cmd::MsgHistory => show_message_history(state, gui),
-				Cmd::DropItem => drop_item(state, items, gui),
-				Cmd::PickUp => pick_up(state, items, gui)?,
+				Cmd::DropItem => drop_item(state, map_items, gui),
+				Cmd::PickUp => pick_up(state, map_items, gui)?,
 				Cmd::ShowInventory => show_inventory(state, gui),
 				Cmd::ShowCharacterSheet => show_character_sheet(state, gui),
 				Cmd::ToggleEquipment => toggle_equipment(state, gui),
@@ -1536,10 +1564,10 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 				},
 				Cmd::Quaff => quaff(state, gui),
 				Cmd::Eat => eat(state, gui),
-				Cmd::FireGun => fire_gun(state, gui, items, ships),
+				Cmd::FireGun => fire_gun(state, gui, map_items, ships),
 				Cmd::Reload => reload(state),
 				Cmd::WorldMap => gui.show_world_map(state),
-				Cmd::Search => search(state, items),
+				Cmd::Search => search(state, map_items),
 				Cmd::Read => read(state, gui),
 				Cmd::Save => save_and_exit(state, items, ships, gui)?,
 			}
@@ -1550,9 +1578,9 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 		if state.turn > start_turn {
 			check_environment_hazards(state, ships)?;
 
-			let ids = state.npcs.all_npc_ids();
+			let ids = state.npcs[&state.map_id].all_npc_ids();
 			for id in ids {
-				match state.npcs.npc_with_id(id) {
+				match state.npcs.get_mut(&state.map_id).unwrap().npc_with_id(id) {
 					Some(mut npc) => {
 						let d = util::cartesian_d(npc.row, npc.col, state.player.row, state.player.col);
 						if d < 75 { 
@@ -1560,7 +1588,9 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 							let prev_c = npc.col;
 							npc.act(state, ships)?;
 
-							state.npcs.update(npc, prev_r, prev_c);
+							state.npcs.get_mut(&state.map_id)
+									.unwrap()
+									.update(npc, prev_r, prev_c);
 						}
 					},
 					None => { continue; }
@@ -1598,7 +1628,8 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 			check_drifting_ships(state, ships);
 		}
 	
-		gui.v_matrix = fov::calc_v_matrix(state, items, ships, FOV_HEIGHT, FOV_WIDTH);
+		let map_items = items.get(&state.map_id).unwrap();
+		gui.v_matrix = fov::calc_v_matrix(state, map_items, ships, FOV_HEIGHT, FOV_WIDTH);
 		let sbi = state.curr_sidebar_info();
 		gui.write_screen(&mut state.msg_buff, &sbi);
 		

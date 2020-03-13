@@ -19,7 +19,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use rand::Rng;
 
-use super::{GameState, ItemsTable, Map};
+use super::{GameState, ItemsTable};
 use crate::dice;
 use crate::items::Item;
 use crate::map;
@@ -45,12 +45,13 @@ impl IslandInfo {
 	}
 }
 
-fn initialize_map(map: &mut Map) {
+fn initialize_map(state: &mut GameState) {
 	let mut top = Vec::new();
 	for _ in 0..WORLD_WIDTH {
 		top.push(Tile::WorldEdge);
 	}
-	map.push(top);
+	let curr_map = state.map.get_mut(&0).unwrap();
+	curr_map.push(top);
 
 	for _ in 0..WORLD_HEIGHT - 2 {
 		let mut row = Vec::new();
@@ -59,21 +60,21 @@ fn initialize_map(map: &mut Map) {
 			row.push(Tile::DeepWater);
 		}
 		row.push(Tile::WorldEdge);
-		map.push(row);
+		curr_map.push(row);
 	}
 
 	let mut bottom = Vec::new();
 	for _ in 0..WORLD_WIDTH {
 		bottom.push(Tile::WorldEdge);
 	}
-	map.push(bottom);
+	curr_map.push(bottom);
 }
 
 pub fn generate_world(state: &mut GameState,
-		items: &mut ItemsTable,
+		items: &mut HashMap<u8, ItemsTable>,
 		ships: &mut HashMap<(usize, usize), Ship>) {
 
-	initialize_map(&mut state.map);
+	initialize_map(state);
 	// at the moment I have two clue types: maps and 
 	// shipwrecks.
 	//
@@ -118,7 +119,8 @@ pub fn generate_world(state: &mut GameState,
 	let chest = Item::get_macguffin(&state.pirate_lord);
  	c.push(chest);
 	let roll = rand::thread_rng().gen_range(0, 4);
-	let mut map_to_chest = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
+	let mut map_to_chest = set_treasure_map(&state.map[&0], 
+		&islands[roll], items.get_mut(&0).unwrap(), c, 0).unwrap();
 	map_to_chest.hidden = true;
 
 	let mut eye_patch = Item::get_item("magic eye patch").unwrap();
@@ -132,10 +134,11 @@ pub fn generate_world(state: &mut GameState,
 	// eye patch
 	if final_clue == 0 {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		hint_to_final_clue = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
+		hint_to_final_clue = set_treasure_map(&state.map[&0], 
+			&islands[roll], items.get_mut(&0).unwrap(), c, 0).unwrap();
 	} else {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let ship_name = add_shipwreck(state, &islands[roll], items, c, true);
+		let ship_name = add_shipwreck(state, &islands[roll], items.get_mut(&0).unwrap(), c, true);
 		hint_to_final_clue = Item::get_note(state.note_count);
 		state.notes.insert(state.note_count, Item::get_note_text(&ship_name));
 		state.note_count += 1;
@@ -149,10 +152,11 @@ pub fn generate_world(state: &mut GameState,
 
 	if clue_2 == 0 {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		hint_to_2nd_clue = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
+		hint_to_2nd_clue = set_treasure_map(&state.map[&0], 
+			&islands[roll], items.get_mut(&0).unwrap(), c, 0).unwrap();
 	} else {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let ship_name = add_shipwreck(state, &islands[roll], items, c, true);
+		let ship_name = add_shipwreck(state, &islands[roll], items.get_mut(&0).unwrap(), c, true);
 		hint_to_2nd_clue = Item::get_note(state.note_count);
 		state.notes.insert(state.note_count, Item::get_note_text(&ship_name));
 		state.note_count += 1;
@@ -164,11 +168,11 @@ pub fn generate_world(state: &mut GameState,
 	c.push(hint_to_2nd_clue);
 	if clue_1 == 0 {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let map = set_treasure_map(&state.map, &islands[roll], items, c).unwrap();
+		let map = set_treasure_map(&state.map[&0], &islands[roll], items.get_mut(&0).unwrap(), c, 0).unwrap();
 		state.player.inventory.add(map);
 	} else {
 		let roll = rand::thread_rng().gen_range(0, 4);
-		let ship_name = add_shipwreck(state, &islands[roll], items, c, true);
+		let ship_name = add_shipwreck(state, &islands[roll], items.get_mut(&0).unwrap(), c, true);
 		state.pirate_lord_ship = ship_name.clone();
 	}
 
@@ -203,7 +207,7 @@ fn find_location_for_land_monster(world_map: &Vec<Vec<Tile>>,
 }
 
 fn create_island(state: &mut GameState, 
-					items: &mut ItemsTable,
+					items: &mut HashMap<u8, ItemsTable>,
 					island_info: &mut IslandInfo) {
 	let island;
 	let island_type = rand::thread_rng().gen_range(0.0, 1.0);
@@ -255,9 +259,10 @@ fn create_island(state: &mut GameState,
 	// (or well I'm not taking into account the transposing that doesn't
 	// work yet)
 	let nw = find_nearest_clear_nw(&island);
+	let curr_map = state.map.get_mut(&0).unwrap();
 	for r in nw.0..island.len() {
 		for c in nw.1..island.len() {
-			state.map[r + island_info.offset_r][c + island_info.offset_c] = island[r][c].clone();
+			curr_map[r + island_info.offset_r][c + island_info.offset_c] = island[r][c].clone();
 		}
 	}
 
@@ -267,27 +272,30 @@ fn create_island(state: &mut GameState,
 		place_spring(state, island_info);
 	}
 	
-	find_coastline(&state.map, island_info);
-	for _ in 0..rand::thread_rng().gen_range(0, max_shipwrecks) {
+	find_coastline(&state.map[&0], island_info);
 
+	for _ in 0..rand::thread_rng().gen_range(0, max_shipwrecks) {
 		let cache = get_cache_items();
-		add_shipwreck(state, island_info, items, cache, false);
+		add_shipwreck(state, island_info, items.get_mut(&state.map_id).unwrap(), cache, false);
 	}
 	for _ in 0..rand::thread_rng().gen_range(0, max_old_campsites) {
-		set_old_campsite(&mut state.map, island_info, items);
+		let curr_map = state.map.get_mut(&0).unwrap();
+		set_old_campsite(curr_map, island_info, items.get_mut(&state.map_id).unwrap());
 	}
 	for _ in 0..rand::thread_rng().gen_range(0, max_fruit) {
-		add_fruit(&state.map, island_info, items);
+		let curr_map = state.map.get(&0).unwrap();
+		add_fruit(curr_map, island_info, items.get_mut(&state.map_id).unwrap());
 	}
 
 	if !skeleton_island {
 		for _ in 0..rand::thread_rng().gen_range(0, max_campsites) {
-			set_campsite(state, island_info, items);
+			set_campsite(state, island_info, items.get_mut(&state.map_id).unwrap());
 		}
 	}
 
 	if rand::thread_rng().gen_range(0.0, 1.0) < 0.2 {
-		place_fort(&mut state.map, island_info, items);
+		let mut curr_map = state.map.get_mut(&0).unwrap();
+		place_fort(&mut curr_map, island_info, items.get_mut(&state.map_id).unwrap());
 	}
 
 	if !skeleton_island {
@@ -295,26 +303,28 @@ fn create_island(state: &mut GameState,
 			set_castaway(state, island_info);
 		}
 
+		let npcs = state.npcs.get_mut(&0).unwrap();
 		// let's add some monsters in 
 		for _ in 2..rand::thread_rng().gen_range(3, 5) {
-			let loc = find_location_for_land_monster(&state.map, island_info);
-            state.npcs.new_snake(loc.0, loc.1);
+			let loc = find_location_for_land_monster(&state.map[&0], island_info);
+            npcs.new_snake(loc.0, loc.1);
 		}
 		for _ in 1..rand::thread_rng().gen_range(2, 4) {
-			let loc = find_location_for_land_monster(&state.map, island_info);
-            state.npcs.new_boar(loc.0, loc.1);
+			let loc = find_location_for_land_monster(&state.map[&0], island_info);
+            npcs.new_boar(loc.0, loc.1);
 		}
 		if rand::thread_rng().gen_range(0.0, 1.0) < 0.1 {
-			let loc = find_location_for_land_monster(&state.map, island_info);
-            state.npcs.new_panther(loc.0, loc.1);
+			let loc = find_location_for_land_monster(&state.map[&0], island_info);
+            npcs.new_panther(loc.0, loc.1);
 		}
 	} else {
+		let npcs = state.npcs.get_mut(&0).unwrap();
 		let skellie_count = rand::thread_rng().gen_range(8, 11); 
-		let loc = find_location_for_land_monster(&state.map, island_info);
-        let boss_id = state.npcs.new_undead_boss(loc.0, loc.1, skellie_count);
+		let loc = find_location_for_land_monster(&state.map[&0], island_info);
+        let boss_id = npcs.new_undead_boss(loc.0, loc.1, skellie_count);
 		for _ in 0..skellie_count {
-			let loc = find_location_for_land_monster(&state.map, island_info);
-            state.npcs.new_skeleton(loc.0, loc.1, boss_id);
+			let loc = find_location_for_land_monster(&state.map[&0], island_info);
+            npcs.new_skeleton(loc.0, loc.1, boss_id);
 		}
 	}
 }
@@ -450,16 +460,19 @@ fn set_campsite(state: &mut GameState,
 				island_info: &IslandInfo,	
 				items: &mut ItemsTable) {
 
+	let npcs = state.npcs.get_mut(&0).unwrap();
+	let curr_map = state.map.get_mut(&0).unwrap();
+
 	loop {
 		let r = rand::thread_rng().gen_range(island_info.offset_r,
 												island_info.offset_r + island_info.length);
 		let c = rand::thread_rng().gen_range(island_info.offset_c, 
 												island_info.offset_c + island_info.length);
 		
-		let tile = &state.map[r][c];
+		let tile = &curr_map[r][c];
 		if map::is_passable(tile) && *tile != Tile::Water && *tile != Tile::DeepWater
 				&& *tile != Tile::Lava {
-			state.map[r][c] = Tile::FirePit;
+			curr_map[r][c] = Tile::FirePit;
 
 			let rum_count = rand::thread_rng().gen_range(0, 3);
 			for _ in 0..rum_count {
@@ -475,8 +488,8 @@ fn set_campsite(state: &mut GameState,
 					let pirate_r = (r as i32 + delta.0) as usize;	
 					let pirate_c = (c as i32 + delta.1) as usize;
 	
-					if !state.npcs.is_npc_at(pirate_r, pirate_c) {
-						state.npcs.new_pirate(pirate_r, pirate_c, (r, c));
+					if !npcs.is_npc_at(pirate_r, pirate_c) {
+						npcs.new_pirate(pirate_r, pirate_c, (r, c));
 						break;	
 					}
 
@@ -507,23 +520,25 @@ fn get_castaway_line() -> String {
 
 // largely duplicated from the campsite code...
 fn set_castaway(state: &mut GameState, island_info: &IslandInfo) {
+	let npcs = state.npcs.get_mut(&0).unwrap();
+	let curr_map = state.map.get_mut(&0).unwrap();
 	loop {
 		let r = rand::thread_rng().gen_range(island_info.offset_r,
 												island_info.offset_r + island_info.length);
 		let c = rand::thread_rng().gen_range(island_info.offset_c, 
 												island_info.offset_c + island_info.length);
 		
-		let tile = &state.map[r][c];
-		if map::is_passable(tile) && *tile != Tile::Water && *tile != Tile::DeepWater
+		let tile = &curr_map[r][c];
+		if map::is_passable(&tile) && *tile != Tile::Water && *tile != Tile::DeepWater
 				&& *tile != Tile::Lava {
-			state.map[r][c] = Tile::FirePit;
+			curr_map[r][c] = Tile::FirePit;
 		
 			let delta = util::rnd_adj();
 			let castaway_r = (r as i32 + delta.0) as usize;	
 			let castaway_c = (c as i32 + delta.1) as usize;
 
-			if !state.npcs.is_npc_at(castaway_r, castaway_c) {
-				state.npcs.new_castaway(castaway_r, castaway_c, (r, c), get_castaway_line());
+			if !npcs.is_npc_at(castaway_r, castaway_c) {
+				npcs.new_castaway(castaway_r, castaway_c, (r, c), get_castaway_line());
 				break;	
 			}
             
@@ -569,7 +584,7 @@ fn set_old_campsite(world_map: &mut Vec<Vec<Tile>>,
 
 fn set_treasure_map(world_map: &Vec<Vec<Tile>>, island_info: &IslandInfo,
 				items: &mut ItemsTable,
-				cache: Vec<Item>) -> Option<Item> {
+				cache: Vec<Item>, map_id: u8) -> Option<Item> {
 	// Okay, I want to pick a random seacoast location and stick the treasure near
 	// it. 
 	//
@@ -596,7 +611,7 @@ fn set_treasure_map(world_map: &Vec<Vec<Tile>>, island_info: &IslandInfo,
 			let actual_nw_c = ((loc.1 + c_delta) as i32 - nw_c) as usize;
 			let actual_x_r = loc.0 + r_delta;
 			let actual_x_c = loc.1 + c_delta;
-			let map = Item::get_map((actual_nw_r, actual_nw_c), (actual_x_r, actual_x_c));
+			let map = Item::get_map((actual_nw_r, actual_nw_c), (actual_x_r, actual_x_c), map_id);
 			for i in cache {
 				items.add(actual_x_r, actual_x_c, i);
 			}
@@ -781,12 +796,13 @@ fn add_shipwreck(state: &mut GameState,
 			items: &mut ItemsTable,
 			cache: Vec<Item>,
 			guarantee_cache: bool) -> String {
+	let curr_map = state.map.get_mut(&0).unwrap();
 	let loc = rand::thread_rng().gen_range(0, island_info.coastline.len());
 	let centre = island_info.coastline[loc];	
 
 	let wreck_name = ship::random_name(true);
 	let deck = Tile::Shipwreck(ship::DECK_ANGLE, wreck_name.clone()); 
-	state.map[centre.0][centre.1] = deck;
+	curr_map[centre.0][centre.1] = deck;
 
 	let r = dice::roll(3, 1, 0);
 	let mast_ch = if r == 1 { '|' }
@@ -795,7 +811,7 @@ fn add_shipwreck(state: &mut GameState,
 	let mast_loc = rnd_adj();
 	let mast_r = (centre.0 as i32 + mast_loc.0) as usize;
 	let mast_c = (centre.1 as i32 + mast_loc.1) as usize;
-	state.map[mast_r][mast_c] = Tile::Mast(mast_ch);
+	curr_map[mast_r][mast_c] = Tile::Mast(mast_ch);
 
 	loop {
 		let part_loc = rnd_adj();
@@ -804,11 +820,11 @@ fn add_shipwreck(state: &mut GameState,
 			if r == 1 {
 				let part_r = (centre.0 as i32 + part_loc.0) as usize;
 				let part_c = (centre.1 as i32 + part_loc.1) as usize;
-				state.map[part_r][part_c] = Tile::Mast(ship::DECK_ANGLE);
+				curr_map[part_r][part_c] = Tile::Mast(ship::DECK_ANGLE);
 			} else {
 				let part_r = (centre.0 as i32 + part_loc.0) as usize;
 				let part_c = (centre.1 as i32 + part_loc.1) as usize;
-				state.map[part_r][part_c] = Tile::Mast(ship::DECK_STRAIGHT);
+				curr_map[part_r][part_c] = Tile::Mast(ship::DECK_STRAIGHT);
 			}
 
 			// chance of there being a hidden cache
@@ -829,19 +845,19 @@ fn add_shipwreck(state: &mut GameState,
 	if r == 1 {
 		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
 		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
-		state.map[part_r][part_c] = Tile::ShipPart(ship::BOW_NE);
+		curr_map[part_r][part_c] = Tile::ShipPart(ship::BOW_NE);
 	} else if r == 2 {
 		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
 		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
-		state.map[part_r][part_c] = Tile::Mast(ship::BOW_NW);
+		curr_map[part_r][part_c] = Tile::Mast(ship::BOW_NW);
 	} else if r == 3 {
 		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
 		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
-		state.map[part_r][part_c] = Tile::Mast(ship::BOW_SE);
+		curr_map[part_r][part_c] = Tile::Mast(ship::BOW_SE);
 	} else if r == 3 {
 		let part_r = (centre.0 as i32 + part_loc.0 * 2) as usize;
 		let part_c = (centre.1 as i32 + part_loc.1 * 2) as usize;
-		state.map[part_r][part_c] = Tile::Mast(ship::BOW_SW);
+		curr_map[part_r][part_c] = Tile::Mast(ship::BOW_SW);
 	}
 
 	// merfolk like to hang out near shipwrecks
@@ -856,17 +872,18 @@ fn add_shipwreck(state: &mut GameState,
 }
 
 fn place_mermaid(state: &mut GameState, loc: (usize, usize)) {
+	let npcs = state.npcs.get_mut(&0).unwrap();
 	loop {
 		let delta_r = rand::thread_rng().gen_range(-5, 6);
 		let delta_c = rand::thread_rng().gen_range(-5, 6);
 		let mer_r = (loc.0 as i32 + delta_r) as usize;
 		let mer_c = (loc.1 as i32 + delta_c) as usize;
         
-		if map::in_bounds(&state.map, mer_r as i32, mer_c as i32) &&
-			(state.map[mer_r][mer_c] == Tile::Water ||
-				state.map[mer_r][mer_c] == Tile::DeepWater)	&&
-			    !state.npcs.is_npc_at(mer_r, mer_c) {
-                state.npcs.new_merperson(mer_r, mer_c);
+		if map::in_bounds(&state.map[&0], mer_r as i32, mer_c as i32) &&
+			(state.map[&0][mer_r][mer_c] == Tile::Water ||
+				state.map[&0][mer_r][mer_c] == Tile::DeepWater)	&&
+			    !npcs.is_npc_at(mer_r, mer_c) {
+                npcs.new_merperson(mer_r, mer_c);
                 return;
 		}
 	}
@@ -874,17 +891,18 @@ fn place_mermaid(state: &mut GameState, loc: (usize, usize)) {
 
 
 fn place_spring(state: &mut GameState, island_info: &IslandInfo) {
-	let trees = largest_contiguous_block(&state.map, &Tile::Tree, island_info.offset_r,
+	let trees = largest_contiguous_block(&state.map[&0], &Tile::Tree, island_info.offset_r,
 							island_info.offset_c, island_info.length); 
-	
+
+	let curr_map = state.map.get_mut(&0).unwrap();	
 	if trees.len() > 0 {
 		let mut candidates = Vec::new();
 		for tree in trees {
 			let mut count = 0;
-			if state.map[tree.0 - 1][tree.1] == Tile::Mountain { count += 1; }
-			if state.map[tree.0 + 1][tree.1] == Tile::Mountain { count += 1; }
-			if state.map[tree.0][tree.1 - 1] == Tile::Mountain { count += 1; }
-			if state.map[tree.0][tree.1 + 1] == Tile::Mountain { count += 1; }
+			if curr_map[tree.0 - 1][tree.1] == Tile::Mountain { count += 1; }
+			if curr_map[tree.0 + 1][tree.1] == Tile::Mountain { count += 1; }
+			if curr_map[tree.0][tree.1 - 1] == Tile::Mountain { count += 1; }
+			if curr_map[tree.0][tree.1 + 1] == Tile::Mountain { count += 1; }
 			if count > 1 {
 				candidates.push(tree);
 			}
@@ -892,7 +910,7 @@ fn place_spring(state: &mut GameState, island_info: &IslandInfo) {
 
 		if candidates.len() > 0 {
 			let roll = rand::thread_rng().gen_range(0, candidates.len());
-			state.map[candidates[roll].0][candidates[roll].1] = Tile::Spring;
+			curr_map[candidates[roll].0][candidates[roll].1] = Tile::Spring;
 		}
 	}	
 }
