@@ -531,12 +531,12 @@ fn do_move(state: &mut GameState, items: &ItemsTable,
 				state.write_msg_buff(&s);
 			},
 			map::Tile::OldFirePit => state.write_msg_buff("An old campsite! Rum runners? A castaway?"),
+            map::Tile::Portal(_) => state.write_msg_buff("Where could this lead..."),
 			_ => {
 				if *start_tile == map::Tile::DeepWater && state.player.curr_stamina < 10 {
 					state.write_msg_buff("Whew, you stumble ashore.");
 				}
 			},
-            map::Tile::Portal(_) => state.write_msg_buff("Where could this lead..."),
 		}
 
 		let items_count = items.count_at(state.player.row, state.player.col);
@@ -560,19 +560,15 @@ fn enter_portal(state: &mut GameState, items: &HashMap<u8, ItemsTable>,
                 ships: &HashMap<(usize, usize), Ship>,  gui: &mut GameUI) {
     match state.map[&state.map_id][state.player.row][state.player.col] {
         Tile::Portal((pr, pc, map_id)) => {
-            println!("Portal to {} {} on map {} here.", pr, pc, map_id);
             state.map_id = map_id;
-            println!("{}", state.map.len());
-            println!("{}", items.len());
             state.player.row = pr;
             state.player.col = pc;
-
             
             let map_items = ItemsTable::new();
             gui.v_matrix = fov::calc_v_matrix(state, &map_items, ships, FOV_HEIGHT, FOV_WIDTH);
             let sbi = state.curr_sidebar_info();
             gui.write_screen(&mut state.msg_buff, &sbi);
-            gui.pause_for_more();
+			state.turn += 1;
         },
         _ => state.write_msg_buff("Nothing to enter here."),
     }

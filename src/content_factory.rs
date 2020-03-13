@@ -1151,30 +1151,30 @@ fn mountains_reachable_by_shore(map: &Vec<Vec<Tile>>, island_info: &IslandInfo) 
 fn find_cave_exit(cave_map: &Vec<Vec<Tile>>, length: usize, width: usize) -> (usize, usize) {
     let roll = rand::thread_rng().gen_range(0.0, 1.0);
     if roll < 0.5 {
-        let col = rand::thread_rng().gen_range(2, 28);
+        let col = rand::thread_rng().gen_range(2, width - 2);
         if roll < 0.25 {
-            for row in 1..19 {
+            for row in 1..length - 1 {
                 if cave_map[row][col] != Tile::Wall {
                     return (row, col);
                 }
             }
         } else {
-            for row in (1..19).rev() {
+            for row in (1..length - 1).rev() {
                 if cave_map[row][col] != Tile::Wall {
                     return (row, col);
                 }
             }
         }
     } else {
-        let row = rand::thread_rng().gen_range(2, 19);
+        let row = rand::thread_rng().gen_range(2, length - 1);
         if roll < 0.5 {
-            for col in 1..28 {
+            for col in 1..width - 2 {
                 if cave_map[row][col] != Tile::Wall {
                     return (row, col);
                 }
             }
         } else {
-            for col in (1..28).rev() {
+            for col in (1..width - 2).rev() {
                 if cave_map[row][col] != Tile::Wall {
                     return (row, col);
                 }
@@ -1205,10 +1205,7 @@ fn place_cave(state: &mut GameState, items: &mut HashMap<u8, ItemsTable>, island
             state.map.insert(next_map_id, cave_map);
 
             state.npcs.insert(next_map_id, NPCTracker::new());
-            let mut items = HashMap::new();
-            println!("foo {}", items.len());
             items.insert(next_map_id, ItemsTable::new());
-            println!("foo {}", items.len());
         }
     }
 }
