@@ -1153,30 +1153,30 @@ fn find_cave_exit(cave_map: &Vec<Vec<Tile>>, length: usize, width: usize) -> (us
     if roll < 0.5 {
         let col = rand::thread_rng().gen_range(2, width - 2);
         if roll < 0.25 {
-            for row in 1..length - 1 {
+            for row in 2..length - 2 {
                 if cave_map[row][col] != Tile::Wall {
-                    return (row, col);
+                    return (row - 1, col);
                 }
             }
         } else {
-            for row in (1..length - 1).rev() {
+            for row in (2..length - 2).rev() {
                 if cave_map[row][col] != Tile::Wall {
-                    return (row, col);
+                    return (row + 1, col);
                 }
             }
         }
     } else {
-        let row = rand::thread_rng().gen_range(2, length - 1);
+        let row = rand::thread_rng().gen_range(2, length - 2);
         if roll < 0.5 {
-            for col in 1..width - 2 {
+            for col in 2..width - 2 {
                 if cave_map[row][col] != Tile::Wall {
-                    return (row, col);
+                    return (row, col - 1);
                 }
             }
         } else {
-            for col in (1..width - 2).rev() {
+            for col in (2..width - 2).rev() {
                 if cave_map[row][col] != Tile::Wall {
-                    return (row, col);
+                    return (row, col + 1);
                 }
             }
         }
@@ -1189,6 +1189,8 @@ fn place_cave(state: &mut GameState, items: &mut HashMap<u8, ItemsTable>, island
     let reachable = mountains_reachable_by_shore(&state.map[&state.map_id], island_info);
     let next_map_id = state.map.len() as u8;
     let curr_map = state.map.get_mut(&state.map_id).unwrap();
+	let cave_length = 20;
+	let cave_width = 30;
 
     if reachable.len() > 0 {
         let cave_loc_id = rand::thread_rng().gen_range(0, reachable.len());
@@ -1196,9 +1198,9 @@ fn place_cave(state: &mut GameState, items: &mut HashMap<u8, ItemsTable>, island
         curr_map[cave_loc.0][cave_loc.1] = Tile::Portal((cave_loc.0, cave_loc.1, 1));
         println!("{:?}", cave_loc);
 
-        let mut cave_map = map::generate_cave(30, 20);
+        let mut cave_map = map::generate_cave(cave_width, cave_length);
 
-        let exit = find_cave_exit(&cave_map, 20, 30);
+        let exit = find_cave_exit(&cave_map, cave_length, cave_width);
         if exit.0 != 0 && exit.1 != 0 {
             cave_map[exit.0][exit.1] = Tile::Portal((cave_loc.0, cave_loc.1, state.map_id));
             curr_map[cave_loc.0][cave_loc.1] = Tile::Portal((exit.0, exit.1, next_map_id));
@@ -1207,6 +1209,17 @@ fn place_cave(state: &mut GameState, items: &mut HashMap<u8, ItemsTable>, island
             state.npcs.insert(next_map_id, NPCTracker::new());
             items.insert(next_map_id, ItemsTable::new());
         }
+
+		for _ in 0..3 {
+			loop {
+				let r = rand::thread_rng().gen_range(0, cave_length); 
+				let c = rand::thread_rng().gen_range(0, cave_width); 
+				if state.map.get_mut(&next_map_id).unwrap()[r][c] == Tile::StoneFloor {
+					state.npcs.get_mut(&next_map_id).unwrap().new_rat(r, c);
+					break;
+				}
+			}
+		}
     }
 }
 

@@ -422,6 +422,17 @@ impl NPCTracker {
         self.npc_list.insert(id, b);
         self.loc_index.insert((row, col), id);
 	}
+
+	pub fn new_rat(&mut self, row: usize, col: usize) {
+        self.npc_id += 1;
+        let id = self.npc_id;
+		let hp = dice::roll(5, 1, 0);
+		let b = Monster::new(String::from("rat"), id, NPCType::Rat, 12, hp, 'r', row, col, 
+			DARK_BROWN, 3, 3, 1, 0, 5);
+
+        self.npc_list.insert(id, b);
+        self.loc_index.insert((row, col), id);
+	}
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
@@ -435,6 +446,7 @@ pub enum NPCType {
 	Merfolk,
 	MaroonedPirate,
 	Castaway,
+	Rat,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -484,7 +496,7 @@ impl Monster {
 			NPCType::Boar => basic_monster_action(self, state, ships, "gores")?,
 			NPCType::Skeleton => basic_undead_action(self, state, ships)?,
 			NPCType::UndeadCaptain => undead_boss_action(self, state, ships)?,
-			NPCType::Snake | NPCType::Panther =>basic_monster_action(self, state, ships, "bites")?,
+			NPCType::Snake | NPCType::Panther | NPCType::Rat =>basic_monster_action(self, state, ships, "bites")?,
 		}
 
 		Ok(())
@@ -665,6 +677,7 @@ fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 	passable.insert(map::Tile::Sand);
 	passable.insert(map::Tile::Tree);
 	passable.insert(map::Tile::Floor);
+	passable.insert(map::Tile::StoneFloor);
 
 	let dis = util::cartesian_d(m.row, m.col, state.player.row, state.player.col);
 	
