@@ -19,7 +19,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use rand::Rng;
 
-use super::{GameState, ItemsTable};
+use super::{GameState, ItemsTable, ShipsTable};
 use crate::actor::NPCTracker;
 use crate::dice;
 use crate::items::Item;
@@ -73,7 +73,7 @@ fn initialize_map(state: &mut GameState) {
 
 pub fn generate_world(state: &mut GameState,
 		items: &mut HashMap<u8, ItemsTable>,
-		ships: &mut HashMap<(usize, usize), Ship>) {
+		ships: &mut HashMap<u8, ShipsTable>) {
 
 	initialize_map(state);
 	// at the moment I have two clue types: maps and 
@@ -100,13 +100,13 @@ pub fn generate_world(state: &mut GameState,
 	};
 
 	let mut q1_info = IslandInfo::new(5, 5);
-	create_island(state, items, &mut q1_info);
+	create_island(state, items, &mut q1_info, ships);
 	let mut q2_info = IslandInfo::new(10, 100);
-	create_island(state, items, &mut q2_info);
+	create_island(state, items, &mut q2_info, ships);
 	let mut q3_info = IslandInfo::new(100, 10);
-	create_island(state, items, &mut q3_info);
+	create_island(state, items, &mut q3_info, ships);
 	let mut q4_info = IslandInfo::new(100, 100);
-	create_island(state, items, &mut q4_info);
+	create_island(state, items, &mut q4_info, ships);
 	let islands = vec![q1_info, q2_info, q3_info, q4_info];
 
 	state.pirate_lord = get_pirate_lord();
@@ -190,7 +190,9 @@ pub fn generate_world(state: &mut GameState,
 	ship.bearing = 6;
 	ship.wheel = 0;
 	ship.update_loc_info();
-	ships.insert((state.player.row, state.player.col), ship);
+	ships.insert(0, HashMap::new());
+	let curr_ships = ships.get_mut(&0).unwrap();
+	curr_ships.insert((state.player.row, state.player.col), ship);
 }
 
 fn find_location_for_land_monster(world_map: &Vec<Vec<Tile>>, 
@@ -209,7 +211,8 @@ fn find_location_for_land_monster(world_map: &Vec<Vec<Tile>>,
 
 fn create_island(state: &mut GameState, 
 					items: &mut HashMap<u8, ItemsTable>,
-					island_info: &mut IslandInfo) {
+					island_info: &mut IslandInfo,
+					ships: &mut HashMap<u8, ShipsTable>) {
 	let island;
 	let island_type = rand::thread_rng().gen_range(0.0, 1.0);
 	let max_shipwrecks;
@@ -340,7 +343,7 @@ fn create_island(state: &mut GameState,
 	}
 
     if has_cave {
-        place_cave(state, items, island_info);
+        place_cave(state, items, island_info, ships);
     }
 }
 
@@ -1185,7 +1188,10 @@ fn find_cave_exit(cave_map: &Vec<Vec<Tile>>, length: usize, width: usize) -> (us
     (0, 0)
 }
 
-fn place_cave(state: &mut GameState, items: &mut HashMap<u8, ItemsTable>, island_info: &IslandInfo) {
+fn place_cave(state: &mut GameState, 
+			items: &mut HashMap<u8, ItemsTable>, 
+			island_info: &IslandInfo,
+			ships: &mut HashMap<u8, ShipsTable>) {
     let reachable = mountains_reachable_by_shore(&state.map[&state.map_id], island_info);
     let next_map_id = state.map.len() as u8;
     let curr_map = state.map.get_mut(&state.map_id).unwrap();
@@ -1208,6 +1214,7 @@ fn place_cave(state: &mut GameState, items: &mut HashMap<u8, ItemsTable>, island
 
             state.npcs.insert(next_map_id, NPCTracker::new());
             items.insert(next_map_id, ItemsTable::new());
+			ships.insert(next_map_id, ShipsTable::new());
         }
 
 		for _ in 0..3 {
