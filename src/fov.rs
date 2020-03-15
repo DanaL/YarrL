@@ -32,7 +32,11 @@ use crate::ship::Ship;
 
 fn calc_actual_tile(r: usize, c: usize, map: &Map, 
 		npcs: &NPCTracker, items: &ItemsTable) -> map::Tile {
-	if items.count_at(r, c) > 0 {
+
+	if npcs.is_npc_at(r, c) {
+		let ti = npcs.tile_info(r, c);
+		map::Tile::Thing(ti.1, ti.0)
+	} else if items.count_at(r, c) > 0 {
 		let i = items.peek_top(r, c);
 		if !i.hidden {
 			let ti = i.get_tile_info();
@@ -40,9 +44,6 @@ fn calc_actual_tile(r: usize, c: usize, map: &Map,
 		} else {
 			map[r][c].clone()
 		}
-	} else if npcs.is_npc_at(r, c) {
-		let ti = npcs.tile_info(r, c);
-		map::Tile::Thing(ti.1, ti.0)
 	} else {
 		map[r][c].clone()
 	}
