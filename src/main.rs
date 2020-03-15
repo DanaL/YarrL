@@ -87,6 +87,7 @@ pub enum Cmd {
 	Eat,
 	Save,
     EnterPortal,
+	Chat,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -409,7 +410,7 @@ fn fire_gun(state: &mut GameState, gui: &mut GameUI, items: &ItemsTable,
 		Some(g) => {
 			if g.loaded {
 				let sbi = state.curr_sidebar_info();
-				match gui.pick_direction(&sbi) {
+				match gui.pick_direction("In which direction?", &sbi) {
 					Some(dir) => { 
 						state.write_msg_buff("Bang!");
 						shoot(state, dir, &g, dex_mod, gui, items, ships);
@@ -739,6 +740,33 @@ fn eat(state: &mut GameState, gui: &mut GameUI) {
 		},
 		None => state.write_msg_buff("Nevermind."),
 	}
+}
+
+fn chat_with_npc(state: &mut GameState, gui: &mut GameUI) {
+	let sbi = state.curr_sidebar_info();
+	let mut npc;
+	match gui.pick_direction("Chat with whom?", &sbi) {
+		Some(dir) => { 
+			let row = (state.player.row as i32 + dir.0) as usize;
+			let col = (state.player.col as i32 + dir.1) as usize;
+			let npcs = state.npcs.get(&state.map_id).unwrap();
+			if !npcs.is_npc_at(row, col) {
+				state.write_msg_buff("There's no one there!");
+				return;
+			}
+			npc = state.npcs.get_mut(&state.map_id).unwrap().npc_at(row, col).unwrap();
+		},
+		None =>  { 
+			state.write_msg_buff("Nevermind.");
+			return;
+		},
+	}
+
+	if npc.hostile {
+		npc.hostile_talk(state, gui);
+	}
+
+	state.turn += 1;
 }
 
 fn read(state: &mut GameState, gui: &mut GameUI) {
@@ -1610,6 +1638,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 				Cmd::Read => read(state, gui),
 				Cmd::Save => save_and_exit(state, items, ships, gui)?,
                 Cmd::EnterPortal => enter_portal(state, items, map_ships, gui),
+				Cmd::Chat => chat_with_npc(state, gui),
 			}
 		}
 

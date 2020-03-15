@@ -26,6 +26,7 @@ use serde::{Serialize, Deserialize};
 
 use crate::dice;
 use crate::display::{DARK_BROWN, GREY, GREEN, BRIGHT_RED, BLUE, GOLD, YELLOW_ORANGE, WHITE};
+use crate::display::GameUI;
 use crate::items::{Item, Inventory};
 use crate::map;
 use crate::map::Tile;
@@ -500,6 +501,21 @@ impl Monster {
 		}
 
 		Ok(())
+	}
+
+	pub fn hostile_talk(&mut self, state: &mut GameState, gui: &mut GameUI) {
+		match self.npc_type {
+			NPCType::Shark | NPCType::Snake |
+					NPCType::Skeleton => state.write_msg_buff("No response."),
+			NPCType::MaroonedPirate | NPCType::UndeadCaptain |
+				NPCType::Castaway => state.write_msg_buff(&get_pirate_line()),
+			NPCType::Boar | NPCType::Panther => {
+				let s = format!("The {} growls at you!", self.name);
+				state.write_msg_buff(&s);
+			},
+			NPCType::Merfolk => state.write_msg_buff("Come swim with us!"),
+			NPCType::Rat => state.write_msg_buff("Squeak!"),
+		}
 	}
 }
 

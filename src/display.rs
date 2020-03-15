@@ -223,9 +223,9 @@ impl<'a, 'b> GameUI<'a, 'b> {
 		}
 	}
 
-	pub fn pick_direction(&mut self, sbi: &SidebarInfo) -> Option<(i32, i32)> {
+	pub fn pick_direction(&mut self, msg: &str, sbi: &SidebarInfo) -> Option<(i32, i32)> {
 		let mut m = VecDeque::new();
-		m.push_front(String::from("In which direction?"));
+		m.push_front(String::from(msg));
 		self.write_screen(&mut m, sbi);
 
 		loop {
@@ -338,6 +338,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::Eat;
 						} else if val == "S" {
 							return Cmd::Save; 
+						} else if val == "C" {
+							return Cmd::Chat;
 						}
 
 						if state.player.on_ship {
