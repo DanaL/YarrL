@@ -313,7 +313,7 @@ fn create_island(state: &mut GameState,
 	}
 
 	if !skeleton_island {
-		if rand::thread_rng().gen_range(0.0, 1.0) < 0.25 {
+		if rand::thread_rng().gen_range(0.0, 1.0) < 1.25 {
 			set_castaway(state, island_info);
 		}
 

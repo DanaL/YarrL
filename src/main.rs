@@ -244,10 +244,27 @@ fn player_takes_dmg(player: &mut Player, dmg: u8, source: &str) -> Result<(), Ex
 	}
 }
 
-fn attack_npc(state: &mut GameState, npc_row: usize, npc_col: usize) {
+fn attack_npc(state: &mut GameState, npc_row: usize, npc_col: usize, gui: &mut GameUI) {
 	let mut npc = state.npcs.get_mut(&state.map_id).unwrap().npc_at(npc_row, npc_col).unwrap();
 	npc.aware_of_player = true;
 	let str_mod = Player::mod_for_stat(state.player.strength);
+
+	if !npc.hostile {
+		let s = format!("Really attack the {}? (y/n)", npc.name);
+		let sbi = state.curr_sidebar_info();
+
+		match gui.query_yes_no(&s, &sbi) {
+			'n' => { 
+				state.write_msg_buff("Nevermind.");
+				return;
+			},
+			_ => { 
+				let s = format!("The {} shouts 'Avast ye addlepated seacow!'", npc.name);	
+				npc.hostile = true;
+				state.write_msg_buff(&s) 
+			},
+		}
+	}
 
 	if do_ability_check(str_mod, npc.ac, state.player.prof_bonus as i8) {
 		let mut dmg: i8;
@@ -412,7 +429,7 @@ fn fire_gun(state: &mut GameState, gui: &mut GameUI, items: &ItemsTable,
 
 fn action_while_charmed(state: &mut GameState, 
 			items: &HashMap<u8, ItemsTable>, 
-			ships: &ShipsTable) -> Result<(), ExitReason> {
+			ships: &ShipsTable, gui: &mut GameUI) -> Result<(), ExitReason> {
 	// the charmed player attempts to swim to the mermaid
 	if state.player.on_ship {
 		state.player.on_ship = false;
@@ -451,7 +468,7 @@ fn action_while_charmed(state: &mut GameState,
 			let mv = &path[1];
 			state.write_msg_buff("You are drawn to the merfolk!");
 			let dir = util::dir_between_sqs(state.player.row, state.player.col, mv.0, mv.1);
-			do_move(state, items.get(&state.map_id).unwrap(), ships, &dir)?;
+			do_move(state, items.get(&state.map_id).unwrap(), ships, &dir, gui)?;
 			return Ok(());
 		}
 	}
@@ -480,7 +497,7 @@ fn check_environment_hazards(state: &mut GameState, ships: &ShipsTable) -> Resul
 	Ok(())
 }
 
-fn do_move(state: &mut GameState, items: &ItemsTable, ships: &ShipsTable, dir: &str) -> Result<(), ExitReason> {
+fn do_move(state: &mut GameState, items: &ItemsTable, ships: &ShipsTable, dir: &str, gui: &mut GameUI) -> Result<(), ExitReason> {
 	let mut mv = get_move_tuple(dir);
 
 	// if the player is poisoned they'll sometimes stagger
@@ -498,7 +515,7 @@ fn do_move(state: &mut GameState, items: &ItemsTable, ships: &ShipsTable, dir: &
 	let tile = &state.map[&state.map_id][next_row][next_col];
 	
 	if state.npcs[&state.map_id].is_npc_at(next_row, next_col) {
-		attack_npc(state, next_row, next_col);
+		attack_npc(state, next_row, next_col, gui);
 	} else if ships.contains_key(&next_loc) {
 		state.player.col = next_col;
 		state.player.row = next_row;
@@ -1546,12 +1563,12 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 		let map_ships = ships.get_mut(&state.map_id).unwrap();
 
 		if state.player.charmed {
-			action_while_charmed(state, items, map_ships)?;
+			action_while_charmed(state, items, map_ships, gui)?;
 		} else {
 			let cmd = gui.get_command(&state);
 			match cmd {
 				Cmd::Quit => confirm_quit(state, gui)?,
-				Cmd::Move(dir) => do_move(state, map_items, map_ships, &dir)?,
+				Cmd::Move(dir) => do_move(state, map_items, map_ships, &dir, gui)?,
 				Cmd::MsgHistory => show_message_history(state, gui),
 				Cmd::DropItem => drop_item(state, map_items, gui),
 				Cmd::PickUp => pick_up(state, map_items, gui)?,
@@ -1598,7 +1615,6 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 
 
 		let map_ships = ships.get_mut(&state.map_id).unwrap();
-		let map_items = items.get_mut(&state.map_id).unwrap();
 		// Some of the commands don't count as a turn for the player, so
 		// don't give the monsters a free move in those cases
 		if state.turn > start_turn {
