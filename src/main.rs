@@ -107,6 +107,7 @@ pub struct GameState {
 	notes: HashMap<u8, String>,
 	note_count: u8,
 	springs_drunk: HashSet<(usize, usize)>,
+	vision_radius: u8,
 }
 
 impl GameState {
@@ -128,7 +129,7 @@ impl GameState {
 			world_seen: HashSet::new(), pirate_lord: String::from(""),
 			player_ship: String::from(""), pirate_lord_ship: String::from(""),
 			starter_clue: 0, notes: HashMap::new(), note_count: 0,
-			springs_drunk: HashSet::new()
+			springs_drunk: HashSet::new(), vision_radius: 3,
 		}
 	}
 

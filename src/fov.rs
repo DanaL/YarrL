@@ -21,6 +21,69 @@ use crate::map;
 use super::{GameState, Map};
 use crate::items::{ItemsTable, TileInfo};
 use crate::ship::Ship;
+use super::{FOV_WIDTH, FOV_HEIGHT};
+
+// Kind of ugly by why recalculate these everytime?
+#[inline]
+fn radius_3() -> Vec<(i32, i32)> {
+	let c = vec![(3, 0), (3, 0), (-3, 0), (-3, 0), (0, 3), (0, -3), (0, 3), (0, -3), (3, 1), (3, -1), 
+		(-3, 1), (-3, -1), (1, 3), (1, -3), (-1, 3), (-1, -3), (2, 2), (2, -2), (-2, 2), (-2, -2), 
+		(2, 2), (2, -2), (-2, 2), (-2, -2)];
+	c	
+}
+
+#[inline]
+fn radius_5() -> Vec<(i32, i32)> {
+	let c = vec![(5, 0), (5, 0), (-5, 0), (-5, 0), (0, 5), (0, -5), (0, 5), (0, -5), (5, 1), (5, -1), 
+		(-5, 1), (-5, -1), (1, 5), (1, -5), (-1, 5), (-1, -5), (5, 2), (5, -2), (-5, 2), (-5, -2), (2, 5), 
+		(2, -5), (-2, 5), (-2, -5), (4, 3), (4, -3), (-4, 3), (-4, -3), (3, 4), (3, -4), (-3, 4), (-3, -4),
+		(-3, -3), (3, 3), (-3, 3), (3, -3)];
+
+	c	
+}
+
+#[inline]
+fn radius_7() -> Vec<(i32, i32)> {
+	let c = vec![(7, 0), (7, 0), (-7, 0), (-7, 0), (0, 7), (0, -7), (0, 7), (0, -7), (7, 1), (7, -1), (-7, 1), 
+		(-7, -1), (1, 7), (1, -7), (-1, 7), (-1, -7), (7, 2), (7, -2), (-7, 2), (-7, -2), (2, 7), (2, -7), 
+		(-2, 7), (-2, -7), (6, 3), (6, -3), (-6, 3), (-6, -3), (3, 6), (3, -6), (-3, 6), (-3, -6), (6, 4), 
+		(6, -4), (-6, 4), (-6, -4), (4, 6), (4, -6), (-4, 6), (-4, -6), (5, 5), (5, -5), (-5, 5), (-5, -5), 
+		(5, 5), (5, -5), (-5, 5), (-5, -5), (-4, -5), (4, 5), (-4, 5), (4, -5), (-5, -4), (5, 4), (-5, 4),
+		(5, -4)];
+
+	c
+}
+
+fn radius_9() -> Vec<(i32, i32)> {
+	let c = vec![(9, 0), (9, 0), (-9, 0), (-9, 0), (0, 9), (0, -9), (0, 9), (0, -9), (9, 1), (9, -1), (-9, 1), 
+		(-9, -1), (1, 9), (1, -9), (-1, 9), (-1, -9), (9, 2), (9, -2), (-9, 2), (-9, -2), (2, 9), (2, -9), 
+		(-2, 9), (-2, -9), (9, 3), (9, -3), (-9, 3), (-9, -3), (3, 9), (3, -9), (-3, 9), (-3, -9), (8, 4), 
+		(8, -4), (-8, 4), (-8, -4), (4, 8), (4, -8), (-4, 8), (-4, -8), (8, 5), (8, -5), (-8, 5), (-8, -5), 
+		(5, 8), (5, -8), (-5, 8), (-5, -8), (7, 6), (7, -6), (-7, 6), (-7, -6), (6, 7), (6, -7), (-6, 7), 
+		(-6, -7), (-6, -6), (6, 6), (6, -6), (-6, 6), (-7, -5), (7, 5), (-7, 5), (7, -5), (-5, -7), (5, 7),
+		(-5, 7), (5, -7)];
+
+	c
+}
+
+#[inline]
+fn radius_full() -> Vec<(i32, i32)> {
+	let mut c = Vec::new();
+	let width_radius = (FOV_WIDTH / 2) as i32;
+	let height_radius = (FOV_HEIGHT / 2) as i32;
+
+	for col in -width_radius..width_radius {
+		c.push((-height_radius, col));
+		c.push((height_radius, col));
+	}
+
+	for row in -height_radius..height_radius {
+		c.push((row, -width_radius));
+		c.push((row, width_radius));
+	}
+
+	c	
+}
 
 // I really regret not doing something like in crashRun where instead of 
 // just storing a map of tiles/characters, I store objects that can determine
@@ -230,46 +293,30 @@ pub fn calc_v_matrix(
 	let fov_center_r = height / 2;
 	let fov_center_c = width / 2;
 
+	let perimeter = if state.vision_radius == 3 {
+		radius_3()
+	} else if state.vision_radius == 5 {
+		radius_5()
+	} else if state.vision_radius == 7 {
+		radius_7()
+	} else if state.vision_radius == 9 {
+		radius_9()
+	} else {
+		radius_full()
+	};
+
 	// Beamcast to all the points around the perimiter of the viewing
 	// area. For YarrL's fixed size FOV this seems to work just fine
 	// and cuts about a whole bunch of redundant looping and beam
 	// casting.
-	for col in 0..width {
-		let offset_r = 0 as i32 - fov_center_r as i32;
-		let offset_c = col as i32 - fov_center_c as i32;
-		let actual_r: i32 = state.player.row as i32 + offset_r;
-		let actual_c: i32 = state.player.col as i32 + offset_c;
-
-		mark_visible(state.player.row as i32, state.player.col as i32,
-			actual_r as i32, actual_c as i32, state, items, &mut v_matrix, width);
-
-		let offset_r = (height - 1) as i32 - fov_center_r as i32;
-		let offset_c = col as i32 - fov_center_c as i32;
-		let actual_r: i32 = state.player.row as i32 + offset_r;
-		let actual_c: i32 = state.player.col as i32 + offset_c;
+	for loc in perimeter {
+		let actual_r = state.player.row as i32 + loc.0;
+		let actual_c = state.player.col as i32 + loc.1;
 
 		mark_visible(state.player.row as i32, state.player.col as i32,
 			actual_r as i32, actual_c as i32, state, items, &mut v_matrix, width);
 	}
 
-	for row in 0..height {
-		let offset_r = row as i32 - fov_center_r as i32;
-		let offset_c = 0 as i32 - fov_center_c as i32;
-		let actual_r: i32 = state.player.row as i32 + offset_r;
-		let actual_c: i32 = state.player.col as i32 + offset_c;
-
-		mark_visible(state.player.row as i32, state.player.col as i32,
-			actual_r as i32, actual_c as i32, state, items, &mut v_matrix, width);
-
-		let offset_r = row as i32 - fov_center_r as i32;
-		let offset_c = (width - 1) as i32 - fov_center_c as i32;
-		let actual_r: i32 = state.player.row as i32 + offset_r;
-		let actual_c: i32 = state.player.col as i32 + offset_c;
-
-		mark_visible(state.player.row as i32, state.player.col as i32,
-			actual_r as i32, actual_c as i32, state, items, &mut v_matrix, width);
-	}
-	
 	let curr_map = &state.map[&state.map_id];
 	add_ships_to_v_matrix(curr_map, &mut v_matrix, ships, 
 			state.player.row, state.player.col, height, width);
