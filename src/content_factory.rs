@@ -474,6 +474,11 @@ fn add_fruit(world_map: &Vec<Vec<Tile>>,
 	}
 }
 
+fn safe_to_place_item(tile: &Tile) -> bool {
+	map::is_passable(tile) && *tile != Tile::Water && *tile != Tile::DeepWater
+			&& *tile != Tile::Lava 
+}
+
 fn set_campsite(state: &mut GameState,
 				island_info: &IslandInfo,	
 				items: &mut ItemsTable) {
@@ -488,18 +493,20 @@ fn set_campsite(state: &mut GameState,
 												island_info.offset_c + island_info.length);
 		
 		let tile = &curr_map[r][c];
-		if map::is_passable(tile) && *tile != Tile::Water && *tile != Tile::DeepWater
-				&& *tile != Tile::Lava {
+		if safe_to_place_item(tile) {
 			curr_map[r][c] = Tile::FirePit;
 
 			let rum_count = rand::thread_rng().gen_range(0, 3);
 			for _ in 0..rum_count {
 				let delta = rnd_adj();
-				let rum = Item::get_item("draught of rum").unwrap();
-				items.add((r as i32 + delta.0) as usize, 
-						(c as i32 + delta.1) as usize, rum);
+				let item_r = (r as i32 + delta.0) as usize;
+				let item_c = (c as i32 + delta.1) as usize;
+				let tile = &curr_map[item_r][item_c];
+				if safe_to_place_item(tile) {
+					let rum = Item::get_item("draught of rum").unwrap();
+					items.add(item_r, item_c, rum);
+				}	
 			}	
-		
 			for _ in 0..rand::thread_rng().gen_range(1, 4) {
 				loop {
 					let delta = util::rnd_adj();
@@ -565,10 +572,7 @@ fn set_castaway(state: &mut GameState, island_info: &IslandInfo) {
 	}
 }
 
-fn set_old_campsite(world_map: &mut Vec<Vec<Tile>>, 
-				island_info: &IslandInfo,	
-				items: &mut ItemsTable) {
-	
+fn set_old_campsite(world_map: &mut Vec<Vec<Tile>>, island_info: &IslandInfo, items: &mut ItemsTable) {
 	loop {
 		let r = rand::thread_rng().gen_range(island_info.offset_r,
 												island_info.offset_r + island_info.length);
@@ -583,17 +587,25 @@ fn set_old_campsite(world_map: &mut Vec<Vec<Tile>>,
 			let rum_count = rand::thread_rng().gen_range(0, 3) + 1;
 			for _ in 0..rum_count {
 				let delta = rnd_adj();
-				let rum = Item::get_item("draught of rum").unwrap();
-				items.add((r as i32 + delta.0) as usize, 
-						(c as i32 + delta.1) as usize, rum);
+				let item_r = (r as i32 + delta.0) as usize;
+				let item_c = (c as i32 + delta.1) as usize;
+				let tile = &world_map[item_r][item_c];
+				if safe_to_place_item(tile) {
+					let rum = Item::get_item("draught of rum").unwrap();
+					items.add(item_r, item_c, rum);
+				}
 			}	
 			
 			let pork_count = rand::thread_rng().gen_range(0, 2) + 1;
 			for _ in 0..pork_count {
 				let delta = rnd_adj();
-				let pork = Item::get_item("salted pork").unwrap();
-				items.add((r as i32 + delta.0) as usize, 
-						(c as i32 + delta.1) as usize, pork);
+				let item_r = (r as i32 + delta.0) as usize;
+				let item_c = (c as i32 + delta.1) as usize;
+				let tile = &world_map[item_r][item_c];
+				if safe_to_place_item(tile) {
+					let pork = Item::get_item("salted pork").unwrap();
+					items.add(item_r, item_c, pork);
+				}
 			}	
 			break;
 		}	
