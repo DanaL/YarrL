@@ -166,6 +166,23 @@ impl GameState {
 			}
 		}
 	}
+
+    pub fn calc_vision_radius(&mut self) {
+        let curr_time = (self.turn / 100 + 12) % 24;
+        self.vision_radius = if curr_time >= 6 && curr_time <= 19 {
+            99
+        } else if curr_time >= 20 && curr_time <= 21 {
+            9
+        } else if curr_time >= 21 && curr_time <= 23 {
+            7
+        } else if curr_time < 4 {
+            5
+        } else if curr_time >= 4 && curr_time < 5 {
+            7
+        } else {
+            9
+        };
+    }
 }
 
 fn sq_is_open(state: &GameState, ships: &ShipsTable, row: usize, col: usize) -> bool {
@@ -1270,7 +1287,6 @@ fn preamble(gui: &mut GameUI) -> (GameState, HashMap<u8, ItemsTable>, HashMap<u8
 		}
 	}
 
-
 	if existing_save_file(&player_name) {
 		let v = vec![String::from("Found save file. Welcome back, swab!")];
 		gui.write_long_msg(&v, false);
@@ -1564,6 +1580,7 @@ fn start_game() {
 		show_character_sheet(&state, &mut gui);
 		generate_world(&mut state, &mut items, &mut ships);
 		prologue(&state, &mut gui);
+        state.calc_vision_radius();
 	}
 
 	match run(&mut gui, &mut state, &mut items, &mut ships) {
@@ -1648,6 +1665,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 		// Some of the commands don't count as a turn for the player, so
 		// don't give the monsters a free move in those cases
 		if state.turn > start_turn {
+            state.calc_vision_radius();
 			check_environment_hazards(state, map_ships)?;
 
 			let ids = state.npcs[&state.map_id].all_npc_ids();
