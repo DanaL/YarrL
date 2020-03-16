@@ -104,6 +104,15 @@ impl Player {
 		p.inventory.add(Item::get_item("draught of rum").unwrap());
 		p.inventory.add(Item::get_item("draught of rum").unwrap());
 
+		p.inventory.add(Item::get_item("lantern").unwrap());
+		p.inventory.add(Item::get_item("flask of oil").unwrap());
+		p.inventory.add(Item::get_item("flask of oil").unwrap());
+		p.inventory.add(Item::get_item("flask of oil").unwrap());
+		p.inventory.add(Item::get_item("torch").unwrap());
+		p.inventory.add(Item::get_item("torch").unwrap());
+		p.inventory.add(Item::get_item("torch").unwrap());
+		p.inventory.add(Item::get_item("torch").unwrap());
+
 		p.inventory.toggle_slot('a');
 		p.inventory.toggle_slot('b');
 

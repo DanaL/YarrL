@@ -147,8 +147,8 @@ impl Inventory {
 		let val = self.inv.get(&slot).unwrap();
 		let item = &val.0;
 
-		if !item.equipable() {
-			return String::from("You cannot equip that!");
+		if !item.equipable() && item.item_type != ItemType::Light  {
+			return String::from("You cannot equip or use that!");
 		}
 
 		if !item.equiped && self.type_already_equiped(item.item_type) {
@@ -164,20 +164,30 @@ impl Inventory {
 
 		// Okay, at this point we are either toggling or untoggling the item so
 		// I can take a fucking mutable borrow without the borrow checking flipping out
+		let mut s = String::from("You ");
 		let val = self.inv.get_mut(&slot).unwrap();
 		let mut item = &mut val.0;
 
-		item.equiped = !item.equiped;
+        if item.item_type == ItemType::Light {
+            item.activated = !item.activated;
 
-		let mut s = String::from("You ");
-		if item.equiped {
-			s.push_str("equip the ");
-		} else {
-			s.push_str("unequip the ");
-		}
-		s.push_str(&item.name);
-		s.push('.');
+            if item.activated {
+                s.push_str("ignite the ");
+            } else {
+                s.push_str("extinguish the ");
+            } 
+        } else {
+            item.equiped = !item.equiped;
 
+            if item.equiped {
+                s.push_str("equip the ");
+            } else {
+                s.push_str("unequip the ");
+            }
+        }
+
+        s.push_str(&item.name);
+        s.push('.');
 		s
 	}
 
@@ -459,6 +469,8 @@ pub enum ItemType {
 	EyePatch,
 	Note,
 	MacGuffin,
+    Light,
+    Fuel,
 }
 
 // Cleaning up this struct and making it less of a dog's 
@@ -488,6 +500,8 @@ pub struct Item {
 	pub nw_corner: (usize, usize),
 	pub x_coord: (usize, usize),
 	pub of_map_id: u8,
+    pub activated: bool,
+    pub fuel: u16,
 }
 
 impl Item {
@@ -496,7 +510,7 @@ impl Item {
 			item_type, weight: w, symbol: sym, color, stackable, prev_slot: '\0',
 				dmg: 1, dmg_dice: 1, bonus: 0, range: 0, armour_value: 0, 
 				equiped: false, loaded: false, hidden: false, nw_corner: (0, 0),
-				x_coord: (0, 0), of_map_id: 0 }
+				x_coord: (0, 0), of_map_id: 0, activated: false, fuel: 0 }
 	}
 
 	pub fn get_indefinite_article(&self) -> String {
@@ -642,6 +656,20 @@ impl Item {
 				i.bonus = 3;
 				Some(i)
 			},
+            "lantern" => {
+				let mut l = Item::new(name, ItemType::Light, 1, false, '(', display::YELLOW);
+                l.fuel = rand::thread_rng().gen_range(100, 300);
+				Some(l)
+            },
+            "torch" => {
+				let mut t = Item::new(name, ItemType::Light, 1, true, '(', display::BROWN);
+                t.fuel = rand::thread_rng().gen_range(25, 100);
+				Some(t)
+            },
+            "flask of oil" => {
+				let f = Item::new(name, ItemType::Fuel, 1, true, '!', display::YELLOW);
+				Some(f)
+            }
 			_ => None,
 
 		}
@@ -657,6 +685,9 @@ impl Item {
 				_ => panic!("Should never hit this option..."),
 			}
 		}
+        if self.item_type == ItemType::Light && self.activated {
+            s.push_str(" (lit)");
+        }
 
 		s
 	}

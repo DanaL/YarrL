@@ -340,7 +340,9 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::Save; 
 						} else if val == "C" {
 							return Cmd::Chat;
-						}
+						} else if val == "U" {
+                            return Cmd::Use;
+                        }
 
 						if state.player.on_ship {
 							if val == "A" {

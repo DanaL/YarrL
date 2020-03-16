@@ -88,6 +88,7 @@ pub enum Cmd {
 	Save,
     EnterPortal,
 	Chat,
+    Use,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -643,7 +644,7 @@ fn pluralize(name: &str) -> String{
 	
 	if words.len() == 1 {
 		result.push_str(name);
-		if name.ends_with("s") || name.ends_with("x") {
+		if name.ends_with("s") || name.ends_with("x") || words[0].ends_with("ch") {
 			result.push_str("es");
 		} else {
 			result.push_str("s");
@@ -761,6 +762,57 @@ fn eat(state: &mut GameState, gui: &mut GameUI) {
 					state.turn += 1;
 				},
 				Some(_) => state.write_msg_buff("Uh...ye can't eat that."),
+				None => state.write_msg_buff("You do not have that item."),
+			}
+		},
+		None => state.write_msg_buff("Nevermind."),
+	}
+}
+
+fn refuel_lantern(state: &mut GameState, slot: char, gui: &mut GameUI) {
+    //let food = state.player.inventory.remove_count(ch, 1);
+	let sbi = state.curr_sidebar_info();
+    match gui.query_single_response("Refuel which lantern?", &sbi) {
+		Some(ch) => {
+			match state.player.inventory.item_type_in_slot(ch) {	
+				Some(ItemType::Light) => {
+					let oil = state.player.inventory.remove_count(slot, 1);
+                    let mut light = state.player.inventory.remove(ch);
+                    if light.name == "lantern" {
+                        light.fuel = 300;
+					    state.turn += 1;
+                    } else {
+                        state.write_msg_buff("That's not a lantern.");
+                    }
+                    state.player.inventory.add(light);
+				},
+				Some(_) => state.write_msg_buff("That's not a lantern."),
+				None => state.write_msg_buff("You do not have that item."),
+			}
+		},
+		None => state.write_msg_buff("Nevermind."),
+    }
+}
+
+fn use_item(state: &mut GameState, gui: &mut GameUI) {
+	if state.player.inventory.get_menu().len() == 0 {
+		state.write_msg_buff("You are empty handed.");
+		return
+	}
+
+	let sbi = state.curr_sidebar_info();
+	match gui.query_single_response("Use which item?", &sbi) {
+		Some(ch) => {
+			match state.player.inventory.item_type_in_slot(ch) {	
+				Some(ItemType::Light) => {
+                    let msg = state.player.inventory.toggle_slot(ch);
+                    state.write_msg_buff(&msg);
+                    state.turn += 1;
+				},
+				Some(ItemType::Fuel) => {
+                    refuel_lantern(state, ch, gui);
+				},
+				Some(_) => state.write_msg_buff("I can't think of a use for that."),
 				None => state.write_msg_buff("You do not have that item."),
 			}
 		},
@@ -889,9 +941,14 @@ fn drop_item(state: &mut GameState, items: &mut ItemsTable, gui: &mut GameUI) {
 					Some(v) => {
 						let pile = state.player.inventory.remove_count(ch, v);
 						if pile.len() > 0 {
-							let pluralized = pluralize(&pile[0].name);
-							let s = format!("You drop {} {}", v, pluralized);
-							state.write_msg_buff(&s);
+                            if v == 1 {
+                                let s = format!("You drop the {}.", pile[0].name);
+                                state.write_msg_buff(&s);
+                            } else {
+                                let pluralized = pluralize(&pile[0].name);
+                                let s = format!("You drop {} {}.", v, pluralized);
+                                state.write_msg_buff(&s);
+                            }
 							state.turn += 1;
 							for mut item in pile {
 								item.equiped = false;
@@ -1665,6 +1722,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 				Cmd::Save => save_and_exit(state, items, ships, gui)?,
                 Cmd::EnterPortal => enter_portal(state, items, map_ships, gui),
 				Cmd::Chat => chat_with_npc(state, gui),
+                Cmd::Use => use_item(state, gui),
 			}
 		}
 
