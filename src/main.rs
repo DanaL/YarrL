@@ -168,6 +168,7 @@ impl GameState {
 	}
 
     pub fn calc_vision_radius(&mut self) {
+        let prev_vr = self.vision_radius;
         let curr_time = (self.turn / 100 + 12) % 24;
         self.vision_radius = if curr_time >= 6 && curr_time <= 19 {
             99
@@ -182,6 +183,13 @@ impl GameState {
         } else {
             9
         };
+
+        if prev_vr == 99 && self.vision_radius == 9 {
+            self.write_msg_buff("The sun is beginning to set.");
+        }
+        if prev_vr == 5 && self.vision_radius == 7 {
+            self.write_msg_buff("Sunrise soon.");
+        }
     }
 }
 
