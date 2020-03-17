@@ -82,6 +82,8 @@ fn radius_full() -> Vec<(i32, i32)> {
 		c.push((row, width_radius));
 	}
 
+	c.push((height_radius, width_radius));
+
 	c	
 }
 
