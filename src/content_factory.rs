@@ -533,7 +533,7 @@ fn get_castaway_line() -> String {
 	if roll < 0.2 {
 		String::from("Wiiiiilsoooonnn!")
 	} else if roll < 0.4 {
-		String::from("Teetotaler are more apt to heed the mermaid's call.")
+		String::from("Teetotalers are more apt to heed the mermaid's call.")
 	} else if roll < 0.6 {
 		String::from("Fresh springs in the mountains do a world of good.")
 	} else if roll < 0.8 {

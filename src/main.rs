@@ -846,6 +846,8 @@ fn chat_with_npc(state: &mut GameState, gui: &mut GameUI) {
 
 	if npc.hostile {
 		npc.hostile_talk(state, gui);
+	} else {
+		state.write_msg_buff(&npc.voice_line);
 	}
 
 	state.turn += 1;
