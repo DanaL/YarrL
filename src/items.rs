@@ -100,16 +100,28 @@ impl Inventory {
 						.collect::<Vec<char>>();
 
 		let mut drained = Vec::new();
+        // Need to track the keys of drained items because
+        // if they are torches, remove them from th inventory.
+        // Couldn't figure out a borrow checker approved way to
+        // do it inside this same loop.
+        let mut drained_keys = Vec::new();
 		for slot in slots {
 			let w = self.inv.get_mut(&slot).unwrap();
 			if w.0.activated && w.0.fuel > 0 {
 				w.0.fuel -= 1;
 				if w.0.fuel == 0 {
 					w.0.activated = false;
+                    if w.0.name == "torch" {
+                        drained_keys.push(slot);
+                    }
 					drained.push(w.0.clone());
 				}
 			}
 		}
+
+        for slot in drained_keys {
+            self.remove_count(slot, 1);
+        }
 
 		Some(drained)
 	}
@@ -170,6 +182,18 @@ impl Inventory {
 		sum
 	}
  
+    fn light_torch_from_stack(&mut self, slot: char) -> String {
+        let mut stack = self.remove_count(slot, 1);
+        let mut torch = stack.pop().unwrap();
+
+        torch.activated = true;
+        torch.stackable = false;
+
+        self.add(torch);
+
+        String::from("You light the torch.")
+    }
+
 	pub fn toggle_slot(&mut self, slot: char) -> String {
 		if !self.inv.contains_key(&slot) {
 			return String::from("You do not have that item!");
@@ -203,6 +227,11 @@ impl Inventory {
 			if item.fuel == 0 {
 				return format!("Your {} is out of fuel.", item.name);
 			}
+
+            // I had to make things complicated and make torches stackable...
+            if item.name == "torch" && val.1 > 1 {
+                return self.light_torch_from_stack(slot);
+            }
 
             item.activated = !item.activated;
 
@@ -316,7 +345,7 @@ impl Inventory {
 								.collect::<Vec<char>>();
 			for slot in slots {
 				let mut val = self.inv.get_mut(&slot).unwrap();
-				if val.0 == item {
+				if val.0 == item && val.0.stackable {
 					val.1 += 1;
 					return;
 				}

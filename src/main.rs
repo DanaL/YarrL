@@ -780,7 +780,7 @@ fn refuel_lantern(state: &mut GameState, slot: char, gui: &mut GameUI) {
 		Some(ch) => {
 			match state.player.inventory.item_type_in_slot(ch) {	
 				Some(ItemType::Light) => {
-					let oil = state.player.inventory.remove_count(slot, 1);
+					state.player.inventory.remove_count(slot, 1);
                     let mut light = state.player.inventory.remove(ch);
                     if light.name == "lantern" {
                         light.fuel = 300;
