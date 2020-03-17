@@ -191,6 +191,10 @@ impl GameState {
         if prev_vr == 5 && self.vision_radius == 7 {
             self.write_msg_buff("Sunrise soon.");
         }
+
+		if self.player.inventory.active_light_source() {
+			self.vision_radius += 2;
+		}
     }
 }
 
@@ -1729,8 +1733,16 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 
 		let map_ships = ships.get_mut(&state.map_id).unwrap();
 		// Some of the commands don't count as a turn for the player, so
-		// don't give the monsters a free move in those cases
+		// don't give the monsters a free move in those cases, or check for
+		// other effcts that happen at the end of a player's turn.
 		if state.turn > start_turn {
+			if let Some(drained) = state.player.inventory.check_fueled_items() {
+				for i in drained {
+					let s = format!("Your {} has gone out.", i.name);
+					state.write_msg_buff(&s);
+				}
+			}
+
             state.calc_vision_radius();
 			check_environment_hazards(state, map_ships)?;
 

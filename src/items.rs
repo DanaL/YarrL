@@ -83,6 +83,37 @@ impl Inventory {
 		self.toggle_loaded_status();
 	}
 
+	pub fn active_light_source(&self) -> bool {
+		for slot in self.inv.keys() {
+			let w = self.inv.get(&slot).unwrap();
+			if w.0.item_type == ItemType::Light && w.0.activated {
+				return true;
+			}
+		}
+
+		false
+	}
+
+	pub fn check_fueled_items(&mut self) -> Option<Vec<Item>> {
+		let slots = self.inv.keys()
+						.map(|v| v.clone())
+						.collect::<Vec<char>>();
+
+		let mut drained = Vec::new();
+		for slot in slots {
+			let w = self.inv.get_mut(&slot).unwrap();
+			if w.0.activated && w.0.fuel > 0 {
+				w.0.fuel -= 1;
+				if w.0.fuel == 0 {
+					w.0.activated = false;
+					drained.push(w.0.clone());
+				}
+			}
+		}
+
+		Some(drained)
+	}
+
 	pub fn equiped_magic_eye_patch(&self) -> bool {
 		for slot in self.inv.keys() {
 			let w = self.inv.get(&slot).unwrap();
@@ -169,6 +200,10 @@ impl Inventory {
 		let mut item = &mut val.0;
 
         if item.item_type == ItemType::Light {
+			if item.fuel == 0 {
+				return format!("Your {} is out of fuel.", item.name);
+			}
+
             item.activated = !item.activated;
 
             if item.activated {
