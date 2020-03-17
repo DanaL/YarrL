@@ -56,6 +56,7 @@ pub enum Tile {
 	Window(char),
 	Spring,
     Portal((usize, usize, u8)),
+    Fog,
 }
 
 pub fn all_passable() -> HashSet<Tile> {
@@ -91,7 +92,7 @@ pub fn in_bounds(map: &Vec<Vec<Tile>>, r: i32, c: i32) -> bool {
 pub fn is_clear(tile: &Tile) -> bool {
 	match tile {
 		Tile::Wall | Tile::Blank | Tile::Mountain | Tile::SnowPeak |
-			Tile::WoodWall => false,
+			Tile::WoodWall | Tile::Fog => false,
 		_ => true,
 	}
 }

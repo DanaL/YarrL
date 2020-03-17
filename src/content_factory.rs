@@ -29,6 +29,7 @@ use crate::ship;
 use crate::ship::Ship;
 use crate::util;
 use crate::util::rnd_adj;
+use crate::weather::{Weather, WeatherSystem};
 
 pub const WORLD_WIDTH: usize = 250;
 pub const WORLD_HEIGHT: usize = 250;
@@ -193,6 +194,14 @@ pub fn generate_world(state: &mut GameState,
 	ships.insert(0, HashMap::new());
 	let curr_ships = ships.get_mut(&0).unwrap();
 	curr_ships.insert((state.player.row, state.player.col), ship);
+
+    let mut w = Weather::new();
+    let ws = WeatherSystem::new(20, 20, 10, 0.8);
+    w.systems.push(ws);
+    let ws = WeatherSystem::new(45, 45, 15, 0.8);
+    w.systems.push(ws);
+    w.calc_clouds(state);
+    state.weather.insert(0, w);
 }
 
 fn find_location_for_land_monster(world_map: &Vec<Vec<Tile>>, 
@@ -1227,6 +1236,7 @@ fn place_cave(state: &mut GameState,
             state.npcs.insert(next_map_id, NPCTracker::new());
             items.insert(next_map_id, ItemsTable::new());
 			ships.insert(next_map_id, ShipsTable::new());
+            state.weather.insert(next_map_id, Weather::new());
         }
 
 		for _ in 0..3 {

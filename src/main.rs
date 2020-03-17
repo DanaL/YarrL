@@ -31,6 +31,7 @@ mod map;
 mod pathfinding;
 mod ship;
 mod util;
+mod weather;
 
 use serde::{Serialize, Deserialize};
 
@@ -41,6 +42,7 @@ use crate::items::{Item, ItemType, ItemsTable};
 use crate::map::Tile;
 use crate::pathfinding::find_path;
 use crate::ship::Ship;
+use crate::weather::Weather;
 
 use rand::Rng;
 
@@ -109,6 +111,7 @@ pub struct GameState {
 	note_count: u8,
 	springs_drunk: HashSet<(usize, usize)>,
 	vision_radius: u8,
+    weather: HashMap<u8, Weather>,
 }
 
 impl GameState {
@@ -130,7 +133,8 @@ impl GameState {
 			world_seen: HashSet::new(), pirate_lord: String::from(""),
 			player_ship: String::from(""), pirate_lord_ship: String::from(""),
 			starter_clue: 0, notes: HashMap::new(), note_count: 0,
-			springs_drunk: HashSet::new(), vision_radius: 3,
+			springs_drunk: HashSet::new(), vision_radius: 3, 
+            weather: HashMap::new(),
 		}
 	}
 

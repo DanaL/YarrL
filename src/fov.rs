@@ -21,6 +21,7 @@ use crate::map;
 use super::{GameState, Map};
 use crate::items::{ItemsTable, TileInfo};
 use crate::ship::Ship;
+use crate::weather::Weather;
 use super::{FOV_WIDTH, FOV_HEIGHT};
 
 // Kind of ugly by why recalculate these everytime?
@@ -94,11 +95,12 @@ fn radius_full() -> Vec<(i32, i32)> {
 // since they cover three tiles. Oh well! Just gotta get 7DRL done!
 // (That said, Rust doesn't really have objects which would make the crashRun
 // scheme complicated, I think)
-
 fn calc_actual_tile(r: usize, c: usize, map: &Map, 
-		npcs: &NPCTracker, items: &ItemsTable) -> map::Tile {
+		npcs: &NPCTracker, items: &ItemsTable, weather: &Weather) -> map::Tile {
 
-	if npcs.is_npc_at(r, c) {
+    if weather.clouds.contains(&(r, c)) {
+        map::Tile::Fog
+    } else if npcs.is_npc_at(r, c) {
 		let ti = npcs.tile_info(r, c);
 		map::Tile::Thing(ti.1, ti.0)
 	} else if items.count_at(r, c) > 0 {
@@ -127,9 +129,12 @@ fn calc_actual_tile(r: usize, c: usize, map: &Map,
 // blocking vision and I couldn't think of a simple way to do that with 
 // shadowcasting.
 fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, 
-		state: &mut GameState, items: &ItemsTable,
-		v_matrix: &mut Vec<map::Tile>, width: usize) {
+		state: &mut GameState, 
+		v_matrix: &mut Vec<bool>, 
+        width: usize) {
 	let curr_map = &state.map[&state.map_id];
+    let curr_weather = &state.weather[&state.map_id];
+
 	let mut r = r1;
 	let mut c = c1;
 	let mut error = 0;
@@ -166,15 +171,18 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 			let vm_r = r - r1 + 10;
 			let vm_c = c - c1 + 20;
             let vmi = (vm_r * width as i32 + vm_c) as usize;
-			v_matrix[vmi] = calc_actual_tile(r as usize, c as usize, curr_map, &state.npcs[&state.map_id], items);
+			v_matrix[vmi] = true;
 			state.world_seen.insert((r as usize, c as usize));
 
 			if !map::is_clear(&curr_map[r as usize][c as usize]) {
 				return;
 			}
 
-			// I want trees to not totally block light, but instead reduce visibility
-			if map::Tile::Tree == curr_map[r as usize][c as usize] && !(r == r1 && c == c1) {
+			// I want trees to not totally block light, but instead reduce visibility, but fog 
+            // completely blocks light.
+            if curr_weather.clouds.contains(&(r as usize, c as usize)) && !(r == r1 && c == c1) {
+                return;
+            } else if map::Tile::Tree == curr_map[r as usize][c as usize] && !(r == r1 && c == c1) {
 				if r_step > 0 {
 					r_end -= 3;
 				} else {
@@ -205,7 +213,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 			let vm_r = r - r1 + 10;
 			let vm_c = c - c1 + 20;
             let vmi = (vm_r * width as i32 + vm_c) as usize;
-			v_matrix[vmi] = calc_actual_tile(r as usize, c as usize, curr_map, &state.npcs[&state.map_id], items);
+			v_matrix[vmi] = true;
 			state.world_seen.insert((r as usize, c as usize));
 
 			if !map::is_clear(&curr_map[r as usize][c as usize]) {
@@ -213,8 +221,9 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 			}
 		
 			// Same as above, trees partially block vision instead of cutting it off
-			// altogether
-			if map::Tile::Tree == curr_map[r as usize][c as usize] && !(r == r1 && c == c1) {
+            if curr_weather.clouds.contains(&(r as usize, c as usize)) && !(r == r1 && c == c1) {
+                return;
+            } else if map::Tile::Tree == curr_map[r as usize][c as usize] && !(r == r1 && c == c1) {
 				if c_step > 0 {
 					c_end -= 3;
 				} else {
@@ -291,7 +300,7 @@ pub fn calc_v_matrix(
 		ships: &HashMap<(usize, usize), Ship>,
 		height: usize, width: usize) -> Vec<map::Tile> {
     let size = height * width;
-    let mut v_matrix = vec![map::Tile::Blank; size];
+    let mut visible = vec![false; size];
 	let fov_center_r = height / 2;
 	let fov_center_c = width / 2;
 
@@ -307,19 +316,37 @@ pub fn calc_v_matrix(
 		radius_full()
 	};
 
+    let pr = state.player.row as i32;
+    let pc = state.player.col as i32;
 	// Beamcast to all the points around the perimiter of the viewing
 	// area. For YarrL's fixed size FOV this seems to work just fine
 	// and cuts about a whole bunch of redundant looping and beam
 	// casting.
 	for loc in perimeter {
-		let actual_r = state.player.row as i32 + loc.0;
-		let actual_c = state.player.col as i32 + loc.1;
+		let actual_r = pr + loc.0;
+		let actual_c = pc + loc.1;
 
-		mark_visible(state.player.row as i32, state.player.col as i32,
-			actual_r as i32, actual_c as i32, state, items, &mut v_matrix, width);
+		mark_visible(pr, pc, actual_r as i32, actual_c as i32, state, &mut visible, width);
 	}
 
+    // Now we know which locations are actually visible from the player's loc, 
+    // figure out what tile should be shown
+    let mut v_matrix = vec![map::Tile::Blank; size];
 	let curr_map = &state.map[&state.map_id];
+    for r in 0..height {
+        for c in 0..width {
+            let j = r * width + c;
+            if visible[j] {
+                let row = pr - fov_center_r as i32 + r as i32;
+                let col = pc - fov_center_c as i32 + c as i32;
+                if map::in_bounds(&state.map[&state.map_id], row as i32, col as i32) {
+                    v_matrix[j] = calc_actual_tile(row as usize, col as usize, &state.map[&state.map_id], 
+                                                   &state.npcs[&state.map_id], items, &state.weather[&state.map_id]);
+                }
+            }
+        }
+    }
+
 	add_ships_to_v_matrix(curr_map, &mut v_matrix, ships, 
 			state.player.row, state.player.col, height, width);
 

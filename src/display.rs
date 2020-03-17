@@ -33,6 +33,7 @@ use sdl2::pixels::Color;
 
 pub static BLACK: (u8, u8, u8) = (0, 0, 0);
 pub static WHITE: (u8, u8, u8) = (255, 255, 255);
+pub static LIGHT_GREY: (u8, u8, u8) = (220, 220, 220);
 pub static GREY: (u8, u8, u8) = (136, 136, 136);
 pub static GREEN: (u8, u8, u8) = (144, 238, 144);
 pub static BROWN: (u8, u8, u8) = (150, 75, 0);
@@ -500,6 +501,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::Window(ch) => (*ch, tuple_to_sdl2_color(&BROWN)),
 			map::Tile::Spring => ('~', tuple_to_sdl2_color(&LIGHT_BLUE)),
             map::Tile::Portal(_) => ('Ո', tuple_to_sdl2_color(&GREY)),
+            map::Tile::Fog => ('#', tuple_to_sdl2_color(&LIGHT_GREY)),
 		};
 
 		ti
