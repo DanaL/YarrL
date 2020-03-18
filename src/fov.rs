@@ -264,12 +264,19 @@ fn add_ship(v_matrix: &mut Vec<map::Tile>,
     let bow_i = bow_row * width as i32 + bow_col;
     let aft_i = aft_row * width as i32 + aft_col;
     let v_len = v_matrix.len() as i32; 
-        
-	if bow_i > 0 && bow_i < v_len && v_matrix[bow_i as usize] != map::Tile::Blank {
-		v_matrix[bow_i as usize] = map::Tile::ShipPart(ship.bow_ch);
+       
+	/* Ship characters will cover terrain and items but not creatures */ 
+	if bow_i > 0 && bow_i < v_len { 
+		match v_matrix[bow_i as usize] {
+			map::Tile::Blank | map::Tile::Creature(_, _) => { /* do nothing */ },
+			_ => { v_matrix[bow_i as usize] = map::Tile::ShipPart(ship.bow_ch); },
+		}
 	} 
-	if aft_i > 0 && bow_i < v_len && v_matrix[aft_i as usize] != map::Tile::Blank {
-		v_matrix[aft_i as usize] = map::Tile::ShipPart(ship.aft_ch);
+	if aft_i > 0 && aft_i < v_len {
+		match v_matrix[aft_i as usize] {
+			map::Tile::Blank | map::Tile::Creature(_, _) => { /* do nothing */ },
+			_ => { v_matrix[aft_i as usize] = map::Tile::ShipPart(ship.aft_ch); },
+		}
 	} 
 }
 
