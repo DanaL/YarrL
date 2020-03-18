@@ -19,8 +19,12 @@
 use std::f32;
 use std::fs;
 
+use rand::Rng;
+
 use crate::dice::roll;
 use crate::items::Item;
+use crate::map;
+use super::{GameState, ShipsTable};
 
 #[derive(Debug)]
 pub struct NameSeeds {
@@ -150,6 +154,26 @@ pub fn sqs_adj(r0: usize, c0: usize, r1: usize, c1: usize) -> bool {
 	if x0 + 1 == x1 && y0 + 1 == y1 { return true; } 
 
 	false
+}
+
+pub fn rnd_empty_adj(state: &GameState, ships: &ShipsTable, row: i32, col: i32) -> Option<(usize, usize)> {
+    let mut options = Vec::new();
+
+    for r in -1..=1 {
+        for c in -1..=1 {
+            if map::in_bounds(&state.map[&state.map_id], row + r, col + c) &&
+                    super::sq_is_open(state, &ships, (row + r) as usize, (col + c) as usize) {
+                options.push((row + r, col + c));
+            }
+        }
+    }
+
+    if options.len() > 0 {
+        let j = rand::thread_rng().gen_range(0, options.len());
+        return Some((options[j].0 as usize, options[j].1 as usize));
+    }
+
+    None
 }
 
 pub fn dir_between_sqs(r0: usize, c0: usize, r1: usize, c1: usize) -> String {

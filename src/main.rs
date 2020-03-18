@@ -1238,6 +1238,33 @@ fn sail(state: &mut GameState, ships: &mut ShipsTable) -> Result<(), ExitReason>
 		} else if state.map[&state.map_id][ship.bow_row][ship.bow_col] != map::Tile::DeepWater {
 			ship_hit_land(state, &mut ship, ships)?;
 		}
+
+        // Check to see if the ship's bow hit anyone
+        if state.npcs[&state.map_id].is_npc_at(ship.bow_row, ship.bow_col) {
+
+            let mut npc = state.npcs.get_mut(&state.map_id)
+                                .unwrap()
+                                .npc_at(ship.bow_row, ship.bow_col)
+                                .unwrap();
+            let s = format!("Your ship hit a {}", npc.name);
+            state.write_msg_buff(&s);
+            
+            // The ship hit someone so try to bump them out of the way
+            match util::rnd_empty_adj(state, ships, ship.bow_row as i32, ship.bow_col as i32) {
+                Some(loc) => {
+                    let s = format!("The {} is shoved out of the way!", npc.name);
+                    state.write_msg_buff(&s);
+                    npc.row = loc.0;
+                    npc.col = loc.1;
+                    state.npcs.get_mut(&state.map_id).unwrap().update(npc, ship.bow_row, ship.bow_col);
+                },
+                None => { 
+                    let s = format!("The {} is crushed!", npc.name);
+                    state.write_msg_buff(&s);
+                    state.npcs.get_mut(&state.map_id).unwrap().remove(npc.id, npc.row, npc.col);
+                },
+            }
+        }
 	}
 
 	ships.insert((ship.row, ship.col), ship);
