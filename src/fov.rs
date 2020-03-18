@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License
 // along with YarrL.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::actor::NPCTracker;
 use crate::display::{WHITE, LIGHT_BLUE, BROWN};
@@ -21,6 +21,7 @@ use crate::map;
 use super::{GameState, Map};
 use crate::items::{ItemsTable, TileInfo};
 use crate::ship::Ship;
+use crate::util;
 use crate::weather::Weather;
 use super::{FOV_WIDTH, FOV_HEIGHT};
 
@@ -96,9 +97,10 @@ fn radius_full() -> Vec<(i32, i32)> {
 // (That said, Rust doesn't really have objects which would make the crashRun
 // scheme complicated, I think)
 fn calc_actual_tile(r: usize, c: usize, map: &Map, 
-		npcs: &NPCTracker, items: &ItemsTable, weather: &Weather) -> map::Tile {
+		npcs: &NPCTracker, items: &ItemsTable, weather: &Weather,
+            no_fog: &HashSet<(usize, usize)>) -> map::Tile {
 
-    if weather.clouds.contains(&(r, c)) {
+    if weather.clouds.contains(&(r, c)) && !no_fog.contains(&(r, c)) {
         map::Tile::Fog
     } else if npcs.is_npc_at(r, c) {
 		let ti = npcs.tile_info(r, c);
@@ -131,7 +133,8 @@ fn calc_actual_tile(r: usize, c: usize, map: &Map,
 fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32, 
 		state: &mut GameState, 
 		v_matrix: &mut Vec<bool>, 
-        width: usize) {
+        width: usize,
+        no_fog: &HashSet<(usize, usize)>) {
 	let curr_map = &state.map[&state.map_id];
     let curr_weather = &state.weather[&state.map_id];
 
@@ -180,7 +183,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 
 			// I want trees to not totally block light, but instead reduce visibility, but fog 
             // completely blocks light.
-            if curr_weather.clouds.contains(&(r as usize, c as usize)) && !(r == r1 && c == c1) {
+            if curr_weather.clouds.contains(&(r as usize, c as usize)) && !no_fog.contains(&(r as usize, c as usize)) {
                 return;
             } else if map::Tile::Tree == curr_map[r as usize][c as usize] && !(r == r1 && c == c1) {
 				if r_step > 0 {
@@ -221,7 +224,7 @@ fn mark_visible(r1: i32, c1: i32, r2: i32, c2: i32,
 			}
 		
 			// Same as above, trees partially block vision instead of cutting it off
-            if curr_weather.clouds.contains(&(r as usize, c as usize)) && !(r == r1 && c == c1) {
+            if curr_weather.clouds.contains(&(r as usize, c as usize)) && !no_fog.contains(&(r as usize, c as usize)) {
                 return;
             } else if map::Tile::Tree == curr_map[r as usize][c as usize] && !(r == r1 && c == c1) {
 				if c_step > 0 {
@@ -316,6 +319,23 @@ pub fn calc_v_matrix(
 		radius_full()
 	};
 
+    let mut no_fog = HashSet::new();
+    no_fog.insert((state.player.row - 1, state.player.col - 1));
+    no_fog.insert((state.player.row - 1, state.player.col));
+    no_fog.insert((state.player.row - 1, state.player.col + 1));
+    no_fog.insert((state.player.row, state.player.col - 1));
+    no_fog.insert((state.player.row, state.player.col));
+    no_fog.insert((state.player.row, state.player.col + 1));
+    no_fog.insert((state.player.row + 1, state.player.col - 1));
+    no_fog.insert((state.player.row + 1, state.player.col));
+    no_fog.insert((state.player.row + 1, state.player.col + 1));
+    if state.player.inventory.active_light_source() {
+        let pts = util::bresenham_circle(state.player.row as i32, state.player.col as i32, 2);
+        for pt in pts {
+            no_fog.insert((pt.0 as usize, pt.1 as usize));
+        }
+    }
+    
     let pr = state.player.row as i32;
     let pc = state.player.col as i32;
 	// Beamcast to all the points around the perimiter of the viewing
@@ -326,11 +346,13 @@ pub fn calc_v_matrix(
 		let actual_r = pr + loc.0;
 		let actual_c = pc + loc.1;
 
-		mark_visible(pr, pc, actual_r as i32, actual_c as i32, state, &mut visible, width);
+		mark_visible(pr, pc, actual_r as i32, actual_c as i32, state, &mut visible, width, &no_fog);
 	}
 
     // Now we know which locations are actually visible from the player's loc, 
-    // figure out what tile should be shown
+    // figure out what tile should be shown. no_fog is a set of squares to ignore
+    // fog in. (To make it slightly more difficult for the player to blunder into
+    // lava and so they can see neighbouring enemies)
     let mut v_matrix = vec![map::Tile::Blank; size];
 	let curr_map = &state.map[&state.map_id];
     for r in 0..height {
@@ -340,8 +362,12 @@ pub fn calc_v_matrix(
                 let row = pr - fov_center_r as i32 + r as i32;
                 let col = pc - fov_center_c as i32 + c as i32;
                 if map::in_bounds(&state.map[&state.map_id], row as i32, col as i32) {
-                    v_matrix[j] = calc_actual_tile(row as usize, col as usize, &state.map[&state.map_id], 
-                                                   &state.npcs[&state.map_id], items, &state.weather[&state.map_id]);
+                    v_matrix[j] = calc_actual_tile(row as usize, col as usize, 
+                                                   &state.map[&state.map_id], 
+                                                   &state.npcs[&state.map_id], 
+                                                   items, 
+                                                   &state.weather[&state.map_id],
+                                                   &no_fog);
                 }
             }
         }

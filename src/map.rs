@@ -92,7 +92,7 @@ pub fn in_bounds(map: &Vec<Vec<Tile>>, r: i32, c: i32) -> bool {
 pub fn is_clear(tile: &Tile) -> bool {
 	match tile {
 		Tile::Wall | Tile::Blank | Tile::Mountain | Tile::SnowPeak |
-			Tile::WoodWall | Tile::Fog => false,
+			Tile::WoodWall => false,
 		_ => true,
 	}
 }
