@@ -43,6 +43,7 @@ pub enum Tile {
 	SnowPeak,
 	Gate,
 	StoneFloor,
+	Creature((u8, u8, u8), char), // ie., NPC or item so far,
 	Thing((u8, u8, u8), char), // ie., NPC or item so far,
 	Separator,
 	ShipPart(char),

@@ -104,7 +104,7 @@ fn calc_actual_tile(r: usize, c: usize, map: &Map,
         map::Tile::Fog
     } else if npcs.is_npc_at(r, c) {
 		let ti = npcs.tile_info(r, c);
-		map::Tile::Thing(ti.1, ti.0)
+		map::Tile::Creature(ti.1, ti.0)
 	} else if items.count_at(r, c) > 0 {
 		let i = items.peek_top(r, c);
 		if !i.hidden {

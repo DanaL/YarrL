@@ -489,6 +489,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::SnowPeak => ('\u{039B}', tuple_to_sdl2_color(&WHITE)),
 			map::Tile::Lava => ('{', tuple_to_sdl2_color(&BRIGHT_RED)),
 			map::Tile::Gate => ('#', tuple_to_sdl2_color(&LIGHT_BLUE)),
+			map::Tile::Creature(color, ch) => (*ch, tuple_to_sdl2_color(color)),
 			map::Tile::Thing(color, ch) => (*ch, tuple_to_sdl2_color(color)),
 			map::Tile::Separator => ('|', tuple_to_sdl2_color(&WHITE)),
 			map::Tile::ShipPart(ch) => (*ch, tuple_to_sdl2_color(&BROWN)),
