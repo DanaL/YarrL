@@ -321,7 +321,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::ShowCharacterSheet;	
 						} else if val == "w" {
 							return Cmd::ToggleEquipment;
-						} else if val == " " || val == "." {
+						} else if val == "." {
 							return Cmd::Pass;
 						} else if val == "B" {
 							return Cmd::ToggleHelm;
