@@ -89,6 +89,39 @@ pub fn capitalize_word(word: &str) -> String {
     }
 }
 
+// Straight out of my old scientific computing textbook
+pub fn bresenham_circle(rc: i32, cc: i32, radius: i32) -> Vec<(i32, i32)> {
+	let mut pts = Vec::new();
+	let mut x = radius;
+	let mut y = 0;
+	let mut error = 0;
+
+	let mut sqrx_inc = 2 * radius - 1; 
+	let mut sqry_inc = 1;
+
+	while y <= x {
+		pts.push((rc + y, cc + x));
+		pts.push((rc + y, cc - x));
+		pts.push((rc - y, cc + x));
+		pts.push((rc - y, cc - x));
+		pts.push((rc + x, cc + y));
+		pts.push((rc + x, cc - y));
+		pts.push((rc - x, cc + y));
+		pts.push((rc - x, cc - y));
+	
+		y += 1;
+		error += sqry_inc;
+		sqry_inc += 2;
+		if error > x {
+			x -= 1;
+			error -= sqrx_inc;
+			sqrx_inc -= 2;
+		}	
+	}
+
+	pts
+}
+
 pub fn rnd_adj() -> (i32, i32) {
 	let x = roll(8, 1, 0);
 	if x == 1 { return (-1, -1); }

@@ -19,6 +19,7 @@ use rand::Rng;
 use serde::{Serialize, Deserialize};
 
 use crate::map::in_bounds;
+use crate::util::bresenham_circle;
 use super::GameState;
 
 // Currently, weather consists only of fog
@@ -39,15 +40,15 @@ impl Weather {
         self.clouds.clear();
     
         for s in &self.systems {
-            for _ in 0..250 {
-                let r = rand::thread_rng().gen_range(-s.radius, s.radius) + s.row as i32;
-                let c = rand::thread_rng().gen_range(-s.radius, s.radius) + s.col as i32;
-
-                let roll = rand::thread_rng().gen_range(0.0, 1.0);
-                if in_bounds(&state.map[&state.map_id], r, c) && roll <= s.intensity {
-                    self.clouds.insert((r as usize, c as usize));
-                }
-            }
+			for r in 1..=s.radius {
+				let pts = bresenham_circle(s.row as i32, s.col as i32, r);
+				for pt in pts {
+					let roll = rand::thread_rng().gen_range(0.0, 1.0);
+					if roll < s.intensity && in_bounds(&state.map[&state.map_id], pt.0, pt.1) {
+						self.clouds.insert((pt.0 as usize, pt.1 as usize));
+					}
+				}
+			}
         }
     }
 }

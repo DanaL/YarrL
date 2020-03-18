@@ -196,9 +196,9 @@ pub fn generate_world(state: &mut GameState,
 	curr_ships.insert((state.player.row, state.player.col), ship);
 
     let mut w = Weather::new();
-    let ws = WeatherSystem::new(20, 20, 10, 0.8);
+    let ws = WeatherSystem::new(20, 20, 15, 0.5);
     w.systems.push(ws);
-    let ws = WeatherSystem::new(45, 45, 15, 0.8);
+    let ws = WeatherSystem::new(45, 45, 20, 0.4);
     w.systems.push(ws);
     w.calc_clouds(state);
     state.weather.insert(0, w);
