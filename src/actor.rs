@@ -603,7 +603,7 @@ fn undead_boss_action(m: &mut Monster, state: &mut GameState,
 				else { state.write_msg_buff("Yer captain ain't done with ye, swab!"); }
 			}
 		}
-	} else if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
+	} else if sqs_adj(m.row, m.col, state.player.row, state.player.col) && !state.player.on_ship {
 		if super::attack_player(state, m) {
 			let s = format!("The {} claws at you!", m.name);
 			state.write_msg_buff(&s);
@@ -637,7 +637,7 @@ fn basic_undead_action(m: &mut Monster, state: &mut GameState,
 	}
 
 	// Otherwise they advance on the player if they are neaerby and attack them
-	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
+	if sqs_adj(m.row, m.col, state.player.row, state.player.col) && !state.player.on_ship {
 		if super::attack_player(state, m) {
 			let s = format!("The {} claws at you!", m.name);
 			state.write_msg_buff(&s);
@@ -678,7 +678,7 @@ fn basic_undead_action(m: &mut Monster, state: &mut GameState,
 fn basic_monster_action(m: &mut Monster, state: &mut GameState,
 							ships: &HashMap<(usize, usize), Ship>,
 							verb: &str) -> Result<(), super::ExitReason> {
-	if m.aware_of_player && sqs_adj(m.row, m.col, state.player.row, state.player.col) {
+	if m.aware_of_player && sqs_adj(m.row, m.col, state.player.row, state.player.col) && !state.player.on_ship {
 		if super::attack_player(state, m) {
 			let s = format!("The {} {} you!", m.name, verb);
 			state.write_msg_buff(&s);
@@ -797,7 +797,7 @@ fn pirate_action(m: &mut Monster, state: &mut GameState,
 		"his"
 	};
 
-	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
+	if sqs_adj(m.row, m.col, state.player.row, state.player.col) && !state.player.on_ship {
 		if super::attack_player(state, m) {
 			let s = format!("The {} slashes with {} cutlass!", m.name, pronoun);
 			state.write_msg_buff(&s);
@@ -945,7 +945,7 @@ fn merfolk_action(m: &mut Monster, state: &mut GameState) -> Result<(), super::E
 
 fn shark_action(m: &mut Monster, state: &mut GameState, ships: &HashMap<(usize, usize), Ship>) 
 													-> Result<(), super::ExitReason> {
-	if sqs_adj(m.row, m.col, state.player.row, state.player.col) {
+	if sqs_adj(m.row, m.col, state.player.row, state.player.col) && !state.player.on_ship {
 		if super::attack_player(state, m) {
 			state.write_msg_buff("The shark bites you!");
 			let dmg_roll = dice::roll(m.dmg, m.dmg_dice, m.dmg_bonus as i8);
