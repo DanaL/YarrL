@@ -1210,7 +1210,7 @@ fn sail(state: &mut GameState, ships: &mut ShipsTable) -> Result<(), ExitReason>
 			}
 		}
 
-		// after movement, if the wheel is turned, adjust the bearing /*
+		// after movement, if the wheel is turned, adjust the bearing 
 		if ship.wheel != 0 {
 			let mut new_bearing = ship.bearing as i8 + ship.wheel;
 			
@@ -1219,7 +1219,7 @@ fn sail(state: &mut GameState, ships: &mut ShipsTable) -> Result<(), ExitReason>
 			if new_bearing < 0 {
 				new_bearing = 16 + ship.wheel;
 			} else if new_bearing > 15 {
-				new_bearing = 0 + ship.wheel;
+				new_bearing %= 16;
 			}
 
 			ship.bearing = new_bearing as u8;
