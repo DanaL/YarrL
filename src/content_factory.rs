@@ -200,7 +200,7 @@ pub fn generate_world(state: &mut GameState,
     w.systems.push(ws);
     let ws = WeatherSystem::new(45, 45, 20, 0.4);
     w.systems.push(ws);
-    w.calc_clouds(state);
+    w.calc_clouds(&state.map[&0]);
     state.weather.insert(0, w);
 }
 

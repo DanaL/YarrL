@@ -1827,6 +1827,17 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 
 			// check for beached ships
 			check_drifting_ships(state, map_ships);
+
+			if state.turn % 89 == 0 {
+				let ids = state.weather.keys()
+						.map(|v| v.clone())
+						.collect::<Vec<u8>>();
+
+				for id in ids {
+					let map_id = state.map_id;
+					state.weather.get_mut(&id).unwrap().update(&state.map[&map_id]);
+				}
+			}
 		}
 	
 		let map_items = items.get(&state.map_id).unwrap();

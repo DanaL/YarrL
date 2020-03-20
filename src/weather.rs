@@ -18,13 +18,12 @@ use rand::Rng;
 
 use serde::{Serialize, Deserialize};
 
-use crate::map::in_bounds;
+use crate::map::{in_bounds, Tile};
 use crate::util::bresenham_circle;
-use super::GameState;
 
 // Currently, weather consists only of fog
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Weather {
     pub systems: Vec<WeatherSystem>,
     pub clouds: HashSet<(usize, usize)>,
@@ -35,8 +34,24 @@ impl Weather {
         Weather { systems:Vec::new(), clouds: HashSet::new() }
     }
 
-    // this is 100% temp/prototype code
-    pub fn calc_clouds(&mut self, state: &GameState) {
+	pub fn update(&mut self, map: &Vec<Vec<Tile>>) {
+		let mut updated = Vec::new();
+
+		while self.systems.len() > 0 {
+			let mut s = self.systems.pop().unwrap();
+			s.intensity -= 0.1;
+			s.radius -= 1;
+
+			if s.intensity > 0.05 && s.radius > 1 {
+				updated.push(s);
+			}
+		}
+
+		self.systems = updated;
+		self.calc_clouds(map);
+	}
+
+    pub fn calc_clouds(&mut self, map: &Vec<Vec<Tile>>) {
         self.clouds.clear();
     
         for s in &self.systems {
@@ -44,7 +59,7 @@ impl Weather {
 				let pts = bresenham_circle(s.row as i32, s.col as i32, r);
 				for pt in pts {
 					let roll = rand::thread_rng().gen_range(0.0, 1.0);
-					if roll < s.intensity && in_bounds(&state.map[&state.map_id], pt.0, pt.1) {
+					if roll < s.intensity && in_bounds(map, pt.0, pt.1) {
 						self.clouds.insert((pt.0 as usize, pt.1 as usize));
 					}
 				}
@@ -53,7 +68,7 @@ impl Weather {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct WeatherSystem { 
     row: usize,
     col: usize,
