@@ -62,14 +62,26 @@ pub struct SidebarInfo {
 	charmed: bool,
 	poisoned: bool,
 	drunkeness: u8,
+	weapon: Option<String>,
+	firearm: Option<String>,
 }
 
 impl SidebarInfo {
-	pub fn new(name: String, ac: u8, curr_hp: u8, max_hp: u8, 
-			wheel: i8, bearing: i8, turn: u32, charmed: bool,
-			poisoned: bool, drunkeness: u8) -> SidebarInfo {
-		SidebarInfo { name, ac, curr_hp, max_hp, wheel, bearing, turn,
-			charmed, poisoned, drunkeness }
+	pub fn new(name: String, ac: u8, curr_hp: u8, max_hp: u8, wheel: i8, bearing: i8, turn: u32, 
+			charmed: bool, poisoned: bool, drunkeness: u8, w: String, f: String) -> SidebarInfo {
+		let weapon = if w == "" {
+			None
+		} else {
+			Some(w)
+		};
+		let firearm = if f == "" {
+			None
+		} else {
+			Some(f)
+		};
+
+		SidebarInfo { name, ac, curr_hp, max_hp, wheel, bearing, turn, charmed, poisoned, drunkeness,
+			weapon, firearm }
 	}
 }
 
@@ -97,7 +109,7 @@ pub struct GameUI<'a, 'b> {
 impl<'a, 'b> GameUI<'a, 'b> {
 	pub fn init(font: &'b Font, sm_font: &'b Font) -> Result<GameUI<'a, 'b>, String> {
 		let (font_width, font_height) = font.size_of_char(' ').unwrap();
-		let screen_width_px = SCREEN_WIDTH * font_width;
+		let screen_width_px = SCREEN_WIDTH * font_width + 50;
 		let screen_height_px = SCREEN_HEIGHT * font_height;
 
 		let (sm_font_width, sm_font_height) = sm_font.size_of_char(' ').unwrap();
@@ -548,14 +560,14 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			.expect("Error copying to canvas!");
 	}
 
-	fn write_sidebar_line(&mut self, line: &str, start_x: i32, row: u32, colour: sdl2::pixels::Color) {
+	fn write_sidebar_line(&mut self, line: &str, start_x: i32, row: usize, colour: sdl2::pixels::Color) {
 		let surface = self.font.render(line)
 			.blended(colour)
 			.expect("Error rendering sidebar!");
 		let texture_creator = self.canvas.texture_creator();
 		let texture = texture_creator.create_texture_from_surface(&surface)
 			.expect("Error creating texture for sdebar!");
-		let rect = Rect::new(start_x, (self.font_height * row) as i32, 
+		let rect = Rect::new(start_x, (self.font_height * row as u32) as i32, 
 			line.len() as u32 * self.font_width, self.font_height);
 		self.canvas.copy(&texture, None, Some(rect))
 			.expect("Error copying sbi to canvas!");
@@ -576,6 +588,17 @@ impl<'a, 'b> GameUI<'a, 'b> {
 
 		let s = format!("Stamina: {}({})", sbi.curr_hp, sbi.max_hp);
 		self.write_sidebar_line(&s, fov_w, 3, white);
+
+		let mut line_num = 3;
+		if let Some(weapon) = &sbi.weapon {
+			line_num += 1;
+			self.write_sidebar_line(&weapon, fov_w, line_num, white);
+		}
+		if let Some(firearm) = &sbi.firearm {
+			line_num += 1;
+			self.write_sidebar_line(&firearm, fov_w, line_num, white);
+		}
+
 
 		let s = format!("Turn: {}", sbi.turn);
 		self.write_sidebar_line(&s, fov_w, 21, white);
@@ -615,27 +638,27 @@ impl<'a, 'b> GameUI<'a, 'b> {
 				_ => s.push_str(""),
 			}
 
-			self.write_sidebar_line(&s, fov_w, 5, brown);
+			self.write_sidebar_line(&s, fov_w, line_num + 2, brown);
 
 			let s = "      \\|/".to_string();
-			self.write_sidebar_line(&s, fov_w, 7, brown);
+			self.write_sidebar_line(&s, fov_w, line_num + 3, brown);
 			
 			let s = "      -o-".to_string();
-			self.write_sidebar_line(&s, fov_w, 8, brown);
+			self.write_sidebar_line(&s, fov_w, line_num + 4, brown);
 
 			let s = "      /|\\".to_string();
-			self.write_sidebar_line(&s, fov_w, 9, brown);
+			self.write_sidebar_line(&s, fov_w, line_num + 5, brown);
 
 			if sbi.wheel == 0 {
-				self.write_sq(6, FOV_WIDTH + 8, ('|', grey));
+				self.write_sq(line_num + 2, FOV_WIDTH + 8, ('|', grey));
 			} else if sbi.wheel == -1 {
-				self.write_sq(6, FOV_WIDTH + 7, ('\\', grey));
+				self.write_sq(line_num + 2, FOV_WIDTH + 7, ('\\', grey));
 			} else if sbi.wheel == 1 {
-				self.write_sq(6, FOV_WIDTH + 9, ('/', grey));
+				self.write_sq(line_num + 2, FOV_WIDTH + 9, ('/', grey));
 			} else if sbi.wheel == 2 {
-				self.write_sq(7, FOV_WIDTH + 9, ('-', grey));
+				self.write_sq(line_num + 3, FOV_WIDTH + 9, ('-', grey));
 			} else if sbi.wheel == -2 {
-				self.write_sq(7, FOV_WIDTH + 7, ('-', grey));
+				self.write_sq(line_num + 3, FOV_WIDTH + 7, ('-', grey));
 			}
 		}
 	}

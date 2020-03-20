@@ -150,9 +150,19 @@ impl GameState {
 			wheel = -1;
 		};
 
+		let w = match self.player.inventory.get_equiped_weapon() {
+			None => String::from(""),
+			Some(item) => util::capitalize_word(&item.name),
+		};
+
+		let f = match self.player.inventory.get_equiped_firearm() {
+			None => String::from(""),
+			Some(item) => util::capitalize_word(&item.name),
+		};
+
 		SidebarInfo::new(self.player.name.clone(), self.player.ac,
 			self.player.curr_stamina, self.player.max_stamina, wheel, bearing, self.turn,
-			self.player.charmed, self.player.poisoned, self.player.drunkeness)
+			self.player.charmed, self.player.poisoned, self.player.drunkeness, w, f)
 	}
 
 	pub fn write_msg_buff(&mut self, msg: &str) {
@@ -1373,7 +1383,8 @@ fn is_putting_on_airs(name: &str) -> bool {
 fn preamble(gui: &mut GameUI) -> (GameState, HashMap<u8, ItemsTable>, HashMap<u8, ShipsTable>, bool) {
 	let mut player_name: String;
 
-	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0, -1, -1, 0, false, false, 0);
+	let sbi = SidebarInfo::new("".to_string(), 0, 0, 0, -1, -1, 0, false, false, 0, String::from(""), 
+			String::from(""));
 	loop {
 		if let Some(name) = gui.query_user("Ahoy lubber, who be ye?", 15, &sbi) {
 			if name.len() > 0 {
