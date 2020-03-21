@@ -558,7 +558,7 @@ fn do_move(state: &mut GameState, items: &ItemsTable, ships: &ShipsTable, dir: &
 	let next_row = (state.player.row as i32 + mv.0) as usize;
 	let next_col = (state.player.col as i32 + mv.1) as usize;
 	let next_loc = (next_row, next_col);
-	let tile = &state.map[&state.map_id][next_row][next_col];
+	let tile = &state.map[&state.map_id][next_row][next_col].clone();
 	
 	if state.npcs[&state.map_id].is_npc_at(next_row, next_col) {
 		attack_npc(state, next_row, next_col, gui);
@@ -594,11 +594,14 @@ fn do_move(state: &mut GameState, items: &ItemsTable, ships: &ShipsTable, dir: &
 			},
 			map::Tile::OldFirePit => state.write_msg_buff("An old campsite! Rum runners? A castaway?"),
             map::Tile::Portal(_) => state.write_msg_buff("Where could this lead..."),
-			map::Tile::BoulderTrap(c, hidden, activated, (boulder_row, boulder_col)) => {
+			map::Tile::BoulderTrap(c, hidden, activated, b_loc, dir) => {
 				if !activated {
 					state.map.get_mut(&state.map_id).unwrap()[next_row][next_col] = 
-								map::Tile::BoulderTrap(*c, false, true, (*boulder_row, *boulder_col));
-					state.write_msg_buff("CLICK!");
+						map::Tile::BoulderTrap(*c, false, true, *b_loc, *dir);
+					state.write_msg_buff("CLICK! RUMBLE");
+					state.npcs.get_mut(&state.map_id)
+						.unwrap()
+						.new_boulder(b_loc.0, b_loc.1, *dir);
 				} else {
 					state.write_msg_buff("Click...but nothing else seems to happen.");
 				}
@@ -1587,7 +1590,9 @@ fn death(state: &mut GameState, src: String, gui: &mut GameUI) {
 	} else if src == "falling" {
 		lines.push(String::from("Ye took a nasty fall! But it's like they say: it don't be the fall"));
 		lines.push(String::from("what gets you, it be the landing..."));
-	} else  {
+	} else if src == "bboulder" {
+		lines.push(String::from("Crushed by a boulder!"));
+	} else {
 		let s = format!("Killed by a {}!", src);
 		lines.push(s);
 	}
@@ -1807,10 +1812,16 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 							let prev_r = npc.row;
 							let prev_c = npc.col;
 							npc.act(state, map_ships)?;
-
-							state.npcs.get_mut(&state.map_id)
-									.unwrap()
-									.update(npc, prev_r, prev_c);
+							println!("{} {}", npc.name, npc.killed);
+							if npc.killed {
+								state.npcs.get_mut(&state.map_id)
+										.unwrap()
+										.remove(npc.id, npc.row, npc.col);
+							} else {
+								state.npcs.get_mut(&state.map_id)
+										.unwrap()
+										.update(npc, prev_r, prev_c);
+							}
 						}
 					},
 					None => { continue; }

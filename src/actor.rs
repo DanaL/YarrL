@@ -227,6 +227,16 @@ impl NPCTracker {
         self.loc_index.contains_key(&(row, col))
     }
 
+	pub fn is_boulder_at(&self, row: usize, col: usize) -> bool {
+		let loc = (row, col);
+        if self.loc_index.contains_key(&loc) {
+            let id = self.loc_index.get(&loc).unwrap();
+            return self.npc_list[id].npc_type == NPCType::Boulder;
+        }
+
+        false
+	}
+
     pub fn all_npc_ids(&self) -> Vec<usize> {
         let ids = self.npc_list.keys()
             .map(|k| k.clone())
@@ -443,6 +453,17 @@ impl NPCTracker {
         self.npc_list.insert(id, b);
         self.loc_index.insert((row, col), id);
 	}
+
+	pub fn new_boulder(&mut self, row: usize, col: usize, dir: (i32, i32)) {
+        self.npc_id += 1;
+        let id = self.npc_id;
+		
+        let mut b = Monster::new(String::from("boulder"), id, NPCType::Boulder, 99, 255, '0', row, col, 
+			WHITE, 4, 8, 1, 2, 10);
+		b.dir = dir;
+        self.npc_list.insert(id, b);
+        self.loc_index.insert((row, col), id);
+	}
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
@@ -457,6 +478,7 @@ pub enum NPCType {
 	MaroonedPirate,
 	Castaway,
 	Rat,
+	Boulder, /* Work with me on this one... */
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -483,6 +505,8 @@ pub struct Monster {
 	pub voice_line: String,
 	pub minions: u8,
     pub boss: usize,
+	pub dir: (i32, i32),
+	pub killed: bool,
 }
 
 impl Monster {
@@ -491,7 +515,8 @@ impl Monster {
 		Monster { name, id, npc_type, ac, hp, symbol, row, col, color, hit_bonus, 
 			dmg, dmg_dice, dmg_bonus, special_dmg: String::from(""),
 			gender: 0, anchor: (0, 0), score, aware_of_player: false, hostile: true,
-			voice_line: String::from(""), minions: 0, boss: 0 }
+			voice_line: String::from(""), minions: 0, boss: 0 , dir: (0, 0),
+			killed: false }
 	}
 
 	// I'm sure life doesn't need to be this way, but got to figure out the
@@ -506,7 +531,9 @@ impl Monster {
 			NPCType::Boar => basic_monster_action(self, state, ships, "gores")?,
 			NPCType::Skeleton => basic_undead_action(self, state, ships)?,
 			NPCType::UndeadCaptain => undead_boss_action(self, state, ships)?,
-			NPCType::Snake | NPCType::Panther | NPCType::Rat =>basic_monster_action(self, state, ships, "bites")?,
+			NPCType::Snake | NPCType::Panther | NPCType::Rat => 
+					basic_monster_action(self, state, ships, "bites")?,
+			NPCType::Boulder => boulder_action(self, state, ships)?,
 		}
 
 		Ok(())
@@ -524,6 +551,7 @@ impl Monster {
 			},
 			NPCType::Merfolk => state.write_msg_buff("Come swim with us!"),
 			NPCType::Rat => state.write_msg_buff("Squeak!"),
+			NPCType::Boulder => state.write_msg_buff("Stony silence."),
 		}
 	}
 }
@@ -627,9 +655,39 @@ fn undead_boss_action(m: &mut Monster, state: &mut GameState,
 	Ok(())
 }
 
+fn boulder_action(b: &mut Monster, state: &mut GameState, 
+			ships: &HashMap<(usize, usize), Ship>) -> Result<(), super::ExitReason> {
+	/* All a boulder does is move until it hits something impassable */
+	for _ in 0..2 {
+		let mut next_r = (b.row as i32 + b.dir.0) as usize;
+		let mut next_c = (b.col as i32 + b.dir.1) as usize;
+		if map::is_passable(&state.map[&state.map_id][next_r][next_c]) {
+			b.row = next_r;
+			b.col = next_c;
+			if next_r == state.player.row && next_c == state.player.col {
+				state.write_msg_buff("The boulder hits you!");
+				let dmg_roll = dice::roll(10, 1, 20);
+				super::player_takes_dmg(&mut state.player, dmg_roll, "boulder")?;
+			}
+		}
+		else {
+			state.write_msg_buff("The boulder shatters!");
+			b.killed = true; 
+			break;
+		}
+
+		// Every third turn the boulder moves twice; it's a little faster than 
+		// the player
+		if state.turn % 3 != 0 {
+			break;
+		}
+	}
+
+	Ok(())
+}
+
 fn basic_undead_action(m: &mut Monster, state: &mut GameState,
-							ships: &HashMap<(usize, usize), Ship>
-							) -> Result<(), super::ExitReason> {
+			ships: &HashMap<(usize, usize), Ship>) -> Result<(), super::ExitReason> {
 
 	// Skeletons are slow, and miss every third turn
 	if state.turn % 3 == 0 {

@@ -58,7 +58,7 @@ pub enum Tile {
 	Spring,
     Portal((usize, usize, u8)),
     Fog,
-	BoulderTrap((u8, u8, u8), bool, bool, (usize, usize)),
+	BoulderTrap((u8, u8, u8), bool, bool, (usize, usize), (i32, i32)),
 }
 
 pub fn all_passable() -> HashSet<Tile> {

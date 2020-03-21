@@ -1232,7 +1232,7 @@ fn place_old_temple(state: &mut GameState,
 		for c in 1..=13 {
 			temple_map[1][c] = Tile::StoneFloor;
 		}
-		temple_map[1][10] = Tile::BoulderTrap(GREY, true, false, (1, 13));
+		temple_map[1][10] = Tile::BoulderTrap(GREY, true, false, (1, 13), (0, -1));
 		temple_map[1][1] = Tile::Portal((temple_loc.0, temple_loc.1, state.map_id));
         curr_map[temple_loc.0][temple_loc.1] = Tile::Portal((1, 1, next_map_id));
 

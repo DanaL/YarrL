@@ -383,14 +383,19 @@ pub fn calc_v_matrix(
 	add_ships_to_v_matrix(curr_map, &mut v_matrix, ships, 
 			state.player.row, state.player.col, height, width);
 
-    let fov_center_i = fov_center_r * width + fov_center_c;
-	if state.player.on_ship {
-		v_matrix[fov_center_i] = map::Tile::Player(BROWN);
-	} else if curr_map[state.player.row][state.player.col] == map::Tile::DeepWater
-			&& !ships.contains_key(&(state.player.row, state.player.col)) {
-		v_matrix[fov_center_i] = map::Tile::Player(LIGHT_BLUE);
-	} else {
-		v_matrix[fov_center_i] = map::Tile::Player(WHITE);
+	// This is where we insert the player into the view matrix. Normally the player token
+	// is always visible but when they are hit by a boulder, for comedic/dramatic effect
+	// I wanted the boulder to appear over top of them.
+	if !state.npcs.get(&state.map_id).unwrap().is_boulder_at(state.player.row, state.player.col) {
+		let fov_center_i = fov_center_r * width + fov_center_c;
+		if state.player.on_ship {
+			v_matrix[fov_center_i] = map::Tile::Player(BROWN);
+		} else if curr_map[state.player.row][state.player.col] == map::Tile::DeepWater
+				&& !ships.contains_key(&(state.player.row, state.player.col)) {
+			v_matrix[fov_center_i] = map::Tile::Player(LIGHT_BLUE);
+		} else {
+			v_matrix[fov_center_i] = map::Tile::Player(WHITE);
+		}
 	}
 
 	v_matrix

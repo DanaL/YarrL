@@ -515,7 +515,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::Spring => ('~', tuple_to_sdl2_color(&LIGHT_BLUE)),
             map::Tile::Portal(_) => ('Ո', tuple_to_sdl2_color(&GREY)),
             map::Tile::Fog => ('#', tuple_to_sdl2_color(&LIGHT_GREY)),
-			map::Tile::BoulderTrap(colour, hidden, _, _) => {
+			map::Tile::BoulderTrap(colour, hidden, _, _, _) => {
 				if *hidden {
 					('.', tuple_to_sdl2_color(colour))
 				} else {
