@@ -22,6 +22,7 @@ use rand::Rng;
 use super::{GameState, ItemsTable, ShipsTable};
 use crate::actor::NPCTracker;
 use crate::dice;
+use crate::display::GREY;
 use crate::items::Item;
 use crate::map;
 use crate::map::Tile;
@@ -231,6 +232,7 @@ fn create_island(state: &mut GameState,
 	let mut spring = false;
 	let mut skeleton_island = false;
     let mut has_cave = false;
+	let mut has_temple = true; 
 
 	if island_type < 0.5 {
 		// regular island
@@ -354,6 +356,10 @@ fn create_island(state: &mut GameState,
     if has_cave {
         place_cave(state, items, island_info, ships);
     }
+
+	if has_temple {
+		place_old_temple(state, items, island_info, ships);
+	}
 }
 
 fn get_pirate_lord() -> String {
@@ -1209,6 +1215,35 @@ fn find_cave_exit(cave_map: &Vec<Vec<Tile>>, length: usize, width: usize) -> (us
     (0, 0)
 }
 
+fn place_old_temple(state: &mut GameState,
+			items: &mut HashMap<u8, ItemsTable>,
+			island_info: &IslandInfo, 
+			ships: &mut HashMap<u8, ShipsTable>) {
+    let reachable = mountains_reachable_by_shore(&state.map[&state.map_id], island_info);
+    let next_map_id = state.map.len() as u8;
+    let curr_map = state.map.get_mut(&state.map_id).unwrap();
+	
+	if reachable.len() > 0 {
+        let temple_loc_id = rand::thread_rng().gen_range(0, reachable.len());
+        let temple_loc = reachable[temple_loc_id];
+        let mut temple_map = vec![vec![Tile::Wall; 15]; 3];
+		println!("temple loc: {:?}", temple_loc);
+		
+		for c in 1..=13 {
+			temple_map[1][c] = Tile::StoneFloor;
+		}
+		temple_map[1][10] = Tile::BoulderTrap(GREY, true, false, (1, 13));
+		temple_map[1][1] = Tile::Portal((temple_loc.0, temple_loc.1, state.map_id));
+        curr_map[temple_loc.0][temple_loc.1] = Tile::Portal((1, 1, next_map_id));
+
+		state.map.insert(next_map_id, temple_map);
+		state.npcs.insert(next_map_id, NPCTracker::new());
+		items.insert(next_map_id, ItemsTable::new());
+		ships.insert(next_map_id, ShipsTable::new());
+		state.weather.insert(next_map_id, Weather::new());
+	}
+}
+
 fn place_cave(state: &mut GameState, 
 			items: &mut HashMap<u8, ItemsTable>, 
 			island_info: &IslandInfo,
@@ -1222,9 +1257,7 @@ fn place_cave(state: &mut GameState,
     if reachable.len() > 0 {
         let cave_loc_id = rand::thread_rng().gen_range(0, reachable.len());
         let cave_loc = reachable[cave_loc_id];
-        curr_map[cave_loc.0][cave_loc.1] = Tile::Portal((cave_loc.0, cave_loc.1, 1));
         println!("{:?}", cave_loc);
-
         let mut cave_map = map::generate_cave(cave_width, cave_length);
 
         let exit = find_cave_exit(&cave_map, cave_length, cave_width);

@@ -491,7 +491,7 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::Tree => ('\u{03D9}', tuple_to_sdl2_color(&GREEN)),
 			map::Tile::Dirt => ('.', tuple_to_sdl2_color(&BROWN)),
 			map::Tile::Grass => ('\u{0316}', tuple_to_sdl2_color(&GREEN)),
-			map::Tile::Player(color) => ('@', tuple_to_sdl2_color(color)),
+			map::Tile::Player(colour) => ('@', tuple_to_sdl2_color(colour)),
 			map::Tile::Water => ('}', tuple_to_sdl2_color(&LIGHT_BLUE)),
 			map::Tile::DeepWater => ('}', tuple_to_sdl2_color(&BLUE)),
 			map::Tile::WorldEdge => ('}', tuple_to_sdl2_color(&BLUE)),
@@ -501,8 +501,8 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::SnowPeak => ('\u{039B}', tuple_to_sdl2_color(&WHITE)),
 			map::Tile::Lava => ('{', tuple_to_sdl2_color(&BRIGHT_RED)),
 			map::Tile::Gate => ('#', tuple_to_sdl2_color(&LIGHT_BLUE)),
-			map::Tile::Creature(color, ch) => (*ch, tuple_to_sdl2_color(color)),
-			map::Tile::Thing(color, ch) => (*ch, tuple_to_sdl2_color(color)),
+			map::Tile::Creature(colour, ch) => (*ch, tuple_to_sdl2_color(colour)),
+			map::Tile::Thing(colour, ch) => (*ch, tuple_to_sdl2_color(colour)),
 			map::Tile::Separator => ('|', tuple_to_sdl2_color(&WHITE)),
 			map::Tile::ShipPart(ch) => (*ch, tuple_to_sdl2_color(&BROWN)),
 			map::Tile::Shipwreck(ch, _) => (*ch, tuple_to_sdl2_color(&BROWN)),
@@ -515,6 +515,13 @@ impl<'a, 'b> GameUI<'a, 'b> {
 			map::Tile::Spring => ('~', tuple_to_sdl2_color(&LIGHT_BLUE)),
             map::Tile::Portal(_) => ('Ո', tuple_to_sdl2_color(&GREY)),
             map::Tile::Fog => ('#', tuple_to_sdl2_color(&LIGHT_GREY)),
+			map::Tile::BoulderTrap(colour, hidden, _, _) => {
+				if *hidden {
+					('.', tuple_to_sdl2_color(colour))
+				} else {
+					('^', tuple_to_sdl2_color(&WHITE))
+				}
+			},
 		};
 
 		ti

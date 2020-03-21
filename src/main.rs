@@ -594,6 +594,15 @@ fn do_move(state: &mut GameState, items: &ItemsTable, ships: &ShipsTable, dir: &
 			},
 			map::Tile::OldFirePit => state.write_msg_buff("An old campsite! Rum runners? A castaway?"),
             map::Tile::Portal(_) => state.write_msg_buff("Where could this lead..."),
+			map::Tile::BoulderTrap(c, hidden, activated, (boulder_row, boulder_col)) => {
+				if !activated {
+					state.map.get_mut(&state.map_id).unwrap()[next_row][next_col] = 
+								map::Tile::BoulderTrap(*c, false, true, (*boulder_row, *boulder_col));
+					state.write_msg_buff("CLICK!");
+				} else {
+					state.write_msg_buff("Click...but nothing else seems to happen.");
+				}
+			},
 			_ => {
 				if *start_tile == map::Tile::DeepWater && state.player.curr_stamina < 10 {
 					state.write_msg_buff("Whew, you stumble ashore.");
@@ -625,7 +634,6 @@ fn enter_portal(state: &mut GameState, items: &HashMap<u8, ItemsTable>,
             state.map_id = map_id;
             state.player.row = pr;
             state.player.col = pc;
-            
             let map_items = ItemsTable::new();
             gui.v_matrix = fov::calc_v_matrix(state, &map_items, ships, FOV_HEIGHT, FOV_WIDTH);
             let sbi = state.curr_sidebar_info();
@@ -1856,7 +1864,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 		let sbi = state.curr_sidebar_info();
 		gui.write_screen(&mut state.msg_buff, &sbi);
 		
-		state.msg_buff.drain(..);	
+		state.msg_buff.drain(..);
     }
 }
 
