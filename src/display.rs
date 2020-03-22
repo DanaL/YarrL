@@ -355,7 +355,9 @@ impl<'a, 'b> GameUI<'a, 'b> {
 							return Cmd::Chat;
 						} else if val == "U" {
                             return Cmd::Use;
-                        }
+                        } else if val == "?" {
+							return Cmd::Help;
+						}
 
 						if state.player.on_ship {
 							if val == "A" {

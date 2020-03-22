@@ -1,0 +1,18 @@
+YarrL 0.2,0 - a pirate roguelike
+
+~Movement in YarrL~
+
+When you are not steering your ship, movement (by default) is 
+done via the classic vi/rogue-style keys:
+
+             yu
+             hjkl
+             bn 
+
+These correspond to the cardinal points:
+
+           NW (y)  N (j) NE (u)
+              \     |    /
+         W (h)   -  @  -   E (l)
+              /     |    \
+           SW (n)  S (k) SE (m)

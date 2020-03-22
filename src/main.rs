@@ -91,6 +91,7 @@ pub enum Cmd {
     EnterPortal,
 	Chat,
     Use,
+	Help,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -1649,6 +1650,19 @@ fn attack_player(state: &mut GameState, npc: &Monster) -> bool {
 	do_ability_check(npc.hit_bonus, state.player.ac, 0)
 }
 
+fn show_help(gui: &mut GameUI) {
+	let mut lines = Vec::new();
+
+	let contents = fs::read_to_string("help.txt")
+        .expect("Unable to find help file!"); 	
+
+	for line in contents.split('\n') {
+		lines.push(String::from(line));
+	}
+
+	gui.write_long_msg(&lines, true);
+}
+
 fn prologue(state: &GameState, gui: &mut GameUI) {
 	let mut lines = Vec::new();
 	lines.push("Five days nigh you were looking for work in a seedy tavern near King's".to_string()); 
@@ -1784,6 +1798,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
                 Cmd::EnterPortal => enter_portal(state, items, map_ships, gui),
 				Cmd::Chat => chat_with_npc(state, gui),
                 Cmd::Use => use_item(state, gui),
+				Cmd::Help => show_help(gui),
 			}
 		}
 
@@ -1812,7 +1827,7 @@ fn run(gui: &mut GameUI, state: &mut GameState,
 							let prev_r = npc.row;
 							let prev_c = npc.col;
 							npc.act(state, map_ships)?;
-							println!("{} {}", npc.name, npc.killed);
+							
 							if npc.killed {
 								state.npcs.get_mut(&state.map_id)
 										.unwrap()
