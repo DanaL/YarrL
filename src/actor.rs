@@ -595,6 +595,35 @@ impl Monster {
 			false
 		}
 	}
+
+	pub fn treasure_drop(&self) -> Vec<Item> {
+		let mut treasure = Vec::new();
+
+		match self.npc_type {
+			NPCType::MaroonedPirate | NPCType::UndeadCaptain => {
+				for _ in 0..rand::thread_rng().gen_range(0, 6) {
+					treasure.push(Item::get_item("doubloon").unwrap());
+				}
+				for _ in 0..rand::thread_rng().gen_range(0, 3) {
+					treasure.push(Item::get_item("draught of rum").unwrap());
+				}
+				for _ in 0..rand::thread_rng().gen_range(0, 3) {
+					treasure.push(Item::get_item("lead ball").unwrap());
+				}
+			},
+			NPCType::Skeleton => {
+				/* Skeletons rarely have treasure, to prevent a player from farming them */
+				if rand::thread_rng().gen_range(0.0, 1.0) < 0.1 {
+					for _ in 0..rand::thread_rng().gen_range(1, 4) {
+						treasure.push(Item::get_item("doubloon").unwrap());
+					}
+				}
+			},
+			_ => { },
+		}
+		
+		treasure
+	}
 }
 
 fn find_adj_empty_sq(row: i32, col: i32, state: &GameState, 
