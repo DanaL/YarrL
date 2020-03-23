@@ -336,6 +336,17 @@ impl Inventory {
 		}
 	}
 
+	pub fn count_of_item(&self, name: &str) -> Option<(u8, char)> {
+		for s in self.inv.keys() {
+			let i = self.inv.get(s).unwrap();
+			if i.0.name == name {
+				return Some((i.1, *s));
+			}
+		}
+
+		None
+	}
+
 	pub fn add(&mut self, item: Item) {
 		if item.stackable {
 			// since the item is stackable, let's see if there's a stack we can add it to
@@ -524,6 +535,7 @@ pub enum ItemType {
 	Weapon,
 	Coat,
 	Hat,
+	Shoes,
 	Drink,
 	Firearm,
 	Bullet,
@@ -681,6 +693,11 @@ impl Item {
 				i.armour_value = 2;
 				Some(i)
 			},
+			"stout boots" => {
+				let mut i = Item::new(name, ItemType::Shoes, 2, false, '[', display::BROWN);
+				i.armour_value = 2;
+				Some(i)
+			},
 			"magic eye patch" => {
 				let mut i = Item::new(name, ItemType::EyePatch, 0, false, '[', display::BRIGHT_RED);
 				i.armour_value = 0;
@@ -702,7 +719,6 @@ impl Item {
 				i.range = 6;
 				Some(i)
 			},
-
 			"lead ball" => Some(Item::new(name, ItemType::Bullet, 1, true, '*', display::GREY)),
 			"doubloon" => Some(Item::new(name, ItemType::Coin, 1, true, '$', display::GOLD)),
 			"coconut" => {

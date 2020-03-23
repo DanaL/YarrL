@@ -595,7 +595,7 @@ fn do_move(state: &mut GameState, items: &ItemsTable, ships: &ShipsTable, dir: &
 			},
 			map::Tile::OldFirePit => state.write_msg_buff("An old campsite! Rum runners? A castaway?"),
             map::Tile::Portal(_) => state.write_msg_buff("Where could this lead..."),
-			map::Tile::BoulderTrap(c, hidden, activated, b_loc, dir) => {
+			map::Tile::BoulderTrap(c, _, activated, b_loc, dir) => {
 				if !activated {
 					state.map.get_mut(&state.map_id).unwrap()[next_row][next_col] = 
 						map::Tile::BoulderTrap(*c, false, true, *b_loc, *dir);
@@ -871,12 +871,63 @@ fn chat_with_npc(state: &mut GameState, gui: &mut GameUI) {
 	}
 
 	if npc.hostile {
-		npc.hostile_talk(state, gui);
+		npc.hostile_talk(state);
+	} else if npc.is_merchant() {
+		if let Some(i) = npc.for_sale.clone() {
+			let mut price = npc.price.1 as i8;
+			let currency = npc.price.0;
+			let verve_mod = Player::mod_for_stat(state.player.verve);
+			if verve_mod > 0 {
+				if price <= verve_mod {
+					price = 1;
+				} else {
+					price -= verve_mod;
+				}
+			}
+
+			let mut s = format!("Ahoy, matey! If ye fancy, I have a {} for sale! Just {} ", i.name, price);
+			if npc.price.0 == 0 {
+				s.push_str("doubloons. A deal?");
+			} else {
+				s.push_str("draughts of rum. A deal?");
+			}	
+			let sbi = state.curr_sidebar_info();
+			match gui.query_yes_no(&s, &sbi) {
+				'y' => sell_item(state, npc, i, price as u8, currency),
+				_ => state.write_msg_buff("Bah!"),
+			}
+		}
 	} else {
 		state.write_msg_buff(&npc.voice_line);
 	}
 
 	state.turn += 1;
+}
+
+fn sell_item(state: &mut GameState, mut npc: Monster, item: Item, price: u8, currency: u8) {
+	let currency_name = if currency == 0 {
+		"doubloon"
+	} else {
+		"draught of rum"
+	};
+
+	if let Some(i) = state.player.inventory.count_of_item(&currency_name) {
+		if i.0 < price {
+			state.write_msg_buff("Ye're looking a bit bereft, mate.");
+		} else {
+			state.write_msg_buff("Done and done!");
+			state.player.inventory.remove_count(i.1, price);
+			state.player.inventory.add(item);
+			let row = npc.row;
+			let col = npc.col;
+			npc.for_sale = None;
+			state.npcs.get_mut(&state.map_id)
+						.unwrap()
+						.update(npc, row, col);
+		}
+	} else {
+		state.write_msg_buff("Come back when ye can meet my price!");
+	}
 }
 
 fn read(state: &mut GameState, gui: &mut GameUI) {

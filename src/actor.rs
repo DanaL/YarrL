@@ -101,8 +101,12 @@ impl Player {
 		p.inventory.add(Item::get_item("rusty cutlass").unwrap());
 		p.inventory.add(Item::get_item("leather jerkin").unwrap());
 		p.inventory.add(Item::get_item("draught of rum").unwrap());
-		p.inventory.add(Item::get_item("draught of rum").unwrap());
-		p.inventory.add(Item::get_item("draught of rum").unwrap());
+		for _ in 0..15 {
+			p.inventory.add(Item::get_item("draught of rum").unwrap());
+		}
+		for _ in 0..15 {
+			p.inventory.add(Item::get_item("doubloon").unwrap());
+		}
 
 		p.inventory.add(Item::get_item("lantern").unwrap());
 		p.inventory.add(Item::get_item("flask of oil").unwrap());
@@ -151,9 +155,12 @@ impl Player {
 		p.inventory.add(Item::get_item("flintlock pistol").unwrap());
 		p.inventory.add(Item::get_item("overcoat").unwrap());
 		p.inventory.add(Item::get_item("battered tricorn").unwrap());
-		p.inventory.add(Item::get_item("draught of rum").unwrap());
-		p.inventory.add(Item::get_item("draught of rum").unwrap());
-		p.inventory.add(Item::get_item("draught of rum").unwrap());
+		for _ in 0..15 {
+			p.inventory.add(Item::get_item("draught of rum").unwrap());
+		}
+		for _ in 0..15 {
+			p.inventory.add(Item::get_item("doubloon").unwrap());
+		}
 		for _ in 0..12 {
 			p.inventory.add(Item::get_item("lead ball").unwrap());
 		}
@@ -363,6 +370,19 @@ impl NPCTracker {
         self.loc_index.insert((row, col), id);
 	}
 
+	fn get_item_for_sale() -> Option<Item> {
+		let roll = rand::thread_rng().gen_range(0, 3);
+		if roll == 0 {
+			return Item::get_item("flintlock pistol");
+		} else if roll == 1 {
+			return Item::get_item("lantern");
+		} else if roll == 2 {
+			return Item::get_item("stout boots");
+		}
+
+		None
+	}
+
 	pub fn new_castaway(&mut self, row: usize, col: usize, anchor: (usize, usize), voice_line: String) {
         self.npc_id += 1;
         let id = self.npc_id;
@@ -380,7 +400,18 @@ impl NPCTracker {
 			c.gender = 2;
 		};
 		c.hostile = false;
-	
+
+		// some castaways have an item to sell
+		//if rand:;thread_rng().gen_range(0.0, 1.0) < 0.33 {
+			c.for_sale = NPCTracker::get_item_for_sale();
+			if rand::thread_rng().gen_range(0, 2) == 0 {
+				// 0 is price is in doubloons, otherwise rum	
+				c.price = (0, rand::thread_rng().gen_range(3, 6));
+			} else {
+				c.price = (1, rand::thread_rng().gen_range(4, 8));
+			}
+		//}
+
         self.npc_list.insert(id, c);
         self.loc_index.insert((row, col), id);
 	}
@@ -466,7 +497,7 @@ impl NPCTracker {
 	}
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub enum NPCType {
 	Boar,
 	Shark,
@@ -481,7 +512,7 @@ pub enum NPCType {
 	Boulder, /* Work with me on this one... */
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Monster {
 	pub name: String,
     pub id: usize,
@@ -507,6 +538,8 @@ pub struct Monster {
     pub boss: usize,
 	pub dir: (i32, i32),
 	pub killed: bool,
+	pub for_sale: Option<Item>,
+	pub price: (u8, u8),
 }
 
 impl Monster {
@@ -516,7 +549,7 @@ impl Monster {
 			dmg, dmg_dice, dmg_bonus, special_dmg: String::from(""),
 			gender: 0, anchor: (0, 0), score, aware_of_player: false, hostile: true,
 			voice_line: String::from(""), minions: 0, boss: 0 , dir: (0, 0),
-			killed: false }
+			killed: false, for_sale: None, price: (0, 0) }
 	}
 
 	// I'm sure life doesn't need to be this way, but got to figure out the
@@ -539,7 +572,7 @@ impl Monster {
 		Ok(())
 	}
 
-	pub fn hostile_talk(&mut self, state: &mut GameState, gui: &mut GameUI) {
+	pub fn hostile_talk(&mut self, state: &mut GameState) {
 		match self.npc_type {
 			NPCType::Shark | NPCType::Snake |
 					NPCType::Skeleton => state.write_msg_buff("No response."),
@@ -552,6 +585,14 @@ impl Monster {
 			NPCType::Merfolk => state.write_msg_buff("Come swim with us!"),
 			NPCType::Rat => state.write_msg_buff("Squeak!"),
 			NPCType::Boulder => state.write_msg_buff("Stony silence."),
+		}
+	}
+
+	pub fn is_merchant(&self) -> bool {
+		if let Some(_) = self.for_sale {
+			true
+		} else {
+			false
 		}
 	}
 }
@@ -659,8 +700,8 @@ fn boulder_action(b: &mut Monster, state: &mut GameState,
 			ships: &HashMap<(usize, usize), Ship>) -> Result<(), super::ExitReason> {
 	/* All a boulder does is move until it hits something impassable */
 	for _ in 0..2 {
-		let mut next_r = (b.row as i32 + b.dir.0) as usize;
-		let mut next_c = (b.col as i32 + b.dir.1) as usize;
+		let next_r = (b.row as i32 + b.dir.0) as usize;
+		let next_c = (b.col as i32 + b.dir.1) as usize;
 		if map::is_passable(&state.map[&state.map_id][next_r][next_c]) {
 			b.row = next_r;
 			b.col = next_c;
