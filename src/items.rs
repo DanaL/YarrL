@@ -194,27 +194,28 @@ impl Inventory {
         String::from("You light the torch.")
     }
 
-	pub fn toggle_slot(&mut self, slot: char) -> String {
+	pub fn toggle_slot(&mut self, slot: char) -> (String, bool) {
 		if !self.inv.contains_key(&slot) {
-			return String::from("You do not have that item!");
+			return (String::from("You do not have that item!"), false);
 		}
 
 		let val = self.inv.get(&slot).unwrap();
 		let item = &val.0;
 
 		if !item.equipable() && item.item_type != ItemType::Light  {
-			return String::from("You cannot equip or use that!");
+			return (String::from("You cannot equip or use that!"), false);
 		}
 
 		if !item.equiped && self.type_already_equiped(item.item_type) {
-			return match item.item_type {
+			return (match item.item_type {
 				ItemType::Weapon => String::from("You are already holding a weapon."),
 				ItemType::Firearm => String::from("You are already holding a gun."),
 				ItemType::Hat => String::from("You are already wearing a hat."),
 				ItemType::Coat => String::from("You are already wearing a coat."),
 				ItemType::EyePatch => String::from("You are already wearing an eye patch."),
+				ItemType::Fetish => String::from("Ye can benefit from just one fetish at a time."),
 				_ => panic!("We shouldn't hit this option"),
-			};
+			}, false);
 		}
 
 		// Okay, at this point we are either toggling or untoggling the item so
@@ -225,12 +226,12 @@ impl Inventory {
 
         if item.item_type == ItemType::Light {
 			if item.fuel == 0 {
-				return format!("Your {} is out of fuel.", item.name);
+				return (format!("Your {} is out of fuel.", item.name), false);
 			}
 
             // I had to make things complicated and make torches stackable...
             if item.name == "torch" && val.1 > 1 {
-                return self.light_torch_from_stack(slot);
+                return (self.light_torch_from_stack(slot), true);
             }
 
             item.activated = !item.activated;
@@ -252,7 +253,7 @@ impl Inventory {
 
         s.push_str(&item.name);
         s.push('.');
-		s
+		(s, true)
 	}
 
 	pub fn find_ammo(&mut self) -> bool {
@@ -318,12 +319,12 @@ impl Inventory {
 		}
 	}
 
-	pub fn peek_at(&self, slot: char) -> Option<&Item> {
+	pub fn peek_at(&self, slot: char) -> Option<Item> {
 		if !self.inv.contains_key(&slot) {
 			None
 		} else {
 			let v = self.inv.get(&slot).unwrap();
-			Some(&v.0)
+			Some(v.0.clone())
 		}
 	}
 
@@ -547,6 +548,7 @@ pub enum ItemType {
 	MacGuffin,
     Light,
     Fuel,
+	Fetish,
 }
 
 // Cleaning up this struct and making it less of a dog's 
@@ -578,6 +580,7 @@ pub struct Item {
 	pub of_map_id: u8,
     pub activated: bool,
     pub fuel: u16,
+	pub stat_bonus: (u8, i8),
 }
 
 impl Item {
@@ -586,7 +589,8 @@ impl Item {
 			item_type, weight: w, symbol: sym, color, stackable, prev_slot: '\0',
 				dmg: 1, dmg_dice: 1, bonus: 0, range: 0, armour_value: 0, 
 				equiped: false, loaded: false, hidden: false, nw_corner: (0, 0),
-				x_coord: (0, 0), of_map_id: 0, activated: false, fuel: 0 }
+				x_coord: (0, 0), of_map_id: 0, activated: false, fuel: 0,
+				stat_bonus: (0, 0) }
 	}
 
 	pub fn get_indefinite_article(&self) -> String {
@@ -614,7 +618,7 @@ impl Item {
 	pub fn equipable(&self) -> bool {
 		match self.item_type {
 			ItemType::Weapon | ItemType::Coat | ItemType::Hat 
-				| ItemType::Firearm | ItemType::EyePatch => true,
+				| ItemType::Firearm | ItemType::EyePatch | ItemType::Fetish => true,
 			_ => false, 
 		}
 	}
@@ -664,6 +668,27 @@ impl Item {
 		}
 
 		s
+	}
+
+	fn fetish_name() -> String {
+		let roll = rand::thread_rng().gen_range(0, 7);
+		return if roll == 0 {
+			String::from("ugly fetish")
+		} else if roll == 1 {
+			String::from("smelly fetish")
+		} else if roll == 2 {
+			String::from("cloth fetish")
+		} else if roll == 3 {
+			String::from("bone fetish")
+		} else if roll == 4 {
+			String::from("seashell fetish")
+		} else if roll == 5 {
+			String::from("ivory fetish")
+		} else if roll == 6 {
+			String::from("wood fetish")
+		} else {
+			String::from("scrimshaw fetish")
+		};
 	}
 
 	pub fn get_item(name: &str) -> Option<Item> {
@@ -749,7 +774,12 @@ impl Item {
             "flask of oil" => {
 				let f = Item::new(name, ItemType::Fuel, 1, true, '!', display::YELLOW);
 				Some(f)
-            }
+            },
+			"fetish" => {
+				let mut f = Item::new(&Item::fetish_name(), ItemType::Fetish, 1, false, ';', display::YELLOW_ORANGE);
+				f.stat_bonus = (rand::thread_rng().gen_range(0, 4), 2);
+				Some(f)
+			},
 			_ => None,
 
 		}
@@ -762,6 +792,7 @@ impl Item {
 			match self.item_type {
 				ItemType::Weapon | ItemType::Firearm => s.push_str(" (in hand)"),
 				ItemType::Coat | ItemType::Hat | ItemType::EyePatch => s.push_str(" (being worn)"),
+				ItemType::Fetish => s.push_str(" (active)"),
 				_ => panic!("Should never hit this option..."),
 			}
 		}

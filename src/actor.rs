@@ -404,6 +404,7 @@ impl NPCTracker {
 		// some castaways have an item to sell
 		//if rand:;thread_rng().gen_range(0.0, 1.0) < 0.33 {
 			c.for_sale = NPCTracker::get_item_for_sale();
+			c.for_sale = Item::get_item("fetish");
 			if rand::thread_rng().gen_range(0, 2) == 0 {
 				// 0 is price is in doubloons, otherwise rum	
 				c.price = (0, rand::thread_rng().gen_range(3, 6));

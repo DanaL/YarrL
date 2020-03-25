@@ -841,8 +841,8 @@ fn use_item(state: &mut GameState, gui: &mut GameUI) {
 		Some(ch) => {
 			match state.player.inventory.item_type_in_slot(ch) {	
 				Some(ItemType::Light) => {
-                    let msg = state.player.inventory.toggle_slot(ch);
-                    state.write_msg_buff(&msg);
+                    let result = state.player.inventory.toggle_slot(ch);
+                    state.write_msg_buff(&result.0);
                     state.turn += 1;
 				},
 				Some(ItemType::Fuel) => {
@@ -1115,7 +1115,57 @@ fn toggle_equipment(state: &mut GameState, gui: &mut GameUI) {
 	match gui.query_single_response("Ready/unready what?", &sbi) {
 		Some(ch) => {
 			let result = state.player.inventory.toggle_slot(ch);
-			state.write_msg_buff(&result);
+			state.write_msg_buff(&result.0);
+
+			if result.1 {
+				let item = state.player.inventory.peek_at(ch).unwrap();
+				if item.stat_bonus != (0, 0) {
+					let modifier = if item.equiped {
+						item.stat_bonus.1
+					} else {
+						-1 * item.stat_bonus.1
+					};
+					
+					if item.stat_bonus.0 == 0 {
+						state.player.strength = (state.player.strength as i8 + modifier) as u8;
+						if modifier < 0 {
+							state.write_msg_buff("You feel a bit weaker.");
+						} else {
+							state.write_msg_buff("You feel a bit stronger.");
+						}
+					}
+					if item.stat_bonus.0 == 2 {
+						state.player.dexterity = (state.player.dexterity as i8 + modifier) as u8;
+						if modifier < 0 {
+							state.write_msg_buff("You feel a bit more klutzy.");
+						} else {
+							state.write_msg_buff("You feel a bit more deft.");
+						}
+						state.player.calc_ac();
+					}
+					if item.stat_bonus.0 == 1 {
+						state.player.constitution = (state.player.constitution as i8 + modifier) as u8;
+						if modifier < 0 {
+							state.write_msg_buff("You feel a little fatigued.");
+							state.player.max_stamina -= 10;
+							if state.player.curr_stamina > state.player.max_stamina {
+								state.player.curr_stamina = state.player.max_stamina;
+							}
+						} else {
+							state.write_msg_buff("You feel full of gusto.");
+							state.player.max_stamina += 10;
+						}
+					}
+					if item.stat_bonus.0 == 3 {
+						state.player.verve = (state.player.verve as i8 + modifier) as u8;
+						if modifier < 0 {
+							state.write_msg_buff("You feel a bit more bashful.");
+						} else {
+							state.write_msg_buff("You feel a bit more cheeky.");
+						}
+					}
+				}
+			}
 			state.turn += 1;
 		},
 		None => state.write_msg_buff("Nevermind."),
