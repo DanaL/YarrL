@@ -890,7 +890,7 @@ fn castaway_action(m: &mut Monster, state: &mut GameState,
 			let next_c = loc.1;
 
 			// The castaway won't wander too far from their campsite
-			if util::cartesian_d(m.row, m.col, next_r, next_c) < 4 {
+			if util::cartesian_d(m.anchor.0, m.anchor.1, next_r, next_c) < 3 {
 				m.row = next_r;
 				m.col = next_c;
 			}
