@@ -195,13 +195,23 @@ impl Player {
 	}
 
 	fn roll_stats(bonus: i8) -> Vec<u8> {
-		let mut v = Vec::new();
-	
-		for _ in 0..4 {
-			v.push(dice::roll(6, 3, bonus));
+		let mut v;
+
+		loop {
+			v = Vec::new();
+		
+			for _ in 0..4 {
+				v.push(dice::roll(6, 3, bonus));
+			}
+
+			let sum: u8 = v.iter().sum();
+			if sum > 32 {
+				break;
+			}
+
+			v.sort();
+			v.reverse();
 		}
-		v.sort();
-		v.reverse();
 
 		v
 	}
