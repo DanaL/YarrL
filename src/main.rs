@@ -987,6 +987,19 @@ fn search_sq(state: &mut GameState, items: &mut ItemsTable, row: usize, col: usi
 		return true;
 	} 
 
+	search_dc = 15;
+	match state.map[&state.map_id][row][col] {
+		Tile::BoulderTrap(colour, true, activated, loc, dir) => { 
+			if do_ability_check(0, search_dc, state.player.prof_bonus as i8) {
+				state.write_msg_buff("Uhoh, you spot a pressure plate!");
+				let curr_map = state.map.get_mut(&state.map_id).unwrap();
+				curr_map[row][col] = Tile::BoulderTrap(colour, false, activated, loc, dir);
+				return true;
+			}
+		},
+		_ => { /* No other hidden tile types yet */ },
+	}
+
 	false
 }
 
