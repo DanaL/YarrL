@@ -965,8 +965,8 @@ fn read(state: &mut GameState, gui: &mut GameUI) {
 	}
 }
 
-fn search(state: &mut GameState, items: &mut ItemsTable) {
-	let loc = (state.player.row, state.player.col);
+fn search_sq(state: &mut GameState, items: &mut ItemsTable, row: usize, col: usize) -> bool {
+	let loc = (row, col);
 
 	// For the final treasure type, a MacGuffin can only be found if the player
 	// is wearing the magic eye patch	
@@ -984,10 +984,27 @@ fn search(state: &mut GameState, items: &mut ItemsTable) {
 		// also should have a way to have harder to find things
 		state.write_msg_buff("You find a hidden cache!");
 		items.reveal_hidden(&loc);
-	} else if items.count_at(state.player.row, state.player.col) > 0 {
-		state.write_msg_buff("You find no secrets.");
-	} else {
-		state.write_msg_buff("You find nothing.");
+		return true;
+	} 
+
+	false
+}
+
+fn search(state: &mut GameState, items: &mut ItemsTable) {
+	let mut found_something = false;
+	for row in -1..=1 {
+		for col in -1..=1 {
+			let sq_r = (state.player.row as i32 + row) as usize;
+			let sq_c = (state.player.col as i32 + col) as usize;
+			
+			if search_sq(state, items, sq_r, sq_c) && !found_something {
+				found_something = true;
+			}
+		}
+	}
+
+	if !found_something {
+		state.write_msg_buff("You found nothing.");
 	}
 
 	state.turn += 1;
